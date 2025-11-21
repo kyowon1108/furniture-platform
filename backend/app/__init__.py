@@ -1,0 +1,1 @@
+"""Furniture Platform Backend Application."""
