@@ -30,6 +30,7 @@
 - [x] check_collision 함수
 - [x] check_boundary 함수
 - [x] validate_layout 함수
+- [x] PLY 변환 유틸리티 (Gaussian Splatting → RGB)
 
 ### API 엔드포인트
 - [x] POST /api/v1/auth/register
@@ -45,6 +46,9 @@
 - [x] GET /api/v1/projects/{id}/layouts
 - [x] POST /api/v1/projects/{id}/layouts/{layout_id}/restore
 - [x] POST /api/v1/validate
+- [x] POST /api/v1/files/upload (PLY 파일 업로드)
+- [x] GET /api/v1/files/{file_id} (파일 다운로드)
+- [x] DELETE /api/v1/files/{file_id} (파일 삭제)
 
 ### WebSocket 서버
 - [x] Socket.IO 서버 설정
@@ -189,6 +193,17 @@
 - [x] 복사/붙여넣기 (Ctrl+C/V)
 - [x] 종합 문서 (6개 가이드)
 
+## Milestone 4: PLY 파일 지원
+- [x] PLY 파일 업로드 API
+- [x] Gaussian Splatting 자동 감지
+- [x] SH 계수 → RGB 자동 변환
+- [x] Point Cloud → Mesh 자동 변환 (Ball Pivoting)
+- [x] 파일 크기 최적화 (Gaussian: 89% 감소)
+- [x] 매끄러운 표면 렌더링 (375K+ 면)
+- [x] 색상 복원 및 렌더링
+- [x] 변환 테스트 스크립트
+- [x] PLY 기능 문서화
+
 ---
 
 ## 문서화
@@ -254,11 +269,12 @@
 
 ## 최종 상태
 
-✅ **모든 3개 마일스톤 완료**
-✅ **28개 주요 기능 구현**
+✅ **모든 4개 마일스톤 완료**
+✅ **37개 주요 기능 구현**
+✅ **PLY 파일 완전 지원 (메쉬 생성 포함)**
 ✅ **프로덕션 준비 완료**
 ✅ **종합 문서화 완료**
 
-**총 파일**: 78개  
-**총 코드**: ~7,000줄  
-**총 문서**: ~3,000줄
+**총 파일**: 85개  
+**총 코드**: ~8,000줄  
+**총 문서**: ~4,000줄

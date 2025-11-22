@@ -20,7 +20,13 @@ class Project(Base):
     room_height = Column(Float, nullable=False)
     room_depth = Column(Float, nullable=False)
 
-    # PLY file support
+    # 3D file support (PLY or GLB)
+    has_3d_file = Column(Boolean, default=False, nullable=False)
+    file_type = Column(String, nullable=True)  # 'ply' or 'glb'
+    file_path = Column(String, nullable=True)
+    file_size = Column(Integer, nullable=True)  # bytes
+
+    # Legacy PLY support (for backward compatibility)
     has_ply_file = Column(Boolean, default=False, nullable=False)
     ply_file_path = Column(String, nullable=True)
     ply_file_size = Column(Integer, nullable=True)  # bytes

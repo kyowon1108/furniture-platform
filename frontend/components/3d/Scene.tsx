@@ -5,6 +5,7 @@ import { OrbitControls, Grid, Line, TransformControls } from '@react-three/drei'
 import { Furniture } from './Furniture';
 import { Room } from './Room';
 import { PlyModel } from './PlyModel';
+import { GlbModel } from './GlbModel';
 import { useEditorStore } from '@/store/editorStore';
 import { useToastStore } from '@/store/toastStore';
 import { socketService } from '@/lib/socket';
@@ -17,12 +18,16 @@ function SceneContent({
   projectId, 
   hasPlyFile, 
   plyFilePath,
-  roomDimensions 
+  fileType,
+  roomDimensions,
+  onRoomDimensionsChange
 }: { 
   projectId?: number; 
   hasPlyFile?: boolean; 
   plyFilePath?: string;
+  fileType?: 'ply' | 'glb' | null;
   roomDimensions?: { width: number; height: number; depth: number };
+  onRoomDimensionsChange?: (dims: { width: number; height: number; depth: number }) => void;
 }) {
   const furnitures = useEditorStore((state) => state.furnitures);
   const selectedIds = useEditorStore((state) => state.selectedIds);
@@ -495,14 +500,48 @@ function SceneContent({
 
   return (
     <>
-      <ambientLight intensity={lighting.ambient} />
+      {/* Strong ambient light for base illumination */}
+      <ambientLight intensity={0.8} />
+      
+      {/* Main directional light from above */}
       <directionalLight
-        position={lighting.position}
-        intensity={lighting.intensity}
-        color={lighting.color}
+        position={[0, 10, 0]}
+        intensity={2.0}
+        color="#ffffff"
         castShadow
         shadow-mapSize-width={2048}
         shadow-mapSize-height={2048}
+      />
+      
+      {/* Key light (main light source) */}
+      <directionalLight
+        position={[10, 10, 10]}
+        intensity={1.5}
+        color="#ffffff"
+      />
+      
+      {/* Fill lights from sides */}
+      <directionalLight
+        position={[-10, 5, 5]}
+        intensity={1.0}
+        color="#ffffff"
+      />
+      <directionalLight
+        position={[10, 5, -5]}
+        intensity={1.0}
+        color="#ffffff"
+      />
+      
+      {/* Back light */}
+      <directionalLight
+        position={[0, 5, -10]}
+        intensity={0.8}
+        color="#ffffff"
+      />
+      
+      {/* Hemisphere light for natural sky/ground lighting */}
+      <hemisphereLight
+        args={['#ffffff', '#888888', 1.0]}
       />
 
       <Grid
@@ -515,12 +554,20 @@ function SceneContent({
         sectionColor="#374151"
       />
 
-      {/* Show PLY model if available, otherwise show default room */}
-      {hasPlyFile && projectId ? (
+      {/* Show 3D model (PLY or GLB) if available, otherwise show default room */}
+      {projectId && fileType === 'glb' ? (
+        <GlbModel 
+          projectId={projectId} 
+          glbFilePath={plyFilePath}
+          roomDimensions={actualRoomDimensions}
+          onRoomDimensionsChange={onRoomDimensionsChange}
+        />
+      ) : projectId && (fileType === 'ply' || hasPlyFile) ? (
         <PlyModel 
           projectId={projectId} 
           plyFilePath={plyFilePath}
           roomDimensions={actualRoomDimensions}
+          onRoomDimensionsChange={onRoomDimensionsChange}
         />
       ) : (
         <Room roomDimensions={actualRoomDimensions} />
@@ -552,10 +599,11 @@ function SceneContent({
 
       <OrbitControls
         ref={orbitControlsRef}
+        target={new THREE.Vector3(0, 1, 0)}
         enableDamping
         dampingFactor={0.05}
         maxPolarAngle={Math.PI / 2}
-        minDistance={5}
+        minDistance={0.5}
         maxDistance={50}
       />
 
@@ -884,12 +932,16 @@ export function Scene({
   projectId, 
   hasPlyFile, 
   plyFilePath,
-  roomDimensions 
+  fileType,
+  roomDimensions,
+  onRoomDimensionsChange
 }: { 
   projectId?: number; 
   hasPlyFile?: boolean; 
   plyFilePath?: string;
+  fileType?: 'ply' | 'glb' | null;
   roomDimensions?: { width: number; height: number; depth: number };
+  onRoomDimensionsChange?: (dims: { width: number; height: number; depth: number }) => void;
 }) {
   const addFurniture = useEditorStore((state) => state.addFurniture);
 
@@ -949,19 +1001,24 @@ export function Scene({
       className="w-full h-screen"
     >
       <Canvas 
-        camera={{ position: [10, 10, 10], fov: 50 }} 
+        camera={{ position: [5, 5, 5], fov: 60 }} 
         shadows
         gl={{ 
           preserveDrawingBuffer: true,
           antialias: true,
-          alpha: true
+          alpha: true,
+          toneMapping: THREE.ACESFilmicToneMapping,
+          toneMappingExposure: 1.0,
+          outputColorSpace: THREE.SRGBColorSpace
         }}
       >
         <SceneContent 
           projectId={projectId} 
           hasPlyFile={hasPlyFile} 
           plyFilePath={plyFilePath}
+          fileType={fileType}
           roomDimensions={roomDimensions}
+          onRoomDimensionsChange={onRoomDimensionsChange}
         />
       </Canvas>
     </div>

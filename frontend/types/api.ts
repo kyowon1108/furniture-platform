@@ -20,6 +20,12 @@ export interface Project {
   room_width: number;
   room_height: number;
   room_depth: number;
+  // New 3D file support
+  has_3d_file?: boolean;
+  file_type?: 'ply' | 'glb';
+  file_path?: string;
+  file_size?: number;
+  // Legacy PLY support
   has_ply_file?: boolean;
   ply_file_path?: string;
   ply_file_size?: number;

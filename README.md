@@ -11,11 +11,16 @@
 - 자동 저장, 가구 카탈로그, 드래그 앤 드롭, PNG 내보내기, 한글 UI
 
 ### Milestone 3: 고급 기능 ✅
-- Undo/Redo, 측정 도구, 조명 시뮬레이션, 복사/붙여넣기, PLY 파일 업로드
+- Undo/Redo, 측정 도구, 조명 시뮬레이션, 복사/붙여넣기
+
+### Milestone 4: PLY 파일 지원 ✅
+- PLY 파일 업로드, Gaussian Splatting 자동 변환, 색상 복원, 파일 크기 최적화
 
 ## 📚 문서
 
 - **[FINAL_SUMMARY.md](FINAL_SUMMARY.md)** - 최종 완성 보고서 ⭐
+- **[AUTO_PLY_CONVERSION_COMPLETE.md](AUTO_PLY_CONVERSION_COMPLETE.md)** - PLY 자동 변환 기능 ⭐
+- **[PLY_FEATURE_GUIDE.md](PLY_FEATURE_GUIDE.md)** - PLY 파일 사용 가이드
 - **[docs/](docs/)** - 상세 개발 가이드 (6개 문서)
 - **[MILESTONE1.md](MILESTONE1.md)** - Milestone 1 상세
 - **[MILESTONE2.md](MILESTONE2.md)** - Milestone 2 상세
@@ -132,7 +137,38 @@ pytest tests/ -v
 5. If using PLY mode, select your PLY file
 6. Click "Create"
 
-### 3. Use the 3D Editor
+### 3. PLY File Support (NEW! 🎉)
+
+**What is PLY?**
+- PLY (Polygon File Format) is a 3D file format for storing scanned rooms
+- Supports both standard RGB colors and Gaussian Splatting format
+
+**Automatic Conversion:**
+- Upload any PLY file - no size limit!
+- Gaussian Splatting PLY files are automatically converted to RGB
+- Point clouds are automatically converted to smooth meshes
+- File size optimized (Gaussian: ~89% reduction, Mesh: ~2x increase for quality)
+- Colors are preserved and rendered correctly
+
+**Supported Formats:**
+- ✅ Standard RGB PLY (red, green, blue attributes)
+- ✅ Gaussian Splatting PLY (f_dc_*, f_rest_*, opacity, scale, rotation)
+- ✅ Point cloud PLY (vertices only) → Auto-converted to mesh
+- ✅ Mesh PLY (vertices + faces) → Ready to render
+
+**How to Use:**
+1. Create a new project
+2. Select "PLY File Upload" mode
+3. Choose your PLY file (any size)
+4. The system automatically:
+   - Detects the PLY format
+   - Converts Gaussian Splatting to RGB if needed
+   - Generates smooth mesh from point cloud (Ball Pivoting algorithm)
+   - Optimizes file size
+   - Extracts room dimensions
+5. Your room is ready with smooth surfaces and full color rendering!
+
+### 4. Use the 3D Editor
 
 **Navigation:**
 - Left mouse drag: Rotate camera
@@ -151,7 +187,7 @@ pytest tests/ -v
 - Ctrl+Click for multi-select
 - Drag to move (in translate mode)
 
-### 4. Real-time Collaboration
+### 5. Real-time Collaboration
 
 1. Open the same project in multiple browser windows
 2. Login with different accounts
@@ -172,9 +208,10 @@ pytest tests/ -v
 - `PUT /api/v1/projects/{id}` - Update project
 - `DELETE /api/v1/projects/{id}` - Delete project
 
-### Files
-- `POST /api/v1/files/upload-ply/{project_id}` - Upload PLY file
+### Files (PLY Support)
+- `POST /api/v1/files/upload-ply/{project_id}` - Upload PLY file (auto-converts Gaussian Splatting)
 - `GET /api/v1/files/ply/{project_id}` - Get PLY file info
+- `GET /api/v1/files/download-ply/{project_id}` - Download PLY file
 - `DELETE /api/v1/files/ply/{project_id}` - Delete PLY file
 
 ### Layouts

@@ -14,7 +14,9 @@ class ProjectBase(BaseModel):
     room_width: float
     room_height: float
     room_depth: float
-    has_ply_file: Optional[bool] = False
+    has_3d_file: Optional[bool] = False
+    file_type: Optional[str] = None  # 'ply' or 'glb'
+    has_ply_file: Optional[bool] = False  # Legacy support
 
 
 class ProjectCreate(ProjectBase):
@@ -38,8 +40,10 @@ class ProjectResponse(ProjectBase):
 
     id: int
     owner_id: int
-    ply_file_path: Optional[str] = None
-    ply_file_size: Optional[int] = None
+    file_path: Optional[str] = None
+    file_size: Optional[int] = None
+    ply_file_path: Optional[str] = None  # Legacy support
+    ply_file_size: Optional[int] = None  # Legacy support
     created_at: datetime
     updated_at: datetime
 

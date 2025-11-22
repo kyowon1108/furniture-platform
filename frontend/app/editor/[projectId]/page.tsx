@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useAuthStore } from '@/store/authStore';
 import { useEditorStore } from '@/store/editorStore';
@@ -28,6 +28,12 @@ export default function EditorPage() {
 
   const [isLoadingProject, setIsLoadingProject] = useState(true);
   const [projectData, setProjectData] = useState<any>(null);
+  const [roomDimensions, setRoomDimensions] = useState<{ width: number; height: number; depth: number } | undefined>(undefined);
+  
+  // Memoize the callback to prevent Scene from re-rendering
+  const handleRoomDimensionsChange = useCallback((dims: { width: number; height: number; depth: number }) => {
+    setRoomDimensions(dims);
+  }, []);
 
   // Initialize auth
   useEffect(() => {
@@ -53,12 +59,24 @@ export default function EditorPage() {
       setIsLoadingProject(true);
       const project = await projectsAPI.get(projectId);
       console.log('Loaded project data:', project);
-      console.log('PLY Info:', {
+      console.log('3D File Info:', {
+        has_3d_file: (project as any).has_3d_file,
+        file_type: (project as any).file_type,
+        file_path: (project as any).file_path,
+        file_size: (project as any).file_size,
+        // Legacy
         has_ply_file: project.has_ply_file,
         ply_file_path: project.ply_file_path,
         ply_file_size: project.ply_file_size
       });
       setProjectData(project);
+      
+      // Set initial room dimensions from project data
+      setRoomDimensions({
+        width: project.room_width,
+        height: project.room_height,
+        depth: project.room_depth
+      });
 
       // Load layout using store method
       await loadLayout(projectId);
@@ -111,13 +129,11 @@ export default function EditorPage() {
       <div className="flex-1 ml-80 relative">
         <Scene 
           projectId={projectId}
-          hasPlyFile={projectData?.has_ply_file}
-          plyFilePath={projectData?.ply_file_path}
-          roomDimensions={projectData ? {
-            width: projectData.room_width,
-            height: projectData.room_height,
-            depth: projectData.room_depth
-          } : undefined}
+          hasPlyFile={(projectData as any)?.has_3d_file || projectData?.has_ply_file}
+          plyFilePath={(projectData as any)?.file_path || projectData?.ply_file_path}
+          fileType={((projectData as any)?.file_type as 'ply' | 'glb' | null) || (projectData?.has_ply_file ? 'ply' : null)}
+          roomDimensions={roomDimensions}
+          onRoomDimensionsChange={handleRoomDimensionsChange}
         />
         <Toolbar />
         <MeasurePanel />
@@ -152,6 +168,37 @@ export default function EditorPage() {
                     H: <span style={{ color: 'var(--accent-primary)', fontWeight: '500' }}>{projectData.room_height || 0}</span> × 
                     D: <span style={{ color: 'var(--accent-primary)', fontWeight: '500' }}>{projectData.room_depth || 0}</span>
                   </div>
+                </div>
+                <div className="mt-2 pt-2" style={{ borderTop: '1px solid var(--border-color)' }}>
+                  <button
+                    onClick={async () => {
+                      if (!projectData.has_ply_file) {
+                        alert('이 프로젝트에는 PLY 파일이 없습니다.');
+                        return;
+                      }
+                      try {
+                        const { filesAPI } = await import('@/lib/api');
+                        const info = await filesAPI.getPlyInfo(projectId);
+                        console.log('========================================');
+                        console.log('🎨 PLY FILE INFO FROM BACKEND');
+                        console.log('========================================');
+                        console.log('Has Colors:', info.has_colors);
+                        console.log('Color Properties:', info.color_properties);
+                        console.log('All Properties:', info.all_properties);
+                        console.log('Color Samples:', info.color_samples);
+                        console.log('========================================');
+                        alert(`PLY Info:\nHas Colors: ${info.has_colors}\nColor Properties: ${info.color_properties.join(', ')}\nAll Properties: ${info.all_properties.join(', ')}\n\nCheck console for details!`);
+                      } catch (error: any) {
+                        console.error('Error getting PLY info:', error);
+                        alert(`Error: ${error.response?.data?.detail || error.message || 'Unknown error'}\n\nCheck console for details.`);
+                      }
+                    }}
+                    className="lighting-button text-xs w-full"
+                    style={{ padding: '0.5rem', marginTop: '0.5rem' }}
+                    disabled={!projectData.has_ply_file}
+                  >
+                    🔍 Check PLY Color Info
+                  </button>
                 </div>
               </>
             )}

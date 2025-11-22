@@ -115,6 +115,12 @@ def get_project(project_id: int, current_user: User = Depends(get_current_user),
         "room_width": project.room_width,
         "room_height": project.room_height,
         "room_depth": project.room_depth,
+        # New 3D file support
+        "has_3d_file": project.has_3d_file,
+        "file_type": project.file_type,
+        "file_path": project.file_path,
+        "file_size": project.file_size,
+        # Legacy PLY support
         "has_ply_file": project.has_ply_file,
         "ply_file_path": project.ply_file_path,
         "ply_file_size": project.ply_file_size,
@@ -171,6 +177,7 @@ def update_project(
 def delete_project(project_id: int, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     """
     Delete a project (cascades to layouts and history).
+    Also deletes associated uploaded files (PLY/GLB).
 
     Args:
         project_id: Project ID
@@ -180,6 +187,9 @@ def delete_project(project_id: int, current_user: User = Depends(get_current_use
     Raises:
         HTTPException: If project not found or access denied
     """
+    import os
+    from pathlib import Path
+
     project = db.query(Project).filter(Project.id == project_id).first()
 
     if not project:
@@ -188,7 +198,58 @@ def delete_project(project_id: int, current_user: User = Depends(get_current_use
     if project.owner_id != current_user.id:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not authorized to delete this project")
 
-    db.delete(project)
-    db.commit()
+    # Delete associated uploaded files
+    files_deleted = []
+    files_not_found = []
+
+    # Delete legacy PLY file if exists
+    if project.ply_file_path:
+        ply_path = Path(project.ply_file_path)
+        if ply_path.exists():
+            try:
+                os.remove(ply_path)
+                files_deleted.append(str(ply_path))
+                print(f"✅ Deleted PLY file: {ply_path}")
+            except Exception as e:
+                print(f"⚠️ Failed to delete PLY file {ply_path}: {e}")
+        else:
+            files_not_found.append(f"PLY: {ply_path}")
+            print(f"ℹ️ PLY file not found (already deleted or moved): {ply_path}")
+
+    # Delete 3D file (PLY or GLB) if exists
+    if project.file_path:
+        file_path = Path(project.file_path)
+        file_type_name = project.file_type.upper() if project.file_type else "3D"
+
+        if file_path.exists():
+            try:
+                os.remove(file_path)
+                files_deleted.append(str(file_path))
+                print(f"✅ Deleted {file_type_name} file: {file_path}")
+            except Exception as e:
+                print(f"⚠️ Failed to delete {file_type_name} file {file_path}: {e}")
+        else:
+            files_not_found.append(f"{file_type_name}: {file_path}")
+            print(f"ℹ️ {file_type_name} file not found (already deleted or moved): {file_path}")
+
+    # Delete project from database (cascades to layouts and history)
+    try:
+        db.delete(project)
+        db.commit()
+        print(f"✅ Project {project_id} deleted from database")
+    except Exception as e:
+        db.rollback()
+        print(f"❌ Failed to delete project {project_id} from database: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Failed to delete project: {str(e)}"
+        )
+
+    # Summary log
+    if files_deleted:
+        print(f"🗑️ Project {project_id} deletion complete: {len(files_deleted)} file(s) deleted")
+    elif files_not_found:
+        print(f"🗑️ Project {project_id} deletion complete: {len(files_not_found)} file(s) not found (already deleted)")
+    else:
+        print(f"🗑️ Project {project_id} deletion complete: no files to remove")
 
     return None

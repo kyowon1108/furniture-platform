@@ -79,7 +79,16 @@ async def upload_ply_file(
         if vertex_count == 0:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid PLY file: no vertices found")
 
-        # Move to final location
+        # Check if conversion is needed
+        from app.utils.ply_converter import (
+            convert_gaussian_to_rgb,
+            has_standard_colors,
+            is_gaussian_splatting_ply,
+        )
+
+        needs_conversion = is_gaussian_splatting_ply(ply_data) and not has_standard_colors(ply_data)
+
+        # Prepare final path
         final_filename = f"project_{project_id}_{file.filename}"
         final_path = PLY_DIR / final_filename
 
@@ -87,7 +96,24 @@ async def upload_ply_file(
         if project.ply_file_path and os.path.exists(project.ply_file_path):
             os.remove(project.ply_file_path)
 
-        shutil.move(str(temp_path), str(final_path))
+        if needs_conversion:
+            print(f"🔄 Converting Gaussian Splatting PLY to RGB for project {project_id}")
+            conversion_result = convert_gaussian_to_rgb(str(temp_path), str(final_path))
+
+            if not conversion_result["success"]:
+                raise HTTPException(
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    detail=f"Failed to convert PLY: {conversion_result['message']}",
+                )
+
+            print(f"✅ Conversion successful: {conversion_result['message']}")
+
+            # Clean up temp file
+            if temp_path.exists():
+                os.remove(temp_path)
+        else:
+            # No conversion needed, just move the file
+            shutil.move(str(temp_path), str(final_path))
 
         # Update project in database
         project.has_ply_file = True
@@ -97,11 +123,23 @@ async def upload_ply_file(
         db.commit()
         db.refresh(project)
 
+        # Check for color properties
+        vertex_element = ply_data["vertex"]
+        has_colors = any(prop in vertex_element.data.dtype.names for prop in ["red", "green", "blue", "r", "g", "b"])
+        color_properties = [
+            prop
+            for prop in vertex_element.data.dtype.names
+            if prop in ["red", "green", "blue", "r", "g", "b", "diffuse_red", "diffuse_green", "diffuse_blue"]
+        ]
+
         return {
             "message": "PLY file uploaded successfully",
             "filename": final_filename,
             "file_size": len(file_content),
             "vertex_count": vertex_count,
+            "has_colors": has_colors,
+            "color_properties": color_properties,
+            "all_properties": list(vertex_element.data.dtype.names),
             "project_id": project_id,
         }
 
@@ -158,6 +196,70 @@ async def get_ply_file(project_id: int, current_user: User = Depends(get_current
         "file_size": project.ply_file_size,
         "project_id": project_id,
     }
+
+
+@router.get("/ply-info/{project_id}")
+async def get_ply_info(
+    project_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """
+    Get PLY file information including color properties.
+    """
+    # Get project
+    project = db.query(Project).filter(Project.id == project_id).first()
+    if not project:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Project not found")
+
+    # Check ownership
+    if project.owner_id != current_user.id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not authorized to access this project")
+
+    if not project.has_ply_file or not project.ply_file_path:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No PLY file found for this project")
+
+    if not os.path.exists(project.ply_file_path):
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="PLY file not found on disk")
+
+    try:
+        # Read PLY file
+        ply_data = PlyData.read(project.ply_file_path)
+        vertex_element = ply_data["vertex"]
+
+        # Get all property names
+        all_properties = list(vertex_element.data.dtype.names)
+
+        # Check for color properties
+        color_properties = [
+            prop
+            for prop in all_properties
+            if prop in ["red", "green", "blue", "r", "g", "b", "diffuse_red", "diffuse_green", "diffuse_blue", "alpha"]
+        ]
+        has_colors = len(color_properties) >= 3
+
+        # Sample color values if available
+        color_samples = []
+        if has_colors:
+            for i in range(min(5, len(vertex_element.data))):
+                sample = {}
+                for prop in color_properties:
+                    sample[prop] = int(vertex_element.data[prop][i])
+                color_samples.append(sample)
+
+        return {
+            "project_id": project_id,
+            "vertex_count": len(vertex_element.data),
+            "has_colors": has_colors,
+            "color_properties": color_properties,
+            "all_properties": all_properties,
+            "color_samples": color_samples,
+            "file_size": project.ply_file_size,
+        }
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Error reading PLY file: {str(e)}"
+        )
 
 
 @router.get("/download-ply/{project_id}")

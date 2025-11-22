@@ -1,10 +1,11 @@
 'use client';
 
-import { useEffect, useRef, useState, Suspense } from 'react';
+import { useEffect, useRef, useState, Suspense, useMemo, memo } from 'react';
 import { useLoader, useThree } from '@react-three/fiber';
 import * as THREE from 'three';
 import { Html } from '@react-three/drei';
 import { PLYLoader } from 'three/addons/loaders/PLYLoader.js';
+import { applyAxisCorrectionToGeometry } from '@/lib/axisUtils';
 
 interface PlyModelProps {
   projectId: number;
@@ -14,9 +15,10 @@ interface PlyModelProps {
     height: number;
     depth: number;
   };
+  onRoomDimensionsChange?: (dims: { width: number; height: number; depth: number }) => void;
 }
 
-function PlyGeometry({ url, roomDimensions, onDimensionsDetected }: { 
+const PlyGeometry = memo(function PlyGeometry({ url, roomDimensions, onDimensionsDetected }: { 
   url: string;
   roomDimensions?: { width: number; height: number; depth: number };
   onDimensionsDetected?: (dims: { width: number; height: number; depth: number }) => void;
@@ -24,12 +26,169 @@ function PlyGeometry({ url, roomDimensions, onDimensionsDetected }: {
   const meshRef = useRef<THREE.Mesh>(null);
   const [geometry, setGeometry] = useState<THREE.BufferGeometry | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
+  
+  // Use refs to access latest props without triggering re-renders
+  const roomDimensionsRef = useRef(roomDimensions);
+  const onDimensionsDetectedRef = useRef(onDimensionsDetected);
+  
+  // Update refs when props change (doesn't trigger re-render)
+  useEffect(() => {
+    roomDimensionsRef.current = roomDimensions;
+    onDimensionsDetectedRef.current = onDimensionsDetected;
+  }, [roomDimensions, onDimensionsDetected]);
+
+  const processGeometry = (loadedGeometry: THREE.BufferGeometry) => {
+    console.log('========================================');
+    console.log('🎨 PLY LOADED - DETAILED ANALYSIS');
+    console.log('========================================');
+    console.log('Geometry:', loadedGeometry);
+    console.log('Attributes:', Object.keys(loadedGeometry.attributes));
+    console.log('Has index (faces):', loadedGeometry.index !== null);
+    if (loadedGeometry.index) {
+      console.log('✅ MESH DETECTED - Has face indices!');
+      console.log('Index count:', loadedGeometry.index.count);
+      console.log('Face count (triangles):', loadedGeometry.index.count / 3);
+      console.log('Index array sample:', loadedGeometry.index.array.slice(0, 9));
+    } else {
+      console.log('❌ NO FACES - This is a point cloud');
+    }
+    
+    // Analyze all attributes
+    for (const [name, attr] of Object.entries(loadedGeometry.attributes)) {
+      console.log(`Attribute "${name}":`, {
+        count: attr.count,
+        itemSize: attr.itemSize,
+        normalized: attr.normalized,
+        type: attr.array.constructor.name,
+        sample: attr.itemSize === 3 ? [attr.getX(0), attr.getY(0), attr.getZ(0)] : [attr.getX(0)]
+      });
+    }
+    
+    // Center the geometry
+    loadedGeometry.computeBoundingBox();
+    if (loadedGeometry.boundingBox) {
+      const center = new THREE.Vector3();
+      loadedGeometry.boundingBox.getCenter(center);
+      const size = new THREE.Vector3();
+      loadedGeometry.boundingBox.getSize(size);
+      
+      console.log('Bounding Box:', {
+        min: loadedGeometry.boundingBox.min,
+        max: loadedGeometry.boundingBox.max,
+        center: center,
+        size: size
+      });
+      
+      // Center on X and Z axes, but align bottom to Y=0
+      // Don't center Y axis - instead move the bottom (min.y) to origin
+      loadedGeometry.translate(-center.x, -loadedGeometry.boundingBox.min.y, -center.z);
+      console.log('Centered on XZ, bottom aligned to Y=0');
+      
+      // Apply axis correction BEFORE computing normals
+      const detectedOrientation = applyAxisCorrectionToGeometry(loadedGeometry);
+      console.log('Applied axis correction to PLY geometry:', detectedOrientation);
+      
+      // Recompute bounding box after rotation
+      loadedGeometry.computeBoundingBox();
+      if (loadedGeometry.boundingBox) {
+        const rotatedCenter = new THREE.Vector3();
+        loadedGeometry.boundingBox.getCenter(rotatedCenter);
+        const rotatedSize = new THREE.Vector3();
+        loadedGeometry.boundingBox.getSize(rotatedSize);
+        
+        console.log('After rotation:', {
+          size: rotatedSize,
+          center: rotatedCenter,
+          min: loadedGeometry.boundingBox.min,
+          max: loadedGeometry.boundingBox.max
+        });
+        
+        // Re-center on X and Z axes after rotation, keep bottom at Y=0
+        loadedGeometry.translate(-rotatedCenter.x, -loadedGeometry.boundingBox.min.y, -rotatedCenter.z);
+        console.log('Re-centered on XZ after rotation, bottom at Y=0');
+        
+        // Update inferred dimensions with rotated size
+        // Add 20% padding to make the room slightly larger than the model
+        const currentRoomDims = roomDimensionsRef.current;
+        const currentCallback = onDimensionsDetectedRef.current;
+        
+        if (currentRoomDims && 
+            currentRoomDims.width === 0 && 
+            currentRoomDims.height === 0 && 
+            currentRoomDims.depth === 0 &&
+            currentCallback) {
+          const padding = 1.2; // 20% larger
+          const inferredDims = {
+            width: Math.abs(rotatedSize.x) * padding,
+            height: Math.abs(rotatedSize.y) * padding,
+            depth: Math.abs(rotatedSize.z) * padding
+          };
+          console.log('Inferred room dimensions from PLY (after rotation, with padding):', inferredDims);
+          currentCallback(inferredDims);
+        }
+      }
+    }
+    
+    // Compute normals for proper lighting (after axis correction)
+    if (!loadedGeometry.attributes.normal) {
+      loadedGeometry.computeVertexNormals();
+    }
+    
+    // Handle vertex colors
+    console.log('========================================');
+    console.log('🎨 COLOR PROCESSING');
+    console.log('========================================');
+    
+    if (loadedGeometry.attributes.color) {
+      const colors = loadedGeometry.attributes.color;
+      console.log('✅ Standard color attribute EXISTS');
+      
+      // Check if normalization is needed
+      const maxValue = Math.max(
+        ...Array.from(colors.array).slice(0, Math.min(100, colors.array.length))
+      );
+      
+      if (maxValue > 1.0) {
+        console.log('🔄 NORMALIZING colors from 0-255 to 0-1');
+        const colorArray = colors.array;
+        for (let i = 0; i < colorArray.length; i++) {
+          colorArray[i] = colorArray[i] / 255.0;
+        }
+        colors.needsUpdate = true;
+      }
+    } else {
+      console.log('❌ NO color attribute found!');
+    }
+    
+    console.log('========================================');
+    
+    setGeometry(loadedGeometry);
+  };
 
   useEffect(() => {
+    // Only load once when URL changes, not when roomDimensions or callbacks change
+    if (!url) return;
+    
     const loadPLY = async () => {
       try {
         const token = localStorage.getItem('token');
         console.log('Loading PLY from:', url);
+        
+        // Try custom parser first (better face support)
+        try {
+          console.log('🔧 Attempting custom PLY parser (better face support)...');
+          const { parsePLYWithFaces } = await import('@/lib/plyParser');
+          const loadedGeometry = await parsePLYWithFaces(url, token || '');
+          
+          console.log('✅ Custom parser succeeded!');
+          processGeometry(loadedGeometry);
+          return;
+        } catch (customError) {
+          console.warn('⚠️ Custom parser failed, falling back to PLYLoader:', customError);
+        }
+        
+        // Fallback to standard PLYLoader
+        console.log('🔄 Using standard PLYLoader...');
         
         // Fetch the PLY file with authentication
         const response = await fetch(url, {
@@ -47,57 +206,19 @@ function PlyGeometry({ url, roomDimensions, onDimensionsDetected }: {
         
         // Load the PLY from blob URL
         const loader = new PLYLoader();
+        
+        // IMPORTANT: We need to parse the PLY file manually to get custom attributes
+        // PLYLoader only loads standard attributes (position, normal, color, uv)
+        // For Gaussian Splatting attributes (f_dc_*, f_rest_*, etc), we need custom parsing
+        
         loader.load(
           blobUrl,
           (loadedGeometry: THREE.BufferGeometry) => {
-            console.log('PLY loaded successfully:', loadedGeometry);
-            
             // Clean up blob URL
             URL.revokeObjectURL(blobUrl);
             
-            // Center the geometry
-            loadedGeometry.computeBoundingBox();
-            if (loadedGeometry.boundingBox) {
-              const center = new THREE.Vector3();
-              loadedGeometry.boundingBox.getCenter(center);
-              const size = new THREE.Vector3();
-              loadedGeometry.boundingBox.getSize(size);
-              
-              console.log('PLY Bounding Box:', {
-                min: loadedGeometry.boundingBox.min,
-                max: loadedGeometry.boundingBox.max,
-                center: center,
-                size: size
-              });
-              
-              // If room dimensions are all 0, infer from PLY
-              if (roomDimensions && 
-                  roomDimensions.width === 0 && 
-                  roomDimensions.height === 0 && 
-                  roomDimensions.depth === 0 &&
-                  onDimensionsDetected) {
-                const inferredDims = {
-                  width: Math.abs(size.x),
-                  height: Math.abs(size.y),
-                  depth: Math.abs(size.z)
-                };
-                console.log('Inferred room dimensions from PLY:', inferredDims);
-                onDimensionsDetected(inferredDims);
-              }
-              
-              loadedGeometry.translate(-center.x, -center.y, -center.z);
-            }
-            
-            // Compute normals for proper lighting
-            loadedGeometry.computeVertexNormals();
-            
-            console.log('PLY Geometry:', {
-              vertices: loadedGeometry.attributes.position?.count || 0,
-              hasNormals: !!loadedGeometry.attributes.normal,
-              hasColors: !!loadedGeometry.attributes.color
-            });
-            
-            setGeometry(loadedGeometry);
+            console.log('✅ PLYLoader succeeded');
+            processGeometry(loadedGeometry);
           },
           (progress: ProgressEvent) => {
             console.log('Loading PLY:', (progress.loaded / progress.total * 100).toFixed(2) + '%');
@@ -116,7 +237,63 @@ function PlyGeometry({ url, roomDimensions, onDimensionsDetected }: {
     };
     
     loadPLY();
-  }, [url, roomDimensions, onDimensionsDetected]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [url]); // Only reload when URL changes
+
+  // Memoize scale calculation to prevent recalculation on every render
+  // MUST be called before any conditional returns (React Hooks rules)
+  const { scale, position } = useMemo(() => {
+    const boundingBox = geometry?.boundingBox;
+    let calculatedScale = 1;
+    let calculatedPosition: [number, number, number] = [0, 0, 0];
+    
+    if (boundingBox && roomDimensions) {
+      const size = new THREE.Vector3();
+      boundingBox.getSize(size);
+      
+      // Check if room dimensions are all 0 (will be inferred from PLY)
+      const hasRoomDims = roomDimensions.width > 0 || roomDimensions.height > 0 || roomDimensions.depth > 0;
+      
+      if (hasRoomDims) {
+        // Scale PLY to match the specified room dimensions
+        const scaleX = roomDimensions.width / Math.abs(size.x);
+        const scaleY = roomDimensions.height / Math.abs(size.y);
+        const scaleZ = roomDimensions.depth / Math.abs(size.z);
+        
+        calculatedScale = Math.max(scaleX, scaleY, scaleZ) * 1.5;
+      } else {
+        // Room dimensions are 0, use PLY as-is or scale to reasonable size
+        const maxDim = Math.max(Math.abs(size.x), Math.abs(size.y), Math.abs(size.z));
+        
+        if (maxDim > 20) {
+          calculatedScale = 30 / maxDim;
+        } else if (maxDim < 2) {
+          calculatedScale = 3 / maxDim;
+        } else {
+          calculatedScale = 1.5;
+        }
+      }
+      
+      // Geometry is already aligned with bottom at Y=0, so no Y offset needed
+      calculatedPosition = [0, 0, 0];
+    } else if (boundingBox) {
+      // Fallback: scale to fit within reasonable size
+      const size = new THREE.Vector3();
+      boundingBox.getSize(size);
+      const maxDim = Math.max(Math.abs(size.x), Math.abs(size.y), Math.abs(size.z));
+      
+      if (maxDim > 10) {
+        calculatedScale = 10 / maxDim;
+      } else if (maxDim < 1) {
+        calculatedScale = 1 / maxDim;
+      }
+      
+      // Geometry is already aligned with bottom at Y=0
+      calculatedPosition = [0, 0, 0];
+    }
+    
+    return { scale: calculatedScale, position: calculatedPosition };
+  }, [geometry, roomDimensions?.width, roomDimensions?.height, roomDimensions?.depth]);
 
   if (loadError) {
     return (
@@ -138,68 +315,37 @@ function PlyGeometry({ url, roomDimensions, onDimensionsDetected }: {
     );
   }
 
-  // Calculate scale to fit the model to room dimensions
-  const boundingBox = geometry.boundingBox;
-  let scale = 1;
-  let position: [number, number, number] = [0, 0, 0];
-  
-  if (boundingBox && roomDimensions) {
-    const size = new THREE.Vector3();
-    boundingBox.getSize(size);
-    
-    // Check if room dimensions are all 0 (will be inferred from PLY)
-    const hasRoomDims = roomDimensions.width > 0 || roomDimensions.height > 0 || roomDimensions.depth > 0;
-    
-    if (hasRoomDims) {
-      // Scale PLY to fit the specified room dimensions
-      const scaleX = roomDimensions.width / size.x;
-      const scaleY = roomDimensions.height / size.y;
-      const scaleZ = roomDimensions.depth / size.z;
-      
-      // Use uniform scale based on the smallest dimension to maintain proportions
-      scale = Math.min(scaleX, scaleY, scaleZ);
-      
-      console.log('PLY Model original size:', size);
-      console.log('Room dimensions:', roomDimensions);
-      console.log('Scale factors:', { scaleX, scaleY, scaleZ });
-      console.log('Final scale (uniform):', scale);
-    } else {
-      // Room dimensions are 0, use PLY as-is or scale to reasonable size
-      const maxDim = Math.max(size.x, size.y, size.z);
-      
-      if (maxDim > 20) {
-        scale = 20 / maxDim;
-      } else if (maxDim < 2) {
-        scale = 2 / maxDim;
-      }
-      
-      console.log('PLY Model size (auto-scale):', size);
-      console.log('PLY Model scale:', scale);
-    }
-    
-    // Position at ground level
-    position = [0, 0, 0];
-  } else if (boundingBox) {
-    // Fallback: scale to fit within reasonable size
-    const size = new THREE.Vector3();
-    boundingBox.getSize(size);
-    const maxDim = Math.max(size.x, size.y, size.z);
-    
-    if (maxDim > 10) {
-      scale = 10 / maxDim;
-    } else if (maxDim < 1) {
-      scale = 1 / maxDim;
-    }
-    
-    console.log('PLY Model size (fallback):', size);
-    console.log('PLY Model scale:', scale);
-  }
-
   // Check if this is a point cloud or mesh
   const hasIndices = geometry.index !== null;
   const vertexCount = geometry.attributes.position?.count || 0;
   
   console.log('Rendering PLY:', { hasIndices, vertexCount, scale });
+
+  // Check if geometry has vertex colors
+  const hasVertexColors = !!geometry.attributes.color;
+  
+  console.log('========================================');
+  console.log('🎨 RENDERING PLY');
+  console.log('========================================');
+  console.log('Has vertex colors:', hasVertexColors);
+  console.log('Render mode:', hasIndices ? 'MESH' : 'POINT CLOUD');
+  console.log('Vertex count:', vertexCount);
+  console.log('Scale:', scale);
+  
+  if (hasVertexColors) {
+    const colors = geometry.attributes.color;
+    console.log('Color attribute at render time:', {
+      count: colors.count,
+      itemSize: colors.itemSize,
+      normalized: colors.normalized,
+      needsUpdate: colors.needsUpdate
+    });
+    console.log('Sample colors at render:');
+    for (let i = 0; i < Math.min(3, colors.count); i++) {
+      console.log(`  [${i}]: R=${colors.getX(i).toFixed(3)}, G=${colors.getY(i).toFixed(3)}, B=${colors.getZ(i).toFixed(3)}`);
+    }
+  }
+  console.log('========================================');
 
   return (
     <group scale={[scale, scale, scale]} position={position}>
@@ -207,23 +353,27 @@ function PlyGeometry({ url, roomDimensions, onDimensionsDetected }: {
       {hasIndices ? (
         <mesh ref={meshRef} geometry={geometry} castShadow receiveShadow>
           <meshStandardMaterial 
-            color="#a0b0c0" 
-            roughness={0.8}
-            metalness={0.1}
+            vertexColors={hasVertexColors}
+            color={hasVertexColors ? undefined : 0xcccccc}
+            toneMapped={false}
+            roughness={0.7}
+            metalness={0.0}
             side={THREE.DoubleSide}
             wireframe={false}
+            flatShading={false}
             transparent={true}
             opacity={0.7}
+            depthWrite={false}
           />
         </mesh>
       ) : (
         <points geometry={geometry}>
           <pointsMaterial 
-            size={0.02} 
-            color="#a0b0c0"
+            size={0.02}
+            vertexColors={hasVertexColors}
+            color={hasVertexColors ? undefined : 0xcccccc}
+            toneMapped={false}
             sizeAttenuation={true}
-            transparent={true}
-            opacity={0.8}
           />
         </points>
       )}
@@ -241,9 +391,9 @@ function PlyGeometry({ url, roomDimensions, onDimensionsDetected }: {
       )}
     </group>
   );
-}
+});
 
-export function PlyModel({ projectId, plyFilePath, roomDimensions }: PlyModelProps) {
+export const PlyModel = memo(function PlyModel({ projectId, plyFilePath, roomDimensions, onRoomDimensionsChange }: PlyModelProps) {
   const [plyUrl, setPlyUrl] = useState<string | null>(null);
   const [showDebug, setShowDebug] = useState(true);
   const [detectedDimensions, setDetectedDimensions] = useState<{ width: number; height: number; depth: number } | null>(null);
@@ -274,6 +424,13 @@ export function PlyModel({ projectId, plyFilePath, roomDimensions }: PlyModelPro
   const handleDimensionsDetected = (dims: { width: number; height: number; depth: number }) => {
     console.log('Dimensions detected from PLY:', dims);
     setDetectedDimensions(dims);
+    
+    // Notify parent component about the detected dimensions
+    if (onRoomDimensionsChange && roomDimensions && 
+        roomDimensions.width === 0 && roomDimensions.height === 0 && roomDimensions.depth === 0) {
+      console.log('🏠 Updating room dimensions in parent:', dims);
+      onRoomDimensionsChange(dims);
+    }
   };
 
   // Use detected dimensions if room dimensions are all 0
@@ -319,4 +476,4 @@ export function PlyModel({ projectId, plyFilePath, roomDimensions }: PlyModelPro
       </group>
     </Suspense>
   );
-}
+});

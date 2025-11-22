@@ -141,7 +141,7 @@ export const filesAPI = {
   },
 
   getPlyInfo: async (projectId: number) => {
-    const response = await apiClient.get(`/files/ply/${projectId}`);
+    const response = await apiClient.get(`/files/ply-info/${projectId}`);
     return response.data;
   },
 

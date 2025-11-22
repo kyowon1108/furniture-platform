@@ -65,8 +65,10 @@ npm run dev
 2. **프로젝트 생성:**
    - 프로젝트 페이지로 자동 이동
    - "+ 새 프로젝트" 클릭
+   - 생성 방식 선택:
+     - **수동 입력**: 방 크기 직접 입력 (10m × 3m × 8m)
+     - **PLY 파일 업로드**: 3D 스캔 파일 업로드 (크기 제한 없음) 🆕
    - 이름: "내 첫 방"
-   - 방 크기: 10m × 3m × 8m
    - "생성" 클릭
 
 3. **에디터 열기:**
@@ -123,10 +125,43 @@ pytest tests/ -v
 
 예상 결과: 모든 테스트 통과 ✅
 
+## PLY 파일 지원 (NEW! 🎉)
+
+### PLY 파일이란?
+- 3D 스캔된 방을 저장하는 파일 형식
+- 표준 RGB 색상과 Gaussian Splatting 형식 모두 지원
+
+### 자동 변환 기능
+- 어떤 PLY 파일이든 업로드 가능 - 크기 제한 없음!
+- Gaussian Splatting PLY는 자동으로 RGB로 변환
+- 파일 크기 약 89% 감소 (예: 257MB → 28MB)
+- 색상이 보존되어 정확하게 렌더링됨
+
+### 지원 형식
+- ✅ 표준 RGB PLY (red, green, blue 속성)
+- ✅ Gaussian Splatting PLY (f_dc_*, f_rest_*, opacity, scale, rotation)
+- ✅ Point Cloud PLY (정점만)
+- ✅ Mesh PLY (정점 + 면)
+
+### 사용 방법
+1. 새 프로젝트 생성
+2. "PLY 파일 업로드" 모드 선택
+3. PLY 파일 선택 (크기 무관)
+4. 시스템이 자동으로:
+   - PLY 형식 감지
+   - 필요시 Gaussian Splatting을 RGB로 변환
+   - 파일 크기 최적화
+   - 방 크기 추출
+5. 색상이 완벽하게 렌더링된 방 완성!
+
+**자세한 내용:** [AUTO_PLY_CONVERSION_COMPLETE.md](AUTO_PLY_CONVERSION_COMPLETE.md)
+
 ## 다음 단계
 
 - 전체 [README.md](README.md)에서 상세 문서 확인
-- [CHECKLIST.md](CHECKLIST.md)에서 구현 상태 확인
+- [AUTO_PLY_CONVERSION_COMPLETE.md](AUTO_PLY_CONVERSION_COMPLETE.md)에서 PLY 기능 확인 🆕
+- [PLY_FEATURE_GUIDE.md](PLY_FEATURE_GUIDE.md)에서 PLY 사용 가이드 확인 🆕
+- [CHECKLIST_KR.md](CHECKLIST_KR.md)에서 구현 상태 확인
 - http://localhost:8000/docs에서 API 탐색
 - 가구 레이아웃 만들기 시작!
 

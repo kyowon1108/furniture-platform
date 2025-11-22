@@ -10,7 +10,8 @@ interface CreateProjectModalProps {
 }
 
 export function CreateProjectModal({ onClose, onSuccess }: CreateProjectModalProps) {
-  const [creationMode, setCreationMode] = useState<'manual' | 'ply'>('manual');
+  const [creationMode, setCreationMode] = useState<'manual' | '3d'>('manual');
+  const [fileType, setFileType] = useState<'ply' | 'glb'>('ply');
   const [formData, setFormData] = useState({
     name: '',
     room_width: 5.0,
@@ -18,7 +19,7 @@ export function CreateProjectModal({ onClose, onSuccess }: CreateProjectModalPro
     room_depth: 4.0,
     description: '',
   });
-  const [plyFile, setPlyFile] = useState<File | null>(null);
+  const [file3D, setFile3D] = useState<File | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
   const [uploadProgress, setUploadProgress] = useState('');
@@ -27,14 +28,26 @@ export function CreateProjectModal({ onClose, onSuccess }: CreateProjectModalPro
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      if (!file.name.toLowerCase().endsWith('.ply')) {
-        setError('PLY 파일만 업로드 가능합니다');
+      const fileName = file.name.toLowerCase();
+      if (fileName.endsWith('.ply')) {
+        setFileType('ply');
+        setFile3D(file);
+        setError('');
+      } else if (fileName.endsWith('.glb') || fileName.endsWith('.gltf')) {
+        setFileType('glb');
+        setFile3D(file);
+        setError('');
+        // GLB 파일은 실제 크기 정보를 포함하므로 자동 감지를 위해 0으로 설정
+        setFormData({
+          ...formData,
+          room_width: 0,
+          room_height: 0,
+          room_depth: 0,
+        });
+      } else {
+        setError('PLY 또는 GLB 파일만 업로드 가능합니다');
         return;
       }
-      // No file size limit for development/demo purposes
-      // In production, you may want to add size validation based on your infrastructure
-      setPlyFile(file);
-      setError('');
     }
   };
 
@@ -45,8 +58,8 @@ export function CreateProjectModal({ onClose, onSuccess }: CreateProjectModalPro
     setUploadProgress('');
 
     try {
-      if (creationMode === 'ply' && !plyFile) {
-        setError('PLY 파일을 선택해주세요');
+      if (creationMode === '3d' && !file3D) {
+        setError('3D 파일을 선택해주세요');
         setIsSubmitting(false);
         return;
       }
@@ -55,22 +68,50 @@ export function CreateProjectModal({ onClose, onSuccess }: CreateProjectModalPro
       setUploadProgress('프로젝트 생성 중...');
       const projectData = {
         ...formData,
-        has_ply_file: creationMode === 'ply',
+        has_3d_file: creationMode === '3d',
+        file_type: creationMode === '3d' ? fileType : null,
+        has_ply_file: creationMode === '3d' && fileType === 'ply', // Legacy support
       };
       const project = await projectsAPI.create(projectData);
 
-      // Step 2: Upload PLY file if in PLY mode
-      if (creationMode === 'ply' && plyFile) {
-        setUploadProgress('PLY 파일 업로드 중...');
-        await filesAPI.uploadPly(project.id, plyFile);
+      // Step 2: Upload 3D file if in 3D mode
+      if (creationMode === '3d' && file3D) {
+        setUploadProgress(`${fileType.toUpperCase()} 파일 업로드 중...`);
+        
+        // Use new unified API
+        const formData = new FormData();
+        formData.append('file', file3D);
+        
+        const token = localStorage.getItem('token');
+        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1';
+        
+        const response = await fetch(`${apiUrl}/files/upload-3d/${project.id}`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+          },
+          body: formData,
+        });
+        
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.detail || '파일 업로드 실패');
+        }
+        
+        const result = await response.json();
+        console.log('Upload result:', result);
       }
 
       setUploadProgress('완료!');
       onSuccess();
+      
+      // Small delay to ensure database is updated before navigating
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
       router.push(`/editor/${project.id}`);
     } catch (err: any) {
       console.error('Failed to create project:', err);
-      setError(err.response?.data?.detail || '프로젝트 생성에 실패했습니다');
+      setError(err.message || err.response?.data?.detail || '프로젝트 생성에 실패했습니다');
     } finally {
       setIsSubmitting(false);
     }
@@ -122,7 +163,18 @@ export function CreateProjectModal({ onClose, onSuccess }: CreateProjectModalPro
           <div className="flex gap-4">
             <button
               type="button"
-              onClick={() => setCreationMode('manual')}
+              onClick={() => {
+                setCreationMode('manual');
+                // 수동 입력 모드로 전환 시 기본값 복원
+                if (formData.room_width === 0 && formData.room_height === 0 && formData.room_depth === 0) {
+                  setFormData({
+                    ...formData,
+                    room_width: 5.0,
+                    room_height: 3.0,
+                    room_depth: 4.0,
+                  });
+                }
+              }}
               className="flex-1 px-4 py-3 transition-all"
               style={{
                 borderRadius: 'var(--radius-lg)',
@@ -136,17 +188,17 @@ export function CreateProjectModal({ onClose, onSuccess }: CreateProjectModalPro
             </button>
             <button
               type="button"
-              onClick={() => setCreationMode('ply')}
+              onClick={() => setCreationMode('3d')}
               className="flex-1 px-4 py-3 transition-all"
               style={{
                 borderRadius: 'var(--radius-lg)',
-                border: `2px solid ${creationMode === 'ply' ? 'var(--accent-primary)' : 'var(--border-color)'}`,
-                background: creationMode === 'ply' ? 'var(--accent-light)' : 'var(--bg-secondary)',
-                color: creationMode === 'ply' ? 'var(--accent-primary)' : 'var(--text-primary)'
+                border: `2px solid ${creationMode === '3d' ? 'var(--accent-primary)' : 'var(--border-color)'}`,
+                background: creationMode === '3d' ? 'var(--accent-light)' : 'var(--bg-secondary)',
+                color: creationMode === '3d' ? 'var(--accent-primary)' : 'var(--text-primary)'
               }}
             >
-              <div className="font-semibold">PLY 파일 업로드</div>
-              <div className="text-sm mt-1" style={{ color: 'var(--text-secondary)' }}>3D 스캔 파일 사용</div>
+              <div className="font-semibold">3D 파일 업로드</div>
+              <div className="text-sm mt-1" style={{ color: 'var(--text-secondary)' }}>PLY 또는 GLB 파일</div>
             </button>
           </div>
         </div>
@@ -168,25 +220,33 @@ export function CreateProjectModal({ onClose, onSuccess }: CreateProjectModalPro
             />
           </div>
 
-          {creationMode === 'ply' && (
+          {creationMode === '3d' && (
             <div>
               <label className="block text-sm font-medium mb-1" style={{ color: 'var(--text-primary)' }}>
-                PLY 파일 *
+                3D 파일 * (PLY 또는 GLB)
               </label>
               <input
                 type="file"
-                accept=".ply"
+                accept=".ply,.glb,.gltf"
                 onChange={handleFileChange}
                 className="search-input w-full"
                 required
               />
-              {plyFile && (
+              {file3D && (
                 <div className="mt-2 text-sm" style={{ color: 'var(--text-secondary)' }}>
-                  선택된 파일: {plyFile.name} ({(plyFile.size / 1024 / 1024).toFixed(2)} MB)
+                  선택된 파일: {file3D.name} ({(file3D.size / 1024 / 1024).toFixed(2)} MB)
+                  <span className="ml-2 px-2 py-0.5 rounded text-xs" style={{ 
+                    background: fileType === 'ply' ? '#dbeafe' : '#fef3c7',
+                    color: fileType === 'ply' ? '#1e40af' : '#92400e'
+                  }}>
+                    {fileType.toUpperCase()}
+                  </span>
                 </div>
               )}
               <div className="mt-2 text-sm" style={{ color: 'var(--text-tertiary)' }}>
-                3D 스캔된 방의 PLY 파일을 업로드하세요. 업로드된 3D 모델이 방의 배경으로 사용됩니다.
+                <strong>PLY:</strong> 3D 스캔된 방 (Point Cloud, Gaussian Splatting)
+                <br />
+                <strong>GLB:</strong> 3D 모델링 소프트웨어 출력 (Blender, SketchUp 등)
                 <br />
                 <span className="text-xs">개발/시연용으로 파일 크기 제한이 없습니다.</span>
               </div>
@@ -196,77 +256,96 @@ export function CreateProjectModal({ onClose, onSuccess }: CreateProjectModalPro
           <div className="grid grid-cols-3 gap-4">
             <div>
               <label className="block text-sm font-medium mb-1" style={{ color: 'var(--text-primary)' }}>
-                폭 (m) *
+                폭 (m) * {creationMode === '3d' && <span style={{ color: 'var(--text-tertiary)', fontSize: '0.75rem' }}>(0 = 자동)</span>}
               </label>
               <input
                 type="number"
                 step="0.1"
-                min="1"
+                min={creationMode === '3d' ? "0" : "1"}
                 max="50"
                 value={formData.room_width}
-                onChange={(e) =>
+                onChange={(e) => {
+                  const value = parseFloat(e.target.value);
                   setFormData({
                     ...formData,
-                    room_width: parseFloat(e.target.value),
-                  })
-                }
+                    room_width: isNaN(value) ? 0 : value,
+                  });
+                }}
                 className="search-input w-full"
                 required
               />
             </div>
             <div>
               <label className="block text-sm font-medium mb-1" style={{ color: 'var(--text-primary)' }}>
-                높이 (m) *
+                높이 (m) * {creationMode === '3d' && <span style={{ color: 'var(--text-tertiary)', fontSize: '0.75rem' }}>(0 = 자동)</span>}
               </label>
               <input
                 type="number"
                 step="0.1"
-                min="2"
+                min={creationMode === '3d' ? "0" : "2"}
                 max="10"
                 value={formData.room_height}
-                onChange={(e) =>
+                onChange={(e) => {
+                  const value = parseFloat(e.target.value);
                   setFormData({
                     ...formData,
-                    room_height: parseFloat(e.target.value),
-                  })
-                }
+                    room_height: isNaN(value) ? 0 : value,
+                  });
+                }}
                 className="search-input w-full"
                 required
               />
             </div>
             <div>
               <label className="block text-sm font-medium mb-1" style={{ color: 'var(--text-primary)' }}>
-                깊이 (m) *
+                깊이 (m) * {creationMode === '3d' && <span style={{ color: 'var(--text-tertiary)', fontSize: '0.75rem' }}>(0 = 자동)</span>}
               </label>
               <input
                 type="number"
                 step="0.1"
-                min="1"
+                min={creationMode === '3d' ? "0" : "1"}
                 max="50"
                 value={formData.room_depth}
-                onChange={(e) =>
+                onChange={(e) => {
+                  const value = parseFloat(e.target.value);
                   setFormData({
                     ...formData,
-                    room_depth: parseFloat(e.target.value),
-                  })
-                }
+                    room_depth: isNaN(value) ? 0 : value,
+                  });
+                }}
                 className="search-input w-full"
                 required
               />
             </div>
           </div>
 
-          {creationMode === 'ply' && (
+          {creationMode === '3d' && (
             <div style={{
-              background: '#fef3c7',
-              border: '1px solid var(--warning)',
+              background: fileType === 'glb' ? '#dbeafe' : '#fef3c7',
+              border: `1px solid ${fileType === 'glb' ? '#3b82f6' : 'var(--warning)'}`,
               borderRadius: 'var(--radius-md)',
               padding: '0.75rem',
               fontSize: '0.875rem',
-              color: '#92400e'
+              color: fileType === 'glb' ? '#1e40af' : '#92400e'
             }}>
-              <strong>참고:</strong> PLY 파일을 사용하는 경우에도 방 크기를 입력해야 합니다. 
-              입력된 크기는 가구 배치 시 참고 치수로 사용됩니다.
+              {fileType === 'glb' ? (
+                <>
+                  <strong>✨ GLB 파일 자동 감지:</strong> GLB 파일에 포함된 실제 크기 정보를 자동으로 사용합니다.
+                  <br />
+                  방 크기를 <strong>0, 0, 0</strong>으로 설정하면 GLB 파일의 실제 크기가 자동으로 적용됩니다.
+                  <br /><br />
+                  <strong>권장:</strong> 방 크기를 모두 0으로 설정하세요. (자동 감지)
+                  <br />
+                  <strong>GLB 처리:</strong> 1:1 스케일 유지 → 텍스처 및 materials 보존 → 반투명 렌더링
+                </>
+              ) : (
+                <>
+                  <strong>참고:</strong> PLY 파일을 사용하는 경우 방 크기를 입력해야 합니다. 
+                  입력된 크기는 가구 배치 시 참고 치수로 사용됩니다.
+                  <br /><br />
+                  <strong>PLY 처리:</strong> Gaussian Splatting 자동 변환 → 메쉬 생성 → 반투명 렌더링
+                </>
+              )}
             </div>
           )}
 

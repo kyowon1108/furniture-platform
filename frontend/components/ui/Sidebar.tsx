@@ -3,13 +3,24 @@
 import { useState, useMemo } from 'react';
 import { FURNITURE_CATALOG, type FurnitureCatalogItem } from '@/types/catalog';
 import { useEditorStore } from '@/store/editorStore';
+import { useMaterialStore } from '@/store/materialStore';
 import { socketService } from '@/lib/socket';
 import type { FurnitureItem } from '@/types/furniture';
+import { MATERIAL_CATALOG, getMaterialsByCategory } from '@/data/materialCatalog';
 
 export function Sidebar() {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
+  const [activeTab, setActiveTab] = useState<'furniture' | 'materials'>('furniture');
+  const [materialCategory, setMaterialCategory] = useState<'floor' | 'wall'>('floor');
+  
   const { addFurniture } = useEditorStore();
+  const { 
+    selectedMaterialId, 
+    applicationMode, 
+    setSelectedMaterial, 
+    setApplicationMode 
+  } = useMaterialStore();
 
   const categories = ['all', 'bedroom', 'living', 'office', 'kitchen', 'decoration'];
 
@@ -71,64 +82,191 @@ export function Sidebar() {
     return emojiMap[type] || '📦';
   };
 
+  const filteredMaterials = useMemo(() => {
+    return getMaterialsByCategory(materialCategory);
+  }, [materialCategory]);
+
   return (
     <div className="sidebar-container absolute left-0 top-0 h-screen w-80 z-10 flex flex-col">
       {/* Header */}
       <div className="sidebar-header flex-shrink-0">
-        <h2 className="sidebar-title">가구 카탈로그</h2>
-
-        {/* Search */}
-        <input
-          type="text"
-          placeholder="가구 검색..."
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          className="search-input w-full"
-        />
-
-        {/* Category Filter */}
-        <div className="flex gap-2 mt-4 overflow-x-auto pb-2">
-          {categories.map((cat) => (
-            <button
-              key={cat}
-              onClick={() => setSelectedCategory(cat)}
-              className={`category-button ${selectedCategory === cat ? 'active' : ''}`}
-            >
-              {cat === 'all' ? '전체' : 
-               cat === 'bedroom' ? '침실' :
-               cat === 'living' ? '거실' :
-               cat === 'office' ? '사무실' :
-               cat === 'kitchen' ? '주방' : '장식'}
-            </button>
-          ))}
+        {/* Tab Switcher - Materials tab disabled for now */}
+        <div className="flex gap-2 mb-4">
+          <button
+            onClick={() => setActiveTab('furniture')}
+            className={`flex-1 py-2 px-4 rounded-lg font-medium transition-colors ${
+              activeTab === 'furniture'
+                ? 'bg-blue-500 text-white'
+                : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+            }`}
+          >
+            🪑 가구
+          </button>
+          {/* Materials tab temporarily disabled - uncomment to enable
+          <button
+            onClick={() => setActiveTab('materials')}
+            className={`flex-1 py-2 px-4 rounded-lg font-medium transition-colors ${
+              activeTab === 'materials'
+                ? 'bg-blue-500 text-white'
+                : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+            }`}
+          >
+            🎨 재질
+          </button>
+          */}
         </div>
-      </div>
 
-      {/* Furniture List */}
-      <div className="furniture-grid overflow-y-auto flex-1">
-        {filteredFurniture.length === 0 ? (
-          <p style={{ gridColumn: '1 / -1', textAlign: 'center', padding: '2rem', color: 'var(--text-tertiary)' }}>
-            가구를 찾을 수 없습니다
-          </p>
+        {activeTab === 'furniture' ? (
+          <>
+            <h2 className="sidebar-title">가구 카탈로그</h2>
+
+            {/* Search */}
+            <input
+              type="text"
+              placeholder="가구 검색..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="search-input w-full"
+            />
+
+            {/* Category Filter */}
+            <div className="flex gap-2 mt-4 overflow-x-auto pb-2">
+              {categories.map((cat) => (
+                <button
+                  key={cat}
+                  onClick={() => setSelectedCategory(cat)}
+                  className={`category-button ${selectedCategory === cat ? 'active' : ''}`}
+                >
+                  {cat === 'all' ? '전체' : 
+                   cat === 'bedroom' ? '침실' :
+                   cat === 'living' ? '거실' :
+                   cat === 'office' ? '사무실' :
+                   cat === 'kitchen' ? '주방' : '장식'}
+                </button>
+              ))}
+            </div>
+          </>
         ) : (
-          filteredFurniture.map((item) => (
-            <div
-              key={item.id}
-              draggable
-              onDragStart={(e) => handleDragStart(e, item)}
-              onClick={() => handleClick(item)}
-              className="furniture-card"
-            >
-              <span className="furniture-emoji">{getEmoji(item.type)}</span>
-              <div className="furniture-name">{item.name}</div>
-              <div className="furniture-price">
-                {item.dimensions.width.toFixed(1)}m × {item.dimensions.depth.toFixed(1)}m
+          <>
+            <h2 className="sidebar-title">재질 & 타일</h2>
+
+            {/* Material Category */}
+            <div className="flex gap-2 mb-4">
+              <button
+                onClick={() => setMaterialCategory('floor')}
+                className={`flex-1 py-2 px-4 rounded-lg font-medium transition-colors ${
+                  materialCategory === 'floor'
+                    ? 'bg-green-500 text-white'
+                    : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                }`}
+              >
+                바닥
+              </button>
+              <button
+                onClick={() => setMaterialCategory('wall')}
+                className={`flex-1 py-2 px-4 rounded-lg font-medium transition-colors ${
+                  materialCategory === 'wall'
+                    ? 'bg-green-500 text-white'
+                    : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                }`}
+              >
+                벽면
+              </button>
+            </div>
+
+            {/* Application Mode */}
+            <div className="mb-4">
+              <p className="text-sm font-medium mb-2 text-gray-700">적용 모드:</p>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setApplicationMode('full')}
+                  className={`flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-colors ${
+                    applicationMode === 'full'
+                      ? 'bg-purple-500 text-white'
+                      : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                  }`}
+                >
+                  전체 적용
+                </button>
+                <button
+                  onClick={() => setApplicationMode('partial')}
+                  className={`flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-colors ${
+                    applicationMode === 'partial'
+                      ? 'bg-purple-500 text-white'
+                      : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                  }`}
+                >
+                  부분 적용
+                </button>
               </div>
-              {item.price && (
-                <div className="furniture-price" style={{ color: 'var(--success)', fontWeight: 600 }}>
-                  ${item.price}
+              {applicationMode !== 'none' && selectedMaterialId && (
+                <div className="mt-2 p-2 bg-blue-50 rounded-lg border border-blue-200">
+                  <p className="text-xs text-blue-800 font-medium">
+                    {applicationMode === 'full' 
+                      ? `💡 ${materialCategory === 'floor' ? '바닥' : '벽면'}을 클릭하면 전체에 적용됩니다`
+                      : `💡 ${materialCategory === 'floor' ? '바닥' : '벽면'}의 원하는 위치를 클릭하세요`}
+                  </p>
                 </div>
               )}
+              {applicationMode !== 'none' && !selectedMaterialId && (
+                <p className="text-xs text-orange-600 mt-2">
+                  ⚠️ 먼저 재질을 선택하세요
+                </p>
+              )}
+            </div>
+          </>
+        )}
+      </div>
+
+      {/* Content */}
+      <div className="furniture-grid overflow-y-auto flex-1">
+        {activeTab === 'furniture' ? (
+          filteredFurniture.length === 0 ? (
+            <p style={{ gridColumn: '1 / -1', textAlign: 'center', padding: '2rem', color: 'var(--text-tertiary)' }}>
+              가구를 찾을 수 없습니다
+            </p>
+          ) : (
+            filteredFurniture.map((item) => (
+              <div
+                key={item.id}
+                draggable
+                onDragStart={(e) => handleDragStart(e, item)}
+                onClick={() => handleClick(item)}
+                className="furniture-card"
+              >
+                <span className="furniture-emoji">{getEmoji(item.type)}</span>
+                <div className="furniture-name">{item.name}</div>
+                <div className="furniture-price">
+                  {item.dimensions.width.toFixed(1)}m × {item.dimensions.depth.toFixed(1)}m
+                </div>
+                {item.price && (
+                  <div className="furniture-price" style={{ color: 'var(--success)', fontWeight: 600 }}>
+                    ${item.price}
+                  </div>
+                )}
+              </div>
+            ))
+          )
+        ) : (
+          filteredMaterials.map((material) => (
+            <div
+              key={material.id}
+              onClick={() => setSelectedMaterial(material.id)}
+              className={`furniture-card cursor-pointer ${
+                selectedMaterialId === material.id ? 'ring-2 ring-blue-500' : ''
+              }`}
+              style={{
+                background: material.color || '#ccc',
+                border: selectedMaterialId === material.id ? '3px solid #3b82f6' : '1px solid #ddd',
+              }}
+            >
+              <div className="furniture-name text-center" style={{ 
+                color: material.color && material.color.startsWith('#') && 
+                       parseInt(material.color.slice(1), 16) > 0x888888 ? '#000' : '#fff',
+                textShadow: '0 1px 2px rgba(0,0,0,0.5)'
+              }}>
+                {material.name}
+              </div>
             </div>
           ))
         )}
