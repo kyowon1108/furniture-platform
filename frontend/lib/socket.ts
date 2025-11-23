@@ -5,7 +5,7 @@
 import { io, Socket } from 'socket.io-client';
 import type { FurnitureItem, Vector3 } from '@/types/furniture';
 
-const SOCKET_URL = process.env.NEXT_PUBLIC_SOCKET_URL || 'http://localhost:8000';
+const SOCKET_URL = process.env.NEXT_PUBLIC_SOCKET_URL || 'http://localhost:8008';
 
 class SocketService {
   private socket: Socket | null = null;

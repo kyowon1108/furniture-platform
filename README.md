@@ -75,13 +75,13 @@ alembic upgrade head
 
 5. **Start the backend server:**
 ```bash
-uvicorn app.main:socket_app --reload --host 0.0.0.0 --port 8000
+uvicorn app.main:socket_app --reload --host 0.0.0.0 --port 8008
 ```
 
 The backend will be available at:
-- API: http://localhost:8000
-- Swagger UI: http://localhost:8000/docs
-- Health check: http://localhost:8000/health
+- API: http://localhost:8008
+- Swagger UI: http://localhost:8008/docs
+- Health check: http://localhost:8008/health
 
 ### Frontend Setup
 
@@ -100,7 +100,7 @@ npm install
 npm run dev
 ```
 
-The frontend will be available at: http://localhost:3000
+The frontend will be available at: http://localhost:3008
 
 ## Testing
 
@@ -330,7 +330,7 @@ To add PostgreSQL/MySQL:
 
 **Port already in use:**
 ```bash
-lsof -ti:8000 | xargs kill -9
+lsof -ti:8008 | xargs kill -9
 ```
 
 **Database locked:**
@@ -348,7 +348,7 @@ npm install
 ```
 
 **WebSocket connection failed:**
-- Ensure backend is running on port 8000
+- Ensure backend is running on port 8008
 - Check CORS settings in backend
 
 ## License

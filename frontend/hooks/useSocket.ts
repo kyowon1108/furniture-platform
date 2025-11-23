@@ -44,7 +44,13 @@ export function useSocket(projectId: number | null, userId: number | null) {
     });
 
     socket.on('furniture_added', (data: any) => {
-      addFurniture(data.furniture);
+      // Only add if not already present (prevent duplicates from WebSocket)
+      const { furnitures } = useEditorStore.getState();
+      if (!furnitures.some(f => f.id === data.furniture.id)) {
+        addFurniture(data.furniture);
+      } else {
+        console.log('⚠️ Furniture already exists, skipping WebSocket add:', data.furniture.id);
+      }
     });
 
     socket.on('furniture_deleted', (data: any) => {

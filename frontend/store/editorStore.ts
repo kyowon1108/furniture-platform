@@ -108,10 +108,18 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   },
 
   addFurniture: (furniture) => {
-    set((state) => ({
-      furnitures: [...state.furnitures, furniture],
-      hasUnsavedChanges: true,
-    }));
+    set((state) => {
+      // Prevent duplicate furniture (same ID)
+      if (state.furnitures.some(f => f.id === furniture.id)) {
+        console.warn('⚠️ Duplicate furniture ID detected, skipping:', furniture.id);
+        return state; // Don't add duplicate
+      }
+      
+      return {
+        furnitures: [...state.furnitures, furniture],
+        hasUnsavedChanges: true,
+      };
+    });
     get().saveToHistory();
   },
 

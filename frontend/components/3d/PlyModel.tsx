@@ -27,6 +27,12 @@ const PlyGeometry = memo(function PlyGeometry({ url, roomDimensions, onDimension
   const [geometry, setGeometry] = useState<THREE.BufferGeometry | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [modelOpacity, setModelOpacity] = useState(0.7);
+  const [wallOpacities, setWallOpacities] = useState({
+    north: 0.7,
+    south: 0.7,
+    east: 0.7,
+    west: 0.7
+  });
   
   const { camera } = useThree();
   
@@ -40,9 +46,9 @@ const PlyGeometry = memo(function PlyGeometry({ url, roomDimensions, onDimension
     onDimensionsDetectedRef.current = onDimensionsDetected;
   }, [roomDimensions, onDimensionsDetected]);
   
-  // Track camera position and adjust model opacity
+  // Track camera position and adjust model opacity with wall-specific transparency
   useFrame(() => {
-    if (!roomDimensions) return;
+    if (!roomDimensions || !geometry) return;
     
     const cameraPos = camera.position;
     const halfWidth = roomDimensions.width / 2;
@@ -55,12 +61,120 @@ const PlyGeometry = memo(function PlyGeometry({ url, roomDimensions, onDimension
       Math.abs(cameraPos.z) < halfDepth &&
       cameraPos.y > 0 && cameraPos.y < height;
     
-    // If camera is outside, make model more transparent
-    // If camera is inside, make model less transparent
-    const targetOpacity = isInside ? 0.7 : 0.3;
+    // Room center (for direction calculation)
+    const roomCenter = new THREE.Vector3(0, height / 2, 0);
     
-    // Smooth transition
-    setModelOpacity(prev => prev + (targetOpacity - prev) * 0.1);
+    // Direction from camera to room center
+    const directionToRoom = new THREE.Vector3()
+      .subVectors(roomCenter, cameraPos)
+      .normalize();
+    
+    // Base opacity for the model
+    const baseOpacity = isInside ? 0.7 : 0.3;
+    
+    // Calculate wall-specific opacity (similar to Room.tsx logic)
+    const newWallOpacities = {
+      north: baseOpacity,
+      south: baseOpacity,
+      east: baseOpacity,
+      west: baseOpacity
+    };
+    
+    if (!isInside) {
+      // Camera is outside - check which walls are blocking the view
+      // Only make walls transparent if they are in the camera's viewing direction
+      // Don't make walls transparent if they are behind the camera (opposite side)
+      
+      // Get camera's viewing direction
+      const cameraDirection = new THREE.Vector3();
+      camera.getWorldDirection(cameraDirection);
+      
+      // Wall positions and normals (pointing inward)
+      const wallPositions = {
+        north: new THREE.Vector3(0, height / 2, -halfDepth),
+        south: new THREE.Vector3(0, height / 2, halfDepth),
+        west: new THREE.Vector3(-halfWidth, height / 2, 0),
+        east: new THREE.Vector3(halfWidth, height / 2, 0)
+      };
+      
+      const wallNormals = {
+        north: new THREE.Vector3(0, 0, 1),   // Pointing inward (toward room center)
+        south: new THREE.Vector3(0, 0, -1),
+        west: new THREE.Vector3(1, 0, 0),
+        east: new THREE.Vector3(-1, 0, 0)
+      };
+      
+      // Check each wall: is it in the camera's viewing direction?
+      const checkWall = (wallPos: THREE.Vector3, wallNormal: THREE.Vector3) => {
+        // Direction from camera to wall
+        const toWall = new THREE.Vector3().subVectors(wallPos, cameraPos).normalize();
+        
+        // Check if wall is in front of camera (camera is looking at it)
+        // Dot product > 0 means wall is in front of camera
+        const isInFront = cameraDirection.dot(toWall) > 0;
+        
+        // Also check if wall is between camera and room center
+        const ray = new THREE.Ray(cameraPos, directionToRoom);
+        const wallPlane = new THREE.Plane();
+        wallPlane.setFromNormalAndCoplanarPoint(wallNormal, wallPos);
+        const intersect = new THREE.Vector3();
+        const intersects = ray.intersectPlane(wallPlane, intersect);
+        
+        // Wall is blocking if: it's in front of camera AND ray intersects it
+        return isInFront && intersects;
+      };
+      
+      const northBlocking = checkWall(wallPositions.north, wallNormals.north);
+      const southBlocking = checkWall(wallPositions.south, wallNormals.south);
+      const westBlocking = checkWall(wallPositions.west, wallNormals.west);
+      const eastBlocking = checkWall(wallPositions.east, wallNormals.east);
+      
+      // Make blocking walls transparent (more visible = 0.18 instead of 0.12)
+      // Only walls in camera's viewing direction are made transparent
+      // 0.18 = 20% more visible than 0.12 (10% less transparent than before)
+      // If no wall is blocking (all walls are behind camera), keep base opacity
+      const hasBlockingWall = northBlocking || southBlocking || westBlocking || eastBlocking;
+      
+      if (hasBlockingWall) {
+        // Only make walls in camera's viewing direction transparent
+        // Keep base opacity for walls behind camera
+        newWallOpacities.north = northBlocking ? 0.18 : baseOpacity;
+        newWallOpacities.south = southBlocking ? 0.18 : baseOpacity;
+        newWallOpacities.west = westBlocking ? 0.18 : baseOpacity;
+        newWallOpacities.east = eastBlocking ? 0.18 : baseOpacity;
+      } else {
+        // No walls in camera's viewing direction are blocking
+        // Keep all walls at base opacity (not transparent)
+        newWallOpacities.north = baseOpacity;
+        newWallOpacities.south = baseOpacity;
+        newWallOpacities.west = baseOpacity;
+        newWallOpacities.east = baseOpacity;
+      }
+    }
+    
+    // Smooth transition for wall opacities
+    setWallOpacities(prev => ({
+      north: prev.north + (newWallOpacities.north - prev.north) * 0.1,
+      south: prev.south + (newWallOpacities.south - prev.south) * 0.1,
+      east: prev.east + (newWallOpacities.east - prev.east) * 0.1,
+      west: prev.west + (newWallOpacities.west - prev.west) * 0.1
+    }));
+    
+    // For PLY model, use the opacity of walls in camera's viewing direction
+    // If any wall in camera's viewing direction is blocking, use lower opacity
+    // Otherwise, use base opacity (don't make model transparent if no wall is blocking)
+    const hasBlockingWallInView = !isInside && (
+      newWallOpacities.north < baseOpacity ||
+      newWallOpacities.south < baseOpacity ||
+      newWallOpacities.west < baseOpacity ||
+      newWallOpacities.east < baseOpacity
+    );
+    
+    // More visible = 0.18 instead of 0.12 (10% less transparent)
+    const targetModelOpacity = hasBlockingWallInView ? 0.18 : baseOpacity;
+    
+    // Smooth transition for overall model opacity
+    setModelOpacity(prev => prev + (targetModelOpacity - prev) * 0.1);
   });
 
   const processGeometry = (loadedGeometry: THREE.BufferGeometry) => {
@@ -431,7 +545,7 @@ export const PlyModel = memo(function PlyModel({ projectId, plyFilePath, roomDim
     
     if (projectId) {
       // Construct the API URL to download the PLY file with auth token
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1';
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8008/api/v1';
       const token = localStorage.getItem('token');
       const url = `${apiUrl}/files/download-ply/${projectId}`;
       

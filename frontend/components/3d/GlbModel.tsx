@@ -37,7 +37,7 @@ const GlbGeometry = memo(function GlbGeometry({ url, roomDimensions, onDimension
     onDimensionsDetectedRef.current = onDimensionsDetected;
   }, [roomDimensions, onDimensionsDetected]);
   
-  // Track camera position and adjust model opacity dynamically
+  // Track camera position and adjust model opacity dynamically with wall-specific transparency
   useFrame(() => {
     if (!model || !roomDimensions) return;
     
@@ -52,21 +52,101 @@ const GlbGeometry = memo(function GlbGeometry({ url, roomDimensions, onDimension
       Math.abs(cameraPos.z) < halfDepth &&
       cameraPos.y > 0 && cameraPos.y < height;
     
-    // Target opacity based on camera position
-    const targetOpacity = isInside ? 0.7 : 0.3;
+    // Room center (for direction calculation)
+    const roomCenter = new THREE.Vector3(0, height / 2, 0);
     
-    // Update all materials in the model
+    // Direction from camera to room center
+    const directionToRoom = new THREE.Vector3()
+      .subVectors(roomCenter, cameraPos)
+      .normalize();
+    
+    // Base opacity for the model
+    const baseOpacity = isInside ? 0.7 : 0.3;
+    
+    // Calculate wall-specific opacity (similar to Room.tsx logic)
+    let wallOpacity = baseOpacity;
+    
+    if (!isInside) {
+      // Camera is outside - check which walls are blocking the view
+      // Only make walls transparent if they are in the camera's viewing direction
+      // Don't make walls transparent if they are behind the camera (opposite side)
+      
+      // Get camera's viewing direction
+      const cameraDirection = new THREE.Vector3();
+      camera.getWorldDirection(cameraDirection);
+      
+      // Wall positions and normals (pointing inward)
+      const wallPositions = {
+        north: new THREE.Vector3(0, height / 2, -halfDepth),
+        south: new THREE.Vector3(0, height / 2, halfDepth),
+        west: new THREE.Vector3(-halfWidth, height / 2, 0),
+        east: new THREE.Vector3(halfWidth, height / 2, 0)
+      };
+      
+      const wallNormals = {
+        north: new THREE.Vector3(0, 0, 1),   // Pointing inward (toward room center)
+        south: new THREE.Vector3(0, 0, -1),
+        west: new THREE.Vector3(1, 0, 0),
+        east: new THREE.Vector3(-1, 0, 0)
+      };
+      
+      // Check each wall: is it in the camera's viewing direction?
+      const checkWall = (wallPos: THREE.Vector3, wallNormal: THREE.Vector3) => {
+        // Direction from camera to wall
+        const toWall = new THREE.Vector3().subVectors(wallPos, cameraPos).normalize();
+        
+        // Check if wall is in front of camera (camera is looking at it)
+        // Dot product > 0 means wall is in front of camera
+        const isInFront = cameraDirection.dot(toWall) > 0;
+        
+        // Also check if wall is between camera and room center
+        const ray = new THREE.Ray(cameraPos, directionToRoom);
+        const wallPlane = new THREE.Plane();
+        wallPlane.setFromNormalAndCoplanarPoint(wallNormal, wallPos);
+        const intersect = new THREE.Vector3();
+        const intersects = ray.intersectPlane(wallPlane, intersect);
+        
+        // Wall is blocking if: it's in front of camera AND ray intersects it
+        return isInFront && intersects;
+      };
+      
+      const northBlocking = checkWall(wallPositions.north, wallNormals.north);
+      const southBlocking = checkWall(wallPositions.south, wallNormals.south);
+      const westBlocking = checkWall(wallPositions.west, wallNormals.west);
+      const eastBlocking = checkWall(wallPositions.east, wallNormals.east);
+      
+      // Only make walls transparent if they are in camera's viewing direction
+      // If any wall in camera's viewing direction is blocking, use lower opacity
+      // Otherwise, keep base opacity (don't make model transparent if no wall is blocking)
+      const hasBlockingWallInView = northBlocking || southBlocking || westBlocking || eastBlocking;
+      
+      if (hasBlockingWallInView) {
+        // More visible = 0.18 instead of 0.12 (10% less transparent than before)
+        // 0.18 = 20% more visible than 0.12
+        wallOpacity = 0.18;
+      } else {
+        // No walls in camera's viewing direction are blocking
+        // Keep base opacity (not transparent)
+        wallOpacity = baseOpacity;
+      }
+    }
+    
+    // Update all materials in the model with calculated opacity
     model.traverse((child) => {
       if ((child as THREE.Mesh).isMesh) {
         const mesh = child as THREE.Mesh;
         if (mesh.material) {
           const materials = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
           materials.forEach((mat) => {
-            if (mat.transparent) {
-              // Smooth transition
-              mat.opacity = mat.opacity + (targetOpacity - mat.opacity) * 0.1;
-              mat.needsUpdate = true;
+            // Make material transparent if not already
+            if (!mat.transparent) {
+              mat.transparent = true;
             }
+            
+            // Smooth transition
+            const currentOpacity = mat.opacity !== undefined ? mat.opacity : 1.0;
+            mat.opacity = currentOpacity + (wallOpacity - currentOpacity) * 0.1;
+            mat.needsUpdate = true;
           });
         }
       }
@@ -321,7 +401,7 @@ export const GlbModel = memo(function GlbModel({ projectId, glbFilePath, roomDim
     
     if (projectId) {
       // Construct the API URL to download the GLB file with auth token
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1';
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8008/api/v1';
       const token = localStorage.getItem('token');
       const url = `${apiUrl}/files/download-3d/${projectId}`;
       

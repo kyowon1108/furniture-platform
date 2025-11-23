@@ -5,7 +5,7 @@
 import axios from 'axios';
 import type { User, Project, ProjectDetail, Layout, ValidationResult, TokenResponse } from '@/types/api';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1';
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8008/api/v1';
 
 const apiClient = axios.create({
   baseURL: API_URL,

@@ -8,7 +8,7 @@ export interface Vector3 {
   z: number;
 }
 
-export type FurnitureType = 'bed' | 'desk' | 'chair' | 'wardrobe' | 'table' | 'sofa' | 'shelf' | 'wall-lamp' | 'wall-tv' | 'wall-art' | 'desk-lamp' | 'decoration';
+export type FurnitureType = 'bed' | 'desk' | 'chair' | 'wardrobe' | 'table' | 'sofa' | 'shelf' | 'wall-lamp' | 'wall-tv' | 'wall-art' | 'desk-lamp' | 'decoration' | 'monitor' | 'printer' | 'filing-cabinet' | 'whiteboard' | 'clock' | 'mirror' | 'shelving-unit';
 
 export interface FurnitureItem {
   id: string;

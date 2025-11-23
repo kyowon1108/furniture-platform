@@ -83,7 +83,7 @@ export function CreateProjectModal({ onClose, onSuccess }: CreateProjectModalPro
         formData.append('file', file3D);
         
         const token = localStorage.getItem('token');
-        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1';
+        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8008/api/v1';
         
         const response = await fetch(`${apiUrl}/files/upload-3d/${project.id}`, {
           method: 'POST',

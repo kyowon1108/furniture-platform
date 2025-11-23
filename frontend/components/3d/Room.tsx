@@ -25,23 +25,102 @@ export function Room({ roomDimensions }: RoomProps = {}) {
   const wallThickness = 0.1;
   
   const { camera } = useThree();
-  const [wallOpacity, setWallOpacity] = useState(0.15);
+  const [wallOpacities, setWallOpacities] = useState({
+    north: 0.15,
+    south: 0.15,
+    east: 0.15,
+    west: 0.15
+  });
   
-  // Track camera position and adjust wall opacity
+  // Track camera position and adjust wall opacity based on camera direction
   useFrame(() => {
-    // Check if camera is inside or outside the room
     const cameraPos = camera.position;
     const isInside = 
       Math.abs(cameraPos.x) < halfWidth &&
       Math.abs(cameraPos.z) < halfDepth &&
       cameraPos.y > 0 && cameraPos.y < height;
     
-    // If camera is outside, make walls more transparent
-    // If camera is inside, make walls less transparent
-    const targetOpacity = isInside ? 0.15 : 0.05;
+    // Room center (for direction calculation)
+    const roomCenter = new THREE.Vector3(0, height / 2, 0);
+    
+    // Direction from camera to room center
+    const directionToRoom = new THREE.Vector3()
+      .subVectors(roomCenter, cameraPos)
+      .normalize();
+    
+    // Calculate opacity for each wall based on camera position
+    const newOpacities = {
+      north: 0.15,
+      south: 0.15,
+      east: 0.15,
+      west: 0.15
+    };
+    
+    if (!isInside) {
+      // Camera is outside - check which walls are blocking the view
+      // Only make walls transparent if they are in the camera's viewing direction
+      // Don't make walls transparent if they are behind the camera (opposite side)
+      
+      // Get camera's viewing direction
+      const cameraDirection = new THREE.Vector3();
+      camera.getWorldDirection(cameraDirection);
+      
+      // Wall positions and normals (pointing inward)
+      const wallPositions = {
+        north: new THREE.Vector3(0, height / 2, -halfDepth),
+        south: new THREE.Vector3(0, height / 2, halfDepth),
+        west: new THREE.Vector3(-halfWidth, height / 2, 0),
+        east: new THREE.Vector3(halfWidth, height / 2, 0)
+      };
+      
+      const wallNormals = {
+        north: new THREE.Vector3(0, 0, 1),   // Pointing inward (toward room center)
+        south: new THREE.Vector3(0, 0, -1),
+        west: new THREE.Vector3(1, 0, 0),
+        east: new THREE.Vector3(-1, 0, 0)
+      };
+      
+      // Check each wall: is it in the camera's viewing direction?
+      const checkWall = (wallPos: THREE.Vector3, wallNormal: THREE.Vector3) => {
+        // Direction from camera to wall
+        const toWall = new THREE.Vector3().subVectors(wallPos, cameraPos).normalize();
+        
+        // Check if wall is in front of camera (camera is looking at it)
+        // Dot product > 0 means wall is in front of camera
+        const isInFront = cameraDirection.dot(toWall) > 0;
+        
+        // Also check if wall is between camera and room center
+        const ray = new THREE.Ray(cameraPos, directionToRoom);
+        const wallPlane = new THREE.Plane();
+        wallPlane.setFromNormalAndCoplanarPoint(wallNormal, wallPos);
+        const intersect = new THREE.Vector3();
+        const intersects = ray.intersectPlane(wallPlane, intersect);
+        
+        // Wall is blocking if: it's in front of camera AND ray intersects it
+        return isInFront && intersects;
+      };
+      
+      const northBlocking = checkWall(wallPositions.north, wallNormals.north);
+      const southBlocking = checkWall(wallPositions.south, wallNormals.south);
+      const westBlocking = checkWall(wallPositions.west, wallNormals.west);
+      const eastBlocking = checkWall(wallPositions.east, wallNormals.east);
+      
+      // Make blocking walls transparent (more visible = 0.18 instead of 0.12)
+      // Only walls in camera's viewing direction are made transparent
+      // 0.18 = 20% more visible than 0.12 (10% less transparent than before)
+      newOpacities.north = northBlocking ? 0.18 : 0.15;
+      newOpacities.south = southBlocking ? 0.18 : 0.15;
+      newOpacities.west = westBlocking ? 0.18 : 0.15;
+      newOpacities.east = eastBlocking ? 0.18 : 0.15;
+    }
     
     // Smooth transition
-    setWallOpacity(prev => prev + (targetOpacity - prev) * 0.1);
+    setWallOpacities(prev => ({
+      north: prev.north + (newOpacities.north - prev.north) * 0.1,
+      south: prev.south + (newOpacities.south - prev.south) * 0.1,
+      east: prev.east + (newOpacities.east - prev.east) * 0.1,
+      west: prev.west + (newOpacities.west - prev.west) * 0.1
+    }));
   });
 
   const appliedMaterials = useMaterialStore(state => state.appliedMaterials);
@@ -59,7 +138,10 @@ export function Room({ roomDimensions }: RoomProps = {}) {
   const wallWestMaterial = appliedMaterials.find(m => m.surface === 'wall-west');
 
   // Create material from catalog
-  const createMaterial = (materialId: string | undefined, isWall: boolean = false) => {
+  const createMaterial = (materialId: string | undefined, isWall: boolean = false, wallType?: 'north' | 'south' | 'east' | 'west') => {
+    // Get opacity for this specific wall
+    const opacity = isWall && wallType ? wallOpacities[wallType] : (isWall ? 0.15 : 1);
+    
     if (!materialId) {
       // Default material
       return (
@@ -68,7 +150,7 @@ export function Room({ roomDimensions }: RoomProps = {}) {
           roughness={isWall ? 0.8 : 0.9}
           metalness={0.1}
           transparent={isWall}
-          opacity={isWall ? wallOpacity : 1}
+          opacity={opacity}
           side={isWall ? THREE.DoubleSide : THREE.FrontSide}
           depthWrite={!isWall}
         />
@@ -84,7 +166,7 @@ export function Room({ roomDimensions }: RoomProps = {}) {
         roughness={material.roughness ?? (isWall ? 0.8 : 0.9)}
         metalness={material.metalness ?? 0.1}
         transparent={isWall}
-        opacity={isWall ? wallOpacity : 1}
+        opacity={opacity}
         side={isWall ? THREE.DoubleSide : THREE.FrontSide}
         depthWrite={!isWall}
       />
@@ -215,7 +297,8 @@ export function Room({ roomDimensions }: RoomProps = {}) {
     surface: 'wall-north' | 'wall-south' | 'wall-east' | 'wall-west',
     position: [number, number, number],
     geometry: [number, number, number],
-    materialData: typeof wallNorthMaterial
+    materialData: typeof wallNorthMaterial,
+    wallType: 'north' | 'south' | 'east' | 'west'
   ) => {
     return (
       <mesh 
@@ -228,7 +311,7 @@ export function Room({ roomDimensions }: RoomProps = {}) {
         }}
       >
         <boxGeometry args={geometry} />
-        {createMaterial(materialData?.materialId, true)}
+        {createMaterial(materialData?.materialId, true, wallType)}
       </mesh>
     );
   };
@@ -243,7 +326,8 @@ export function Room({ roomDimensions }: RoomProps = {}) {
         'wall-north',
         [0, height / 2, -halfDepth],
         [width, height, wallThickness],
-        wallNorthMaterial
+        wallNorthMaterial,
+        'north'
       )}
 
       {/* Front Wall (South) - Very transparent to see inside */}
@@ -251,7 +335,8 @@ export function Room({ roomDimensions }: RoomProps = {}) {
         'wall-south',
         [0, height / 2, halfDepth],
         [width, height, wallThickness],
-        wallSouthMaterial
+        wallSouthMaterial,
+        'south'
       )}
 
       {/* Left Wall (West) - Very transparent to see inside */}
@@ -259,7 +344,8 @@ export function Room({ roomDimensions }: RoomProps = {}) {
         'wall-west',
         [-halfWidth, height / 2, 0],
         [wallThickness, height, depth],
-        wallWestMaterial
+        wallWestMaterial,
+        'west'
       )}
 
       {/* Right Wall (East) - Very transparent to see inside */}
@@ -267,7 +353,8 @@ export function Room({ roomDimensions }: RoomProps = {}) {
         'wall-east',
         [halfWidth, height / 2, 0],
         [wallThickness, height, depth],
-        wallEastMaterial
+        wallEastMaterial,
+        'east'
       )}
 
       {/* Ceiling - Very transparent */}
