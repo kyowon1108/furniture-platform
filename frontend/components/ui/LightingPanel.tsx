@@ -12,6 +12,12 @@ export function LightingPanel() {
     { value: 'night' as const, label: '밤 🌙', time: '00:00' },
   ];
 
+  const handleTimeOfDayChange = (newTimeOfDay: typeof times[number]['value']) => {
+    console.log('🖱️ LightingPanel: Button clicked, changing timeOfDay from', timeOfDay, 'to', newTimeOfDay);
+    setTimeOfDay(newTimeOfDay);
+    console.log('✅ LightingPanel: setTimeOfDay called with', newTimeOfDay);
+  };
+
   return (
     <div className="lighting-panel absolute bottom-4 left-4 z-10 w-64">
       <h3 className="lighting-title">💡 조명 시뮬레이션</h3>
@@ -20,7 +26,7 @@ export function LightingPanel() {
         {times.map((t) => (
           <button
             key={t.value}
-            onClick={() => setTimeOfDay(t.value)}
+            onClick={() => handleTimeOfDayChange(t.value)}
             className={`lighting-button ${timeOfDay === t.value ? 'active' : ''}`}
           >
             <div className="font-semibold">{t.label}</div>

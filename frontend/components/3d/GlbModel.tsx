@@ -37,44 +37,81 @@ const GlbGeometry = memo(function GlbGeometry({ url, roomDimensions, onDimension
     onDimensionsDetectedRef.current = onDimensionsDetected;
   }, [roomDimensions, onDimensionsDetected]);
   
+  // Track last opacity value to avoid unnecessary updates
+  const lastOpacityRef = useRef<number>(1.0);
+
+  // Cache materials list to avoid traverse() on every frame
+  const materialsListRef = useRef<THREE.Material[]>([]);
+
+  // Build materials list once when model loads
+  useEffect(() => {
+    if (!model) return;
+
+    const materials: THREE.Material[] = [];
+    model.traverse((child) => {
+      if ((child as THREE.Mesh).isMesh) {
+        const mesh = child as THREE.Mesh;
+        if (mesh.material) {
+          const mats = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
+          materials.push(...mats);
+
+          // Set transparent flag once during initialization
+          mats.forEach((mat) => {
+            if (!mat.transparent) {
+              mat.transparent = true;
+              mat.needsUpdate = true;
+            }
+          });
+        }
+      }
+    });
+    materialsListRef.current = materials;
+
+    // Log to console and file
+    const logMessage = `GLB model materials cached: ${materials.length} materials`;
+    console.log(logMessage);
+    console.log('[GLB_MODEL_LOADED]', {
+      timestamp: new Date().toISOString(),
+      materialsCount: materials.length,
+      materialTypes: materials.map(m => m.type).filter((v, i, a) => a.indexOf(v) === i)
+    });
+  }, [model]);
+
   // Track camera position and adjust model opacity dynamically with wall-specific transparency
+  // OPTIMIZED: Use cached materials list instead of traverse()
   useFrame(() => {
-    if (!model || !roomDimensions) return;
-    
+    if (!model || !roomDimensions || materialsListRef.current.length === 0) return;
+
     const cameraPos = camera.position;
     const halfWidth = roomDimensions.width / 2;
     const halfDepth = roomDimensions.depth / 2;
     const height = roomDimensions.height;
-    
+
     // Check if camera is inside or outside the room
-    const isInside = 
+    const isInside =
       Math.abs(cameraPos.x) < halfWidth &&
       Math.abs(cameraPos.z) < halfDepth &&
       cameraPos.y > 0 && cameraPos.y < height;
-    
-    // Room center (for direction calculation)
-    const roomCenter = new THREE.Vector3(0, height / 2, 0);
-    
-    // Direction from camera to room center
-    const directionToRoom = new THREE.Vector3()
-      .subVectors(roomCenter, cameraPos)
-      .normalize();
-    
+
     // Base opacity for the model
     const baseOpacity = isInside ? 0.7 : 0.3;
-    
+
     // Calculate wall-specific opacity (similar to Room.tsx logic)
     let wallOpacity = baseOpacity;
-    
+
     if (!isInside) {
-      // Camera is outside - check which walls are blocking the view
-      // Only make walls transparent if they are in the camera's viewing direction
-      // Don't make walls transparent if they are behind the camera (opposite side)
-      
+      // Room center (for direction calculation)
+      const roomCenter = new THREE.Vector3(0, height / 2, 0);
+
+      // Direction from camera to room center
+      const directionToRoom = new THREE.Vector3()
+        .subVectors(roomCenter, cameraPos)
+        .normalize();
+
       // Get camera's viewing direction
       const cameraDirection = new THREE.Vector3();
       camera.getWorldDirection(cameraDirection);
-      
+
       // Wall positions and normals (pointing inward)
       const wallPositions = {
         north: new THREE.Vector3(0, height / 2, -halfDepth),
@@ -82,75 +119,52 @@ const GlbGeometry = memo(function GlbGeometry({ url, roomDimensions, onDimension
         west: new THREE.Vector3(-halfWidth, height / 2, 0),
         east: new THREE.Vector3(halfWidth, height / 2, 0)
       };
-      
+
       const wallNormals = {
-        north: new THREE.Vector3(0, 0, 1),   // Pointing inward (toward room center)
+        north: new THREE.Vector3(0, 0, 1),
         south: new THREE.Vector3(0, 0, -1),
         west: new THREE.Vector3(1, 0, 0),
         east: new THREE.Vector3(-1, 0, 0)
       };
-      
+
       // Check each wall: is it in the camera's viewing direction?
       const checkWall = (wallPos: THREE.Vector3, wallNormal: THREE.Vector3) => {
-        // Direction from camera to wall
         const toWall = new THREE.Vector3().subVectors(wallPos, cameraPos).normalize();
-        
-        // Check if wall is in front of camera (camera is looking at it)
-        // Dot product > 0 means wall is in front of camera
         const isInFront = cameraDirection.dot(toWall) > 0;
-        
-        // Also check if wall is between camera and room center
         const ray = new THREE.Ray(cameraPos, directionToRoom);
         const wallPlane = new THREE.Plane();
         wallPlane.setFromNormalAndCoplanarPoint(wallNormal, wallPos);
         const intersect = new THREE.Vector3();
         const intersects = ray.intersectPlane(wallPlane, intersect);
-        
-        // Wall is blocking if: it's in front of camera AND ray intersects it
         return isInFront && intersects;
       };
-      
-      const northBlocking = checkWall(wallPositions.north, wallNormals.north);
-      const southBlocking = checkWall(wallPositions.south, wallNormals.south);
-      const westBlocking = checkWall(wallPositions.west, wallNormals.west);
-      const eastBlocking = checkWall(wallPositions.east, wallNormals.east);
-      
-      // Only make walls transparent if they are in camera's viewing direction
-      // If any wall in camera's viewing direction is blocking, use lower opacity
-      // Otherwise, keep base opacity (don't make model transparent if no wall is blocking)
-      const hasBlockingWallInView = northBlocking || southBlocking || westBlocking || eastBlocking;
-      
+
+      const hasBlockingWallInView =
+        checkWall(wallPositions.north, wallNormals.north) ||
+        checkWall(wallPositions.south, wallNormals.south) ||
+        checkWall(wallPositions.west, wallNormals.west) ||
+        checkWall(wallPositions.east, wallNormals.east);
+
       if (hasBlockingWallInView) {
-        // More visible = 0.18 instead of 0.12 (10% less transparent than before)
-        // 0.18 = 20% more visible than 0.12
         wallOpacity = 0.18;
-      } else {
-        // No walls in camera's viewing direction are blocking
-        // Keep base opacity (not transparent)
-        wallOpacity = baseOpacity;
       }
     }
-    
-    // Update all materials in the model with calculated opacity
-    model.traverse((child) => {
-      if ((child as THREE.Mesh).isMesh) {
-        const mesh = child as THREE.Mesh;
-        if (mesh.material) {
-          const materials = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
-          materials.forEach((mat) => {
-            // Make material transparent if not already
-            if (!mat.transparent) {
-              mat.transparent = true;
-            }
-            
-            // Smooth transition
-            const currentOpacity = mat.opacity !== undefined ? mat.opacity : 1.0;
-            mat.opacity = currentOpacity + (wallOpacity - currentOpacity) * 0.1;
-            mat.needsUpdate = true;
-          });
-        }
-      }
-    });
+
+    // Calculate target opacity with smoothing
+    const currentOpacity = lastOpacityRef.current;
+    const targetOpacity = wallOpacity;
+    const newOpacity = currentOpacity + (targetOpacity - currentOpacity) * 0.1;
+
+    // Only update materials if opacity actually changed significantly
+    if (Math.abs(newOpacity - currentOpacity) > 0.001) {
+      lastOpacityRef.current = newOpacity;
+
+      // CRITICAL: Use cached materials list instead of traverse()
+      // This prevents creating new objects every frame and causing memory pressure
+      materialsListRef.current.forEach((mat) => {
+        mat.opacity = newOpacity;
+      });
+    }
   });
 
   useEffect(() => {
@@ -160,8 +174,7 @@ const GlbGeometry = memo(function GlbGeometry({ url, roomDimensions, onDimension
     const loadGLB = async () => {
       try {
         const token = localStorage.getItem('token');
-        console.log('Loading GLB from:', url);
-        
+
         // Fetch the GLB file with authentication
         const response = await fetch(url, {
           headers: {
@@ -182,42 +195,30 @@ const GlbGeometry = memo(function GlbGeometry({ url, roomDimensions, onDimension
         loader.load(
           blobUrl,
           (gltf) => {
-            console.log('========================================');
-            console.log('🎨 GLB LOADED - DETAILED ANALYSIS');
-            console.log('========================================');
-            console.log('GLTF:', gltf);
-            console.log('Scene:', gltf.scene);
-            
+            // GLB loaded successfully
+            // Don't log gltf object - it contains circular references (GLTFParser -> plugins -> extensions -> parser)
+
             // Clean up blob URL
             URL.revokeObjectURL(blobUrl);
-            
+
             // Get bounding box
             const box = new THREE.Box3().setFromObject(gltf.scene);
             const size = new THREE.Vector3();
             box.getSize(size);
             const center = new THREE.Vector3();
             box.getCenter(center);
-            
-            console.log('Bounding Box:', {
-              min: box.min,
-              max: box.max,
-              center: center,
-              size: size
-            });
-            
+
             // Center on X and Z axes, but align bottom to Y=0
             // Don't center Y axis - instead move the bottom (min.y) to origin
             gltf.scene.position.set(-center.x, -box.min.y, -center.z);
-            console.log('GLB centered on XZ, bottom aligned to Y=0');
-            
+
             // GLB files are typically already in Y-up format (Three.js standard)
             // So we DON'T apply axis correction for GLB files
-            console.log('GLB file - no axis correction needed (already Y-up)');
-            
+
             // Always use GLB dimensions as the room dimensions
             // GLB files contain accurate real-world measurements
             const currentCallback = onDimensionsDetectedRef.current;
-            
+
             if (currentCallback) {
               // Use actual GLB dimensions without padding
               // The GLB already represents the real room
@@ -226,106 +227,99 @@ const GlbGeometry = memo(function GlbGeometry({ url, roomDimensions, onDimension
                 height: Math.abs(size.y),
                 depth: Math.abs(size.z)
               };
-              console.log('Using GLB dimensions as room dimensions (1:1 scale):', actualDims);
               currentCallback(actualDims);
             }
-            
+
             // Enable shadows and ensure materials/textures are properly loaded
-            console.log('🎨 Processing GLB materials and textures...');
             gltf.scene.traverse((child) => {
               if ((child as THREE.Mesh).isMesh) {
                 child.castShadow = true;
                 child.receiveShadow = true;
-                
+
                 const mesh = child as THREE.Mesh;
-                console.log(`Mesh: ${mesh.name || 'unnamed'}`);
-                
+
                 if (mesh.material) {
                   const materials = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
-                  materials.forEach((mat, idx) => {
-                    console.log(`  Material ${idx}: ${mat.name || 'unnamed'}`, {
-                      type: mat.type,
-                      hasMap: 'map' in mat && !!(mat as any).map,
-                      hasColor: 'color' in mat,
-                      transparent: mat.transparent,
-                      opacity: mat.opacity
-                    });
-                    
+                  materials.forEach((mat) => {
                     // Force texture update if exists
                     if ('map' in mat && (mat as any).map) {
                       const texture = (mat as any).map;
                       texture.needsUpdate = true;
                       // Ensure proper color space for textures
                       texture.colorSpace = THREE.SRGBColorSpace;
-                      console.log(`    ✅ Texture found and updated`);
                     }
-                    
-                    // BRIGHTNESS BOOST: Increase overall brightness by 50%
-                    
-                    // CRITICAL: Disable tone mapping to preserve brightness
+
+                    // ========================================
+                    // MATERIAL SETTINGS FOR ACCURATE COLOR REPRODUCTION
+                    // ========================================
+
+                    // CRITICAL: Disable tone mapping on materials to preserve original colors
+                    // The scene-level tone mapping (ACESFilmic) would alter the colors
+                    // For accurate color reproduction, materials should bypass tone mapping
                     if ('toneMapped' in mat) {
                       (mat as any).toneMapped = false;
-                      console.log(`    🚫 Tone mapping disabled`);
                     }
-                    
-                    // Method 1: Increase base color brightness significantly
-                    if ('color' in mat && (mat as any).color) {
-                      const color = (mat as any).color;
-                      // Multiply RGB values by 2.0 (100% brighter) since tone mapping is off
-                      color.r = Math.min(color.r * 2.0, 1.0);
-                      color.g = Math.min(color.g * 2.0, 1.0);
-                      color.b = Math.min(color.b * 2.0, 1.0);
-                      console.log(`    🔆 Brightness boosted 100%: #${color.getHexString()}`);
-                    }
-                    
-                    // Method 2: Strong emissive lighting (self-illumination)
+
+                    // Remove any emissive lighting to ensure materials respond to scene lights
+                    // Emissive makes objects self-illuminated and prevents proper lighting simulation
                     if ('emissive' in mat) {
-                      // Copy base color to emissive for strong self-illumination
-                      if ('color' in mat && (mat as any).color) {
-                        (mat as any).emissive = (mat as any).color.clone().multiplyScalar(0.5);
+                      if ((mat as any).emissive) {
+                        // Reset emissive to black (no self-illumination)
+                        if ((mat as any).emissive.isColor) {
+                          (mat as any).emissive.setHex(0x000000);
+                        } else {
+                          (mat as any).emissive = new THREE.Color(0x000000);
+                        }
                       }
+                      // Set emissive intensity to 0
                       if ('emissiveIntensity' in mat) {
-                        (mat as any).emissiveIntensity = 1.0;
+                        (mat as any).emissiveIntensity = 0;
                       }
-                      console.log(`    💡 Strong emissive added`);
                     }
-                    
-                    // Method 3: Reduce roughness for more reflectivity
-                    if ('roughness' in mat) {
-                      const currentRoughness = (mat as any).roughness || 1.0;
-                      (mat as any).roughness = Math.max(currentRoughness * 0.5, 0.2);
-                      console.log(`    ✨ Roughness reduced to ${(mat as any).roughness.toFixed(2)}`);
-                    }
-                    
+
+
                     // Ensure material is updated
                     mat.needsUpdate = true;
-                    
-                    // Log color if available
-                    if ('color' in mat && (mat as any).color) {
-                      console.log(`    Color: #${(mat as any).color.getHexString()}`);
-                    }
                   });
                 }
               }
             });
-            console.log('✅ GLB materials and textures processed');
-            
-            console.log('========================================');
             
             setModel(gltf.scene);
           },
-          (progress) => {
-            console.log('Loading GLB:', (progress.loaded / progress.total * 100).toFixed(2) + '%');
-          },
+          undefined,
           (err: unknown) => {
-            const error = err as Error;
-            console.error('Error loading GLB:', error);
+            // Extract safe error message without circular references
+            // CRITICAL: Never use String() on Three.js error objects - they contain circular refs
+            let errorMessage = 'Failed to load GLB file';
+
+            try {
+              // Priority 1: Extract error.message (most common case)
+              if (err && typeof err === 'object' && 'message' in err && typeof err.message === 'string') {
+                errorMessage = `GLB load failed: ${err.message}`;
+              }
+              // Priority 2: If error is already a string
+              else if (typeof err === 'string') {
+                errorMessage = `GLB load failed: ${err}`;
+              }
+              // Priority 3: Try to get constructor name for debugging
+              else if (err && typeof err === 'object' && err.constructor?.name) {
+                errorMessage = `GLB load failed: ${err.constructor.name} error occurred`;
+              }
+              // Priority 4: Fallback (don't try String() on complex objects)
+              else {
+                errorMessage = 'GLB load failed: Unknown error occurred';
+              }
+            } catch (extractError) {
+              // If even error extraction fails, use generic message
+              errorMessage = 'GLB load failed: Error occurred during loading';
+            }
+
             URL.revokeObjectURL(blobUrl);
-            setLoadError(error.message || 'Failed to load GLB file');
+            setLoadError(errorMessage);
           }
         );
       } catch (error: any) {
-        console.error('Error fetching GLB:', error);
         setLoadError(error.message || 'Failed to fetch GLB file');
       }
     };
@@ -345,27 +339,38 @@ const GlbGeometry = memo(function GlbGeometry({ url, roomDimensions, onDimension
     
     // GLB files contain real-world scale information
     // We should preserve the original scale (1:1) and not distort it
-    let calculatedScale = 1;
-    let calculatedPosition: [number, number, number] = [0, 0, 0];
-    
-    console.log('GLB Model dimensions:', {
-      width: size.x.toFixed(2) + 'm',
-      height: size.y.toFixed(2) + 'm',
-      depth: size.z.toFixed(2) + 'm',
-      scale: '1:1 (preserving real-world scale)'
-    });
-    
-    // Model is already aligned with bottom at Y=0, so no Y offset needed
-    calculatedPosition = [0, 0, 0];
-    
+    const calculatedScale = 1;
+    const calculatedPosition: [number, number, number] = [0, 0, 0];
+
     return { scale: calculatedScale, position: calculatedPosition };
   }, [model]);
 
   if (loadError) {
+    // Extract safe error message
+    let displayError = loadError;
+    if (typeof loadError === 'object' && loadError !== null) {
+      if ('message' in loadError) {
+        displayError = String(loadError.message);
+      } else {
+        displayError = String(loadError);
+      }
+    }
+    
     return (
       <Html center>
-        <div style={{ color: 'red', background: 'white', padding: '10px', borderRadius: '5px' }}>
-          GLB 로드 실패: {loadError}
+        <div style={{ 
+          color: 'red', 
+          background: 'white', 
+          padding: '15px', 
+          borderRadius: '5px',
+          maxWidth: '500px',
+          wordBreak: 'break-word',
+          fontSize: '14px',
+          lineHeight: '1.5',
+          boxShadow: '0 2px 8px rgba(0,0,0,0.2)'
+        }}>
+          <div style={{ fontWeight: 'bold', marginBottom: '8px' }}>❌ GLB 로드 실패</div>
+          <div style={{ fontFamily: 'monospace', whiteSpace: 'pre-wrap' }}>{displayError}</div>
         </div>
       </Html>
     );
@@ -395,33 +400,20 @@ export const GlbModel = memo(function GlbModel({ projectId, glbFilePath, roomDim
   const [detectedDimensions, setDetectedDimensions] = useState<{ width: number; height: number; depth: number } | null>(null);
 
   useEffect(() => {
-    console.log('=== GLB Model Mount ===');
-    console.log('Project ID:', projectId);
-    console.log('GLB File Path:', glbFilePath);
-    
     if (projectId) {
       // Construct the API URL to download the GLB file with auth token
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8008/api/v1';
-      const token = localStorage.getItem('token');
       const url = `${apiUrl}/files/download-3d/${projectId}`;
-      
-      console.log('GLB Model - URL:', url);
-      console.log('GLB Model - Has Token:', !!token);
-      
       setGlbUrl(url);
-    } else {
-      console.log('GLB Model - No project ID');
     }
   }, [projectId, glbFilePath]);
 
   const handleDimensionsDetected = (dims: { width: number; height: number; depth: number }) => {
-    console.log('Dimensions detected from GLB:', dims);
     setDetectedDimensions(dims);
-    
+
     // Notify parent component about the detected dimensions
-    if (onRoomDimensionsChange && roomDimensions && 
+    if (onRoomDimensionsChange && roomDimensions &&
         roomDimensions.width === 0 && roomDimensions.height === 0 && roomDimensions.depth === 0) {
-      console.log('🏠 Updating room dimensions in parent:', dims);
       onRoomDimensionsChange(dims);
     }
   };
@@ -433,7 +425,6 @@ export const GlbModel = memo(function GlbModel({ projectId, glbFilePath, roomDim
     : roomDimensions;
 
   if (!glbUrl) {
-    console.log('GLB Model - No URL, showing placeholder');
     return (
       <Html center>
         <div style={{ 

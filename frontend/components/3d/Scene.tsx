@@ -12,7 +12,7 @@ import { socketService } from '@/lib/socket';
 import type { FurnitureCatalogItem } from '@/types/catalog';
 import type { FurnitureItem } from '@/types/furniture';
 import * as THREE from 'three';
-import { useRef, useEffect } from 'react';
+import { useRef, useEffect, useMemo } from 'react';
 
 // Helper function to calculate rotated dimensions (bounding box after rotation)
 function getRotatedDimensions(
@@ -85,6 +85,7 @@ function SceneContent({
   const measureMode = useEditorStore((state) => state.measureMode);
   const measurePoints = useEditorStore((state) => state.measurePoints);
   const addMeasurePoint = useEditorStore((state) => state.addMeasurePoint);
+
 
   const { camera, raycaster, scene, gl } = useThree();
   const orbitControlsRef = useRef<any>(null);
@@ -434,11 +435,11 @@ function SceneContent({
       try {
         // Render the scene
         gl.render(scene, camera);
-        
+
         // Get the canvas and convert to data URL
         const canvas = gl.domElement;
         const dataURL = canvas.toDataURL('image/png');
-        
+
         // Create download link
         const link = document.createElement('a');
         link.href = dataURL;
@@ -455,41 +456,141 @@ function SceneContent({
     };
 
     window.addEventListener('exportPNG', handleExportPNG);
-    
+
     return () => {
       window.removeEventListener('exportPNG', handleExportPNG);
     };
   }, [gl, scene, camera]);
 
-  // Lighting configuration based on time of day
-  const lightingConfig = {
+  // WebGL Context Loss Prevention and Recovery
+  useEffect(() => {
+    const canvas = gl.domElement;
+
+    const handleContextLost = (event: Event) => {
+      event.preventDefault();
+
+      // Get WebGL debug info
+      const glContext = canvas.getContext('webgl2') || canvas.getContext('webgl');
+      let debugInfo = 'Unknown';
+
+      if (glContext) {
+        const debugRendererInfo = glContext.getExtension('WEBGL_debug_renderer_info');
+        if (debugRendererInfo) {
+          const renderer = glContext.getParameter(debugRendererInfo.UNMASKED_RENDERER_WEBGL);
+          const vendor = glContext.getParameter(debugRendererInfo.UNMASKED_VENDOR_WEBGL);
+          debugInfo = `${vendor} - ${renderer}`;
+        }
+      }
+
+      const memoryInfo = {
+        programs: gl.info.programs,
+        geometries: gl.info.memory.geometries,
+        textures: gl.info.memory.textures
+      };
+
+      // Log to console
+      console.error('⚠️ WebGL Context Lost - attempting recovery...');
+      console.error('GPU Info:', debugInfo);
+      console.error('Memory info:', memoryInfo);
+
+      // IMPORTANT: Log to file for debugging
+      console.error('[WEBGL_CONTEXT_LOST]', {
+        timestamp: new Date().toISOString(),
+        gpuInfo: debugInfo,
+        memory: memoryInfo,
+        url: window.location.href,
+        userAgent: navigator.userAgent
+      });
+
+      useToastStore.getState().addToast('⚠️ 렌더링 컨텍스트 손실 - 복구 중...', 'error');
+    };
+
+    const handleContextRestored = () => {
+      console.log('✅ WebGL Context Restored');
+
+      // Log to file
+      console.log('[WEBGL_CONTEXT_RESTORED]', {
+        timestamp: new Date().toISOString()
+      });
+
+      useToastStore.getState().addToast('✅ 렌더링 복구 완료', 'success');
+
+      // Re-apply tone mapping settings after context restoration
+      gl.toneMapping = THREE.ACESFilmicToneMapping;
+      gl.toneMappingExposure = 1.0;
+      gl.outputColorSpace = THREE.SRGBColorSpace;
+    };
+
+    canvas.addEventListener('webglcontextlost', handleContextLost, false);
+    canvas.addEventListener('webglcontextrestored', handleContextRestored, false);
+
+    // Log initial WebGL info
+    const webglInfo = {
+      maxTextures: gl.capabilities.maxTextures,
+      maxVertexTextures: gl.capabilities.maxVertexTextures,
+      maxTextureSize: gl.capabilities.maxTextureSize,
+      maxCubemapSize: gl.capabilities.maxCubemapSize,
+      maxAttributes: gl.capabilities.maxAttributes,
+      maxVertexUniforms: gl.capabilities.maxVertexUniforms,
+      maxVaryings: gl.capabilities.maxVaryings,
+      maxFragmentUniforms: gl.capabilities.maxFragmentUniforms,
+      precision: gl.capabilities.precision,
+      logarithmicDepthBuffer: gl.capabilities.logarithmicDepthBuffer,
+      maxSamples: gl.capabilities.maxSamples
+    };
+
+    console.log('📊 WebGL Renderer Info:', webglInfo);
+
+    // IMPORTANT: Log to file for debugging
+    console.log('[WEBGL_INIT]', {
+      timestamp: new Date().toISOString(),
+      capabilities: webglInfo,
+      renderer: gl.info.render,
+      memory: {
+        geometries: gl.info.memory.geometries,
+        textures: gl.info.memory.textures
+      }
+    });
+
+    return () => {
+      canvas.removeEventListener('webglcontextlost', handleContextLost);
+      canvas.removeEventListener('webglcontextrestored', handleContextRestored);
+    };
+  }, [gl]);
+
+  // Lighting configuration based on time of day - memoized to prevent recreation
+  // REDUCED lighting intensity to prevent colors from appearing too bright
+  const lightingConfig = useMemo(() => ({
     morning: {
       position: [10, 10, 5] as [number, number, number],
-      intensity: 1.2,
+      intensity: 0.8,  // Reduced from 1.2
       color: '#FFFACD',
-      ambient: 0.4,
+      ambient: 0.3,    // Reduced from 0.4
     },
     afternoon: {
       position: [0, 10, 0] as [number, number, number],
-      intensity: 1.5,
+      intensity: 1.0,  // Reduced from 1.5
       color: '#FFFFFF',
-      ambient: 0.6,
+      ambient: 0.4,    // Reduced from 0.6
     },
     evening: {
       position: [-10, 5, 5] as [number, number, number],
-      intensity: 0.8,
+      intensity: 0.6,  // Reduced from 0.8
       color: '#FFB347',
-      ambient: 0.3,
+      ambient: 0.2,    // Reduced from 0.3
     },
     night: {
       position: [0, 5, 0] as [number, number, number],
-      intensity: 0.3,
+      intensity: 0.2,  // Reduced from 0.3
       color: '#4169E1',
-      ambient: 0.1,
+      ambient: 0.05,   // Reduced from 0.1
     },
-  };
+  }), []); // Empty dependency array - config is constant
 
-  const lighting = lightingConfig[timeOfDay];
+  const lighting = useMemo(() => {
+    const config = lightingConfig[timeOfDay];
+    return config;
+  }, [timeOfDay, lightingConfig]);
 
   const handleCanvasClick = (e: any) => {
     if (measureMode === 'none') return;
@@ -506,48 +607,59 @@ function SceneContent({
 
   return (
     <>
-      {/* Strong ambient light for base illumination */}
-      <ambientLight intensity={0.8} />
+      {/* Ambient light - base illumination based on time of day */}
+      <ambientLight
+        key={`ambient-${timeOfDay}`}
+        intensity={lighting.ambient}
+      />
       
-      {/* Main directional light from above */}
+      {/* Main directional light - primary light source based on time of day */}
       <directionalLight
-        position={[0, 10, 0]}
-        intensity={2.0}
-        color="#ffffff"
+        key={`main-${timeOfDay}`}
+        position={lighting.position}
+        intensity={lighting.intensity}
+        color={lighting.color}
         castShadow
         shadow-mapSize-width={2048}
         shadow-mapSize-height={2048}
       />
       
-      {/* Key light (main light source) */}
+      {/* Key light (main light source) - adjusted based on time of day */}
       <directionalLight
+        key={`key-${timeOfDay}`}
         position={[10, 10, 10]}
-        intensity={1.5}
-        color="#ffffff"
+        intensity={lighting.intensity * 0.8}
+        color={lighting.color}
       />
       
-      {/* Fill lights from sides */}
+      {/* Fill lights from sides - adjusted based on time of day */}
       <directionalLight
+        key={`fill1-${timeOfDay}`}
         position={[-10, 5, 5]}
-        intensity={1.0}
-        color="#ffffff"
+        intensity={lighting.intensity * 0.5}
+        color={lighting.color}
       />
       <directionalLight
+        key={`fill2-${timeOfDay}`}
         position={[10, 5, -5]}
-        intensity={1.0}
-        color="#ffffff"
+        intensity={lighting.intensity * 0.5}
+        color={lighting.color}
       />
       
-      {/* Back light */}
+      {/* Back light - adjusted based on time of day */}
       <directionalLight
+        key={`back-${timeOfDay}`}
         position={[0, 5, -10]}
-        intensity={0.8}
-        color="#ffffff"
+        intensity={lighting.intensity * 0.4}
+        color={lighting.color}
       />
       
-      {/* Hemisphere light for natural sky/ground lighting */}
+      {/* Hemisphere light for natural sky/ground lighting - adjusted based on time of day */}
       <hemisphereLight
-        args={['#ffffff', '#888888', 1.0]}
+        key={`hemisphere-${timeOfDay}`}
+        skyColor={lighting.color}
+        groundColor={timeOfDay === 'night' ? '#222222' : '#888888'}
+        intensity={lighting.ambient * 0.5}
       />
 
       <Grid
@@ -1524,10 +1636,10 @@ export function Scene({
       onDragOver={handleDragOver}
       className="w-full h-screen"
     >
-      <Canvas 
-        camera={{ position: [5, 5, 5], fov: 60 }} 
+      <Canvas
+        camera={{ position: [5, 5, 5], fov: 60 }}
         shadows
-        gl={{ 
+        gl={{
           preserveDrawingBuffer: true,
           antialias: true,
           alpha: true,

@@ -16,6 +16,8 @@ import { ToastContainer } from '@/components/ui/Toast';
 import { MeasurePanel } from '@/components/ui/MeasurePanel';
 import { LightingPanel } from '@/components/ui/LightingPanel';
 import { useToastStore } from '@/store/toastStore';
+// Initialize logger to capture all console logs
+import '@/lib/logger';
 
 export default function EditorPage() {
   const params = useParams();

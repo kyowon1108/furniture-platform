@@ -46,32 +46,40 @@ const PlyGeometry = memo(function PlyGeometry({ url, roomDimensions, onDimension
     onDimensionsDetectedRef.current = onDimensionsDetected;
   }, [roomDimensions, onDimensionsDetected]);
   
+  // Track last opacity update to avoid unnecessary state changes
+  const lastOpacityRef = useRef<number>(0.7);
+  const frameCountRef = useRef<number>(0);
+
   // Track camera position and adjust model opacity with wall-specific transparency
   useFrame(() => {
     if (!roomDimensions || !geometry) return;
-    
+
+    // Throttle opacity updates to every 2 frames to reduce re-renders
+    frameCountRef.current++;
+    if (frameCountRef.current % 2 !== 0) return;
+
     const cameraPos = camera.position;
     const halfWidth = roomDimensions.width / 2;
     const halfDepth = roomDimensions.depth / 2;
     const height = roomDimensions.height;
-    
+
     // Check if camera is inside or outside the room
-    const isInside = 
+    const isInside =
       Math.abs(cameraPos.x) < halfWidth &&
       Math.abs(cameraPos.z) < halfDepth &&
       cameraPos.y > 0 && cameraPos.y < height;
-    
+
     // Room center (for direction calculation)
     const roomCenter = new THREE.Vector3(0, height / 2, 0);
-    
+
     // Direction from camera to room center
     const directionToRoom = new THREE.Vector3()
       .subVectors(roomCenter, cameraPos)
       .normalize();
-    
+
     // Base opacity for the model
     const baseOpacity = isInside ? 0.7 : 0.3;
-    
+
     // Calculate wall-specific opacity (similar to Room.tsx logic)
     const newWallOpacities = {
       north: baseOpacity,
@@ -79,16 +87,16 @@ const PlyGeometry = memo(function PlyGeometry({ url, roomDimensions, onDimension
       east: baseOpacity,
       west: baseOpacity
     };
-    
+
     if (!isInside) {
       // Camera is outside - check which walls are blocking the view
       // Only make walls transparent if they are in the camera's viewing direction
       // Don't make walls transparent if they are behind the camera (opposite side)
-      
+
       // Get camera's viewing direction
       const cameraDirection = new THREE.Vector3();
       camera.getWorldDirection(cameraDirection);
-      
+
       // Wall positions and normals (pointing inward)
       const wallPositions = {
         north: new THREE.Vector3(0, height / 2, -halfDepth),
@@ -96,45 +104,45 @@ const PlyGeometry = memo(function PlyGeometry({ url, roomDimensions, onDimension
         west: new THREE.Vector3(-halfWidth, height / 2, 0),
         east: new THREE.Vector3(halfWidth, height / 2, 0)
       };
-      
+
       const wallNormals = {
         north: new THREE.Vector3(0, 0, 1),   // Pointing inward (toward room center)
         south: new THREE.Vector3(0, 0, -1),
         west: new THREE.Vector3(1, 0, 0),
         east: new THREE.Vector3(-1, 0, 0)
       };
-      
+
       // Check each wall: is it in the camera's viewing direction?
       const checkWall = (wallPos: THREE.Vector3, wallNormal: THREE.Vector3) => {
         // Direction from camera to wall
         const toWall = new THREE.Vector3().subVectors(wallPos, cameraPos).normalize();
-        
+
         // Check if wall is in front of camera (camera is looking at it)
         // Dot product > 0 means wall is in front of camera
         const isInFront = cameraDirection.dot(toWall) > 0;
-        
+
         // Also check if wall is between camera and room center
         const ray = new THREE.Ray(cameraPos, directionToRoom);
         const wallPlane = new THREE.Plane();
         wallPlane.setFromNormalAndCoplanarPoint(wallNormal, wallPos);
         const intersect = new THREE.Vector3();
         const intersects = ray.intersectPlane(wallPlane, intersect);
-        
+
         // Wall is blocking if: it's in front of camera AND ray intersects it
         return isInFront && intersects;
       };
-      
+
       const northBlocking = checkWall(wallPositions.north, wallNormals.north);
       const southBlocking = checkWall(wallPositions.south, wallNormals.south);
       const westBlocking = checkWall(wallPositions.west, wallNormals.west);
       const eastBlocking = checkWall(wallPositions.east, wallNormals.east);
-      
+
       // Make blocking walls transparent (more visible = 0.18 instead of 0.12)
       // Only walls in camera's viewing direction are made transparent
       // 0.18 = 20% more visible than 0.12 (10% less transparent than before)
       // If no wall is blocking (all walls are behind camera), keep base opacity
       const hasBlockingWall = northBlocking || southBlocking || westBlocking || eastBlocking;
-      
+
       if (hasBlockingWall) {
         // Only make walls in camera's viewing direction transparent
         // Keep base opacity for walls behind camera
@@ -151,7 +159,7 @@ const PlyGeometry = memo(function PlyGeometry({ url, roomDimensions, onDimension
         newWallOpacities.east = baseOpacity;
       }
     }
-    
+
     // Smooth transition for wall opacities
     setWallOpacities(prev => ({
       north: prev.north + (newWallOpacities.north - prev.north) * 0.1,
@@ -159,7 +167,7 @@ const PlyGeometry = memo(function PlyGeometry({ url, roomDimensions, onDimension
       east: prev.east + (newWallOpacities.east - prev.east) * 0.1,
       west: prev.west + (newWallOpacities.west - prev.west) * 0.1
     }));
-    
+
     // For PLY model, use the opacity of walls in camera's viewing direction
     // If any wall in camera's viewing direction is blocking, use lower opacity
     // Otherwise, use base opacity (don't make model transparent if no wall is blocking)
@@ -169,41 +177,23 @@ const PlyGeometry = memo(function PlyGeometry({ url, roomDimensions, onDimension
       newWallOpacities.west < baseOpacity ||
       newWallOpacities.east < baseOpacity
     );
-    
+
     // More visible = 0.18 instead of 0.12 (10% less transparent)
     const targetModelOpacity = hasBlockingWallInView ? 0.18 : baseOpacity;
-    
-    // Smooth transition for overall model opacity
-    setModelOpacity(prev => prev + (targetModelOpacity - prev) * 0.1);
+
+    // Calculate smoothed opacity
+    const currentOpacity = lastOpacityRef.current;
+    const newOpacity = currentOpacity + (targetModelOpacity - currentOpacity) * 0.1;
+
+    // Only update state if opacity changed significantly
+    // This prevents unnecessary re-renders and material updates
+    if (Math.abs(newOpacity - currentOpacity) > 0.001) {
+      lastOpacityRef.current = newOpacity;
+      setModelOpacity(newOpacity);
+    }
   });
 
   const processGeometry = (loadedGeometry: THREE.BufferGeometry) => {
-    console.log('========================================');
-    console.log('🎨 PLY LOADED - DETAILED ANALYSIS');
-    console.log('========================================');
-    console.log('Geometry:', loadedGeometry);
-    console.log('Attributes:', Object.keys(loadedGeometry.attributes));
-    console.log('Has index (faces):', loadedGeometry.index !== null);
-    if (loadedGeometry.index) {
-      console.log('✅ MESH DETECTED - Has face indices!');
-      console.log('Index count:', loadedGeometry.index.count);
-      console.log('Face count (triangles):', loadedGeometry.index.count / 3);
-      console.log('Index array sample:', loadedGeometry.index.array.slice(0, 9));
-    } else {
-      console.log('❌ NO FACES - This is a point cloud');
-    }
-    
-    // Analyze all attributes
-    for (const [name, attr] of Object.entries(loadedGeometry.attributes)) {
-      console.log(`Attribute "${name}":`, {
-        count: attr.count,
-        itemSize: attr.itemSize,
-        normalized: attr.normalized,
-        type: attr.array.constructor.name,
-        sample: attr.itemSize === 3 ? [attr.getX(0), attr.getY(0), attr.getZ(0)] : [attr.getX(0)]
-      });
-    }
-    
     // Center the geometry
     loadedGeometry.computeBoundingBox();
     if (loadedGeometry.boundingBox) {
@@ -211,23 +201,14 @@ const PlyGeometry = memo(function PlyGeometry({ url, roomDimensions, onDimension
       loadedGeometry.boundingBox.getCenter(center);
       const size = new THREE.Vector3();
       loadedGeometry.boundingBox.getSize(size);
-      
-      console.log('Bounding Box:', {
-        min: loadedGeometry.boundingBox.min,
-        max: loadedGeometry.boundingBox.max,
-        center: center,
-        size: size
-      });
-      
+
       // Center on X and Z axes, but align bottom to Y=0
       // Don't center Y axis - instead move the bottom (min.y) to origin
       loadedGeometry.translate(-center.x, -loadedGeometry.boundingBox.min.y, -center.z);
-      console.log('Centered on XZ, bottom aligned to Y=0');
-      
+
       // Apply axis correction BEFORE computing normals
-      const detectedOrientation = applyAxisCorrectionToGeometry(loadedGeometry);
-      console.log('Applied axis correction to PLY geometry:', detectedOrientation);
-      
+      applyAxisCorrectionToGeometry(loadedGeometry);
+
       // Recompute bounding box after rotation
       loadedGeometry.computeBoundingBox();
       if (loadedGeometry.boundingBox) {
@@ -235,26 +216,19 @@ const PlyGeometry = memo(function PlyGeometry({ url, roomDimensions, onDimension
         loadedGeometry.boundingBox.getCenter(rotatedCenter);
         const rotatedSize = new THREE.Vector3();
         loadedGeometry.boundingBox.getSize(rotatedSize);
-        
-        console.log('After rotation:', {
-          size: rotatedSize,
-          center: rotatedCenter,
-          min: loadedGeometry.boundingBox.min,
-          max: loadedGeometry.boundingBox.max
-        });
-        
+
         // Re-center on X and Z axes after rotation, keep bottom at Y=0
         loadedGeometry.translate(-rotatedCenter.x, -loadedGeometry.boundingBox.min.y, -rotatedCenter.z);
-        console.log('Re-centered on XZ after rotation, bottom at Y=0');
-        
+
+
         // Update inferred dimensions with rotated size
         // Add 20% padding to make the room slightly larger than the model
         const currentRoomDims = roomDimensionsRef.current;
         const currentCallback = onDimensionsDetectedRef.current;
-        
-        if (currentRoomDims && 
-            currentRoomDims.width === 0 && 
-            currentRoomDims.height === 0 && 
+
+        if (currentRoomDims &&
+            currentRoomDims.width === 0 &&
+            currentRoomDims.height === 0 &&
             currentRoomDims.depth === 0 &&
             currentCallback) {
           const padding = 1.2; // 20% larger
@@ -263,44 +237,33 @@ const PlyGeometry = memo(function PlyGeometry({ url, roomDimensions, onDimension
             height: Math.abs(rotatedSize.y) * padding,
             depth: Math.abs(rotatedSize.z) * padding
           };
-          console.log('Inferred room dimensions from PLY (after rotation, with padding):', inferredDims);
           currentCallback(inferredDims);
         }
       }
     }
-    
+
     // Compute normals for proper lighting (after axis correction)
     if (!loadedGeometry.attributes.normal) {
       loadedGeometry.computeVertexNormals();
     }
-    
+
     // Handle vertex colors
-    console.log('========================================');
-    console.log('🎨 COLOR PROCESSING');
-    console.log('========================================');
-    
     if (loadedGeometry.attributes.color) {
       const colors = loadedGeometry.attributes.color;
-      console.log('✅ Standard color attribute EXISTS');
-      
+
       // Check if normalization is needed
       const maxValue = Math.max(
         ...Array.from(colors.array).slice(0, Math.min(100, colors.array.length))
       );
-      
+
       if (maxValue > 1.0) {
-        console.log('🔄 NORMALIZING colors from 0-255 to 0-1');
         const colorArray = colors.array;
         for (let i = 0; i < colorArray.length; i++) {
           colorArray[i] = colorArray[i] / 255.0;
         }
         colors.needsUpdate = true;
       }
-    } else {
-      console.log('❌ NO color attribute found!');
     }
-    
-    console.log('========================================');
     
     setGeometry(loadedGeometry);
   };
@@ -312,23 +275,18 @@ const PlyGeometry = memo(function PlyGeometry({ url, roomDimensions, onDimension
     const loadPLY = async () => {
       try {
         const token = localStorage.getItem('token');
-        console.log('Loading PLY from:', url);
-        
+
         // Try custom parser first (better face support)
         try {
-          console.log('🔧 Attempting custom PLY parser (better face support)...');
           const { parsePLYWithFaces } = await import('@/lib/plyParser');
           const loadedGeometry = await parsePLYWithFaces(url, token || '');
-          
-          console.log('✅ Custom parser succeeded!');
           processGeometry(loadedGeometry);
           return;
         } catch (customError) {
-          console.warn('⚠️ Custom parser failed, falling back to PLYLoader:', customError);
+          // Custom parser failed, fall back to standard PLYLoader
         }
-        
+
         // Fallback to standard PLYLoader
-        console.log('🔄 Using standard PLYLoader...');
         
         // Fetch the PLY file with authentication
         const response = await fetch(url, {
@@ -356,22 +314,41 @@ const PlyGeometry = memo(function PlyGeometry({ url, roomDimensions, onDimension
           (loadedGeometry: THREE.BufferGeometry) => {
             // Clean up blob URL
             URL.revokeObjectURL(blobUrl);
-            
-            console.log('✅ PLYLoader succeeded');
             processGeometry(loadedGeometry);
           },
-          (progress: ProgressEvent) => {
-            console.log('Loading PLY:', (progress.loaded / progress.total * 100).toFixed(2) + '%');
-          },
+          undefined,
           (err: unknown) => {
-            const error = err as Error;
-            console.error('Error loading PLY:', error);
+            // Extract safe error message without circular references
+            // CRITICAL: Never use String() on Three.js error objects - they contain circular refs
+            let errorMessage = 'Failed to load PLY file';
+
+            try {
+              // Priority 1: Extract error.message (most common case)
+              if (err && typeof err === 'object' && 'message' in err && typeof err.message === 'string') {
+                errorMessage = `PLY load failed: ${err.message}`;
+              }
+              // Priority 2: If error is already a string
+              else if (typeof err === 'string') {
+                errorMessage = `PLY load failed: ${err}`;
+              }
+              // Priority 3: Try to get constructor name for debugging
+              else if (err && typeof err === 'object' && err.constructor?.name) {
+                errorMessage = `PLY load failed: ${err.constructor.name} error occurred`;
+              }
+              // Priority 4: Fallback (don't try String() on complex objects)
+              else {
+                errorMessage = 'PLY load failed: Unknown error occurred';
+              }
+            } catch (extractError) {
+              // If even error extraction fails, use generic message
+              errorMessage = 'PLY load failed: Error occurred during loading';
+            }
+
             URL.revokeObjectURL(blobUrl);
-            setLoadError(error.message || 'Failed to load PLY file');
+            setLoadError(errorMessage);
           }
         );
       } catch (error: any) {
-        console.error('Error fetching PLY:', error);
         setLoadError(error.message || 'Failed to fetch PLY file');
       }
     };
@@ -457,42 +434,16 @@ const PlyGeometry = memo(function PlyGeometry({ url, roomDimensions, onDimension
 
   // Check if this is a point cloud or mesh
   const hasIndices = geometry.index !== null;
-  const vertexCount = geometry.attributes.position?.count || 0;
-  
-  console.log('Rendering PLY:', { hasIndices, vertexCount, scale });
 
   // Check if geometry has vertex colors
   const hasVertexColors = !!geometry.attributes.color;
-  
-  console.log('========================================');
-  console.log('🎨 RENDERING PLY');
-  console.log('========================================');
-  console.log('Has vertex colors:', hasVertexColors);
-  console.log('Render mode:', hasIndices ? 'MESH' : 'POINT CLOUD');
-  console.log('Vertex count:', vertexCount);
-  console.log('Scale:', scale);
-  
-  if (hasVertexColors) {
-    const colors = geometry.attributes.color;
-    console.log('Color attribute at render time:', {
-      count: colors.count,
-      itemSize: colors.itemSize,
-      normalized: colors.normalized,
-      needsUpdate: colors.needsUpdate
-    });
-    console.log('Sample colors at render:');
-    for (let i = 0; i < Math.min(3, colors.count); i++) {
-      console.log(`  [${i}]: R=${colors.getX(i).toFixed(3)}, G=${colors.getY(i).toFixed(3)}, B=${colors.getZ(i).toFixed(3)}`);
-    }
-  }
-  console.log('========================================');
 
   return (
     <group scale={[scale, scale, scale]} position={position}>
       {/* Render as mesh if it has indices, otherwise as points */}
       {hasIndices ? (
         <mesh ref={meshRef} geometry={geometry} castShadow receiveShadow>
-          <meshStandardMaterial 
+          <meshStandardMaterial
             vertexColors={hasVertexColors}
             color={hasVertexColors ? undefined : 0xcccccc}
             toneMapped={false}
@@ -504,11 +455,13 @@ const PlyGeometry = memo(function PlyGeometry({ url, roomDimensions, onDimension
             transparent={true}
             opacity={modelOpacity}
             depthWrite={false}
+            emissive={0x000000}
+            emissiveIntensity={0}
           />
         </mesh>
       ) : (
         <points geometry={geometry}>
-          <pointsMaterial 
+          <pointsMaterial
             size={0.02}
             vertexColors={hasVertexColors}
             color={hasVertexColors ? undefined : 0xcccccc}
@@ -539,36 +492,23 @@ export const PlyModel = memo(function PlyModel({ projectId, plyFilePath, roomDim
   const [detectedDimensions, setDetectedDimensions] = useState<{ width: number; height: number; depth: number } | null>(null);
 
   useEffect(() => {
-    console.log('=== PLY Model Mount ===');
-    console.log('Project ID:', projectId);
-    console.log('PLY File Path:', plyFilePath);
-    
     if (projectId) {
       // Construct the API URL to download the PLY file with auth token
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8008/api/v1';
-      const token = localStorage.getItem('token');
       const url = `${apiUrl}/files/download-ply/${projectId}`;
-      
-      console.log('PLY Model - URL:', url);
-      console.log('PLY Model - Has Token:', !!token);
-      
       setPlyUrl(url);
-      
+
       // Hide debug info after 5 seconds
       setTimeout(() => setShowDebug(false), 5000);
-    } else {
-      console.log('PLY Model - No project ID');
     }
   }, [projectId, plyFilePath]);
 
   const handleDimensionsDetected = (dims: { width: number; height: number; depth: number }) => {
-    console.log('Dimensions detected from PLY:', dims);
     setDetectedDimensions(dims);
-    
+
     // Notify parent component about the detected dimensions
-    if (onRoomDimensionsChange && roomDimensions && 
+    if (onRoomDimensionsChange && roomDimensions &&
         roomDimensions.width === 0 && roomDimensions.height === 0 && roomDimensions.depth === 0) {
-      console.log('🏠 Updating room dimensions in parent:', dims);
       onRoomDimensionsChange(dims);
     }
   };
@@ -580,7 +520,6 @@ export const PlyModel = memo(function PlyModel({ projectId, plyFilePath, roomDim
     : roomDimensions;
 
   if (!plyUrl) {
-    console.log('PLY Model - No URL, showing placeholder');
     return (
       <Html center>
         <div style={{ 

@@ -231,7 +231,14 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   clearMeasurePoints: () => set({ measurePoints: [], measureMode: 'none' }),
 
   // Lighting
-  setTimeOfDay: (time) => set({ timeOfDay: time }),
+  setTimeOfDay: (time) => {
+    console.log('📦 editorStore: setTimeOfDay called with', time);
+    const currentTime = get().timeOfDay;
+    console.log('📦 editorStore: Current timeOfDay:', currentTime, '→ New timeOfDay:', time);
+    set({ timeOfDay: time });
+    const updatedTime = get().timeOfDay;
+    console.log('📦 editorStore: timeOfDay updated to', updatedTime);
+  },
 
   // Clipboard
   copySelected: () => {
