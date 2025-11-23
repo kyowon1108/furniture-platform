@@ -56,3 +56,6 @@ htmlcov/
 # Misc
 *.bak
 *.tmp
+
+# AWS Deployment Keys
+deployment/*.pem

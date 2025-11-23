@@ -657,7 +657,7 @@ function SceneContent({
       {/* Hemisphere light for natural sky/ground lighting - adjusted based on time of day */}
       <hemisphereLight
         key={`hemisphere-${timeOfDay}`}
-        skyColor={lighting.color}
+        color={lighting.color}
         groundColor={timeOfDay === 'night' ? '#222222' : '#888888'}
         intensity={lighting.ambient * 0.5}
       />

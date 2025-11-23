@@ -23,7 +23,7 @@ const GlbGeometry = memo(function GlbGeometry({ url, roomDimensions, onDimension
 }) {
   const groupRef = useRef<THREE.Group>(null);
   const [model, setModel] = useState<THREE.Group | null>(null);
-  const [loadError, setLoadError] = useState<string | null>(null);
+  const [loadError, setLoadError] = useState<unknown>(null);
   
   const { camera } = useThree();
   
@@ -347,7 +347,7 @@ const GlbGeometry = memo(function GlbGeometry({ url, roomDimensions, onDimension
 
   if (loadError) {
     // Extract safe error message
-    let displayError = loadError;
+    let displayError: string = String(loadError);
     if (typeof loadError === 'object' && loadError !== null) {
       if ('message' in loadError) {
         displayError = String(loadError.message);
