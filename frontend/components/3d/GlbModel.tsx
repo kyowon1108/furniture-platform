@@ -4,7 +4,7 @@ import { useEffect, useRef, useState, Suspense, useMemo, memo } from 'react';
 import * as THREE from 'three';
 import { Html } from '@react-three/drei';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
-import { useThree, useFrame } from '@react-three/fiber';
+import { useThree } from '@react-three/fiber';
 
 interface GlbModelProps {
   projectId: number;
@@ -77,95 +77,18 @@ const GlbGeometry = memo(function GlbGeometry({ url, roomDimensions, onDimension
     });
   }, [model]);
 
-  // Track camera position and adjust model opacity dynamically with wall-specific transparency
-  // OPTIMIZED: Use cached materials list instead of traverse()
-  useFrame(() => {
-    if (!model || !roomDimensions || materialsListRef.current.length === 0) return;
+  // Set fixed opacity for all materials
+  // Wall visibility feature removed as requested
+  useEffect(() => {
+    if (materialsListRef.current.length === 0) return;
 
-    const cameraPos = camera.position;
-    const halfWidth = roomDimensions.width / 2;
-    const halfDepth = roomDimensions.depth / 2;
-    const height = roomDimensions.height;
+    const fixedOpacity = 0.3; // Fixed semi-transparent opacity for GLB model
 
-    // Check if camera is inside or outside the room
-    const isInside =
-      Math.abs(cameraPos.x) < halfWidth &&
-      Math.abs(cameraPos.z) < halfDepth &&
-      cameraPos.y > 0 && cameraPos.y < height;
-
-    // Base opacity for the model
-    const baseOpacity = isInside ? 0.7 : 0.3;
-
-    // Calculate wall-specific opacity (similar to Room.tsx logic)
-    let wallOpacity = baseOpacity;
-
-    if (!isInside) {
-      // Room center (for direction calculation)
-      const roomCenter = new THREE.Vector3(0, height / 2, 0);
-
-      // Direction from camera to room center
-      const directionToRoom = new THREE.Vector3()
-        .subVectors(roomCenter, cameraPos)
-        .normalize();
-
-      // Get camera's viewing direction
-      const cameraDirection = new THREE.Vector3();
-      camera.getWorldDirection(cameraDirection);
-
-      // Wall positions and normals (pointing inward)
-      const wallPositions = {
-        north: new THREE.Vector3(0, height / 2, -halfDepth),
-        south: new THREE.Vector3(0, height / 2, halfDepth),
-        west: new THREE.Vector3(-halfWidth, height / 2, 0),
-        east: new THREE.Vector3(halfWidth, height / 2, 0)
-      };
-
-      const wallNormals = {
-        north: new THREE.Vector3(0, 0, 1),
-        south: new THREE.Vector3(0, 0, -1),
-        west: new THREE.Vector3(1, 0, 0),
-        east: new THREE.Vector3(-1, 0, 0)
-      };
-
-      // Check each wall: is it in the camera's viewing direction?
-      const checkWall = (wallPos: THREE.Vector3, wallNormal: THREE.Vector3) => {
-        const toWall = new THREE.Vector3().subVectors(wallPos, cameraPos).normalize();
-        const isInFront = cameraDirection.dot(toWall) > 0;
-        const ray = new THREE.Ray(cameraPos, directionToRoom);
-        const wallPlane = new THREE.Plane();
-        wallPlane.setFromNormalAndCoplanarPoint(wallNormal, wallPos);
-        const intersect = new THREE.Vector3();
-        const intersects = ray.intersectPlane(wallPlane, intersect);
-        return isInFront && intersects;
-      };
-
-      const hasBlockingWallInView =
-        checkWall(wallPositions.north, wallNormals.north) ||
-        checkWall(wallPositions.south, wallNormals.south) ||
-        checkWall(wallPositions.west, wallNormals.west) ||
-        checkWall(wallPositions.east, wallNormals.east);
-
-      if (hasBlockingWallInView) {
-        wallOpacity = 0.18;
-      }
-    }
-
-    // Calculate target opacity with smoothing
-    const currentOpacity = lastOpacityRef.current;
-    const targetOpacity = wallOpacity;
-    const newOpacity = currentOpacity + (targetOpacity - currentOpacity) * 0.1;
-
-    // Only update materials if opacity actually changed significantly
-    if (Math.abs(newOpacity - currentOpacity) > 0.001) {
-      lastOpacityRef.current = newOpacity;
-
-      // CRITICAL: Use cached materials list instead of traverse()
-      // This prevents creating new objects every frame and causing memory pressure
-      materialsListRef.current.forEach((mat) => {
-        mat.opacity = newOpacity;
-      });
-    }
-  });
+    materialsListRef.current.forEach((mat) => {
+      mat.opacity = fixedOpacity;
+      mat.transparent = true;
+    });
+  }, [model]);
 
   useEffect(() => {
     // Only load once when URL changes

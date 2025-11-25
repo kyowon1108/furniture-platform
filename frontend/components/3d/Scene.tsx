@@ -573,27 +573,27 @@ function SceneContent({
   const lightingConfig = useMemo(() => ({
     morning: {
       position: [10, 10, 5] as [number, number, number],
-      intensity: 0.8,  // Reduced from 1.2
+      intensity: 1.2,  // Increased for better visibility
       color: '#FFFACD',
-      ambient: 0.3,    // Reduced from 0.4
+      ambient: 0.6,    // Increased for better visibility
     },
     afternoon: {
       position: [0, 10, 0] as [number, number, number],
-      intensity: 1.0,  // Reduced from 1.5
+      intensity: 1.5,  // Increased for better visibility
       color: '#FFFFFF',
-      ambient: 0.4,    // Reduced from 0.6
+      ambient: 0.7,    // Increased for better visibility
     },
     evening: {
       position: [-10, 5, 5] as [number, number, number],
-      intensity: 0.6,  // Reduced from 0.8
+      intensity: 0.8,  // Increased for better visibility
       color: '#FFB347',
-      ambient: 0.2,    // Reduced from 0.3
+      ambient: 0.5,    // Increased for better visibility
     },
     night: {
       position: [0, 5, 0] as [number, number, number],
-      intensity: 0.2,  // Reduced from 0.3
+      intensity: 0.3,  // Increased for better visibility
       color: '#4169E1',
-      ambient: 0.05,   // Reduced from 0.1
+      ambient: 0.3,    // Increased for better visibility
     },
   }), []); // Empty dependency array - config is constant
 

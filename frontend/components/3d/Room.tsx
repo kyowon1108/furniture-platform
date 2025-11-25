@@ -255,18 +255,7 @@ export function Room({ roomDimensions }: RoomProps = {}) {
         wallEastMaterial
       )}
 
-      {/* Ceiling - Very transparent */}
-      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, height, 0]} receiveShadow>
-        <planeGeometry args={[width, depth]} />
-        <meshStandardMaterial 
-          color="#ffffff" 
-          roughness={0.9}
-          transparent
-          opacity={0.05}
-          side={2}
-          depthWrite={false}
-        />
-      </mesh>
+      {/* Ceiling removed - open top for better visibility */}
 
       {/* Baseboard lines for detail */}
       <lineSegments>
