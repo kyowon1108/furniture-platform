@@ -385,6 +385,15 @@ export default function RoomBuilderPage() {
         depth: roomDepth
       };
 
+      // Also add to extras for GLB export (GLTFExporter uses extras)
+      scene.extras = {
+        dimensions: {
+          width: roomWidth,
+          height: roomHeight,
+          depth: roomDepth
+        }
+      };
+
       const glbBlob = await new Promise<Blob>((resolve, reject) => {
         exporter.parse(
           scene,
@@ -397,7 +406,10 @@ export default function RoomBuilderPage() {
             console.error('GLB export error:', error);
             reject(error);
           },
-          { binary: true }
+          {
+            binary: true,
+            includeCustomExtensions: true // Ensure extras are included
+          }
         );
       });
 
@@ -418,7 +430,7 @@ export default function RoomBuilderPage() {
 
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8008/api/v1';
 
-      const response = await fetch(`${apiUrl}/room-builder/upload-glb/${projectId}`, {
+      const response = await fetch(`${apiUrl}/files-3d/upload-3d/${projectId}`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
