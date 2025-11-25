@@ -6,7 +6,7 @@ import logging
 
 from app.database import get_db
 from app.models import Project, User
-from app.core.auth import get_current_user
+from app.api.deps import get_current_user
 from app.utils.glb_utils import extract_glb_dimensions
 
 logger = logging.getLogger(__name__)
