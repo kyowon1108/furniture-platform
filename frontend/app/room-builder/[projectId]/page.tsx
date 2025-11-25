@@ -5,7 +5,7 @@ import { useEffect, useState, useRef, useCallback } from 'react';
 import { Canvas } from '@react-three/fiber';
 import { OrbitControls } from '@react-three/drei';
 import * as THREE from 'three';
-import { GLTFExporter } from 'three/examples/jsm/exporters/GLTFExporter';
+import { GLTFExporter } from 'three/examples/jsm/exporters/GLTFExporter.js';
 import { projectsAPI } from '@/lib/api';
 import RoomTemplateSelector from '@/components/room-builder/RoomTemplateSelector';
 import TextureGallery from '@/components/room-builder/TextureGallery';
@@ -408,8 +408,9 @@ export default function RoomBuilderPage() {
           },
           {
             binary: true,
-            embedImages: true, // Embed textures in GLB file
-            includeCustomExtensions: true // Ensure extras are included
+            embedImages: true, // Embed textures in GLB file (keep for portability)
+            includeCustomExtensions: true, // Ensure extras are included
+            maxTextureSize: 256 // Limit texture size to 256px
           }
         );
       });

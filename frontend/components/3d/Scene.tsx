@@ -6,6 +6,7 @@ import { Furniture } from './Furniture';
 import { Room } from './Room';
 import { PlyModel } from './PlyModel';
 import { GlbModel } from './GlbModel';
+import { CollisionDummy } from './CollisionDummy';
 import { useEditorStore } from '@/store/editorStore';
 import { useToastStore } from '@/store/toastStore';
 import { socketService } from '@/lib/socket';
@@ -90,6 +91,7 @@ function SceneContent({
   const { camera, raycaster, scene, gl } = useThree();
   const orbitControlsRef = useRef<any>(null);
   const transformControlsRef = useRef<any>(null);
+  const dummyObjectsRef = useRef<Array<{ id: string; position: any; dimensions: any; }>>([]);
 
   const selectedFurniture = selectedIds.length === 1 ? furnitures.find(f => f.id === selectedIds[0]) : null;
   const previousPositionRef = useRef<{ x: number; y: number; z: number } | null>(null);
@@ -185,10 +187,89 @@ function SceneContent({
       console.log('✓ PLY boundary check passed');
     }
     
+    // Check collision with dummy objects (for L-shaped and other template rooms)
+    // First try to find by name
+    let dummyGroup = scene.getObjectByName('collision-dummies');
+
+    // If not found, traverse scene to find dummies
+    if (!dummyGroup) {
+      scene.traverse((obj) => {
+        if (obj.name === 'collision-dummies') {
+          dummyGroup = obj;
+        }
+      });
+    }
+
+    // Also check for individual dummy objects
+    const dummyObjects: any[] = [];
+    scene.traverse((obj) => {
+      if (obj.userData?.isDummy) {
+        dummyObjects.push(obj);
+      }
+    });
+
+    console.log('🔍 Checking for dummy collision:', {
+      groupFound: !!dummyGroup,
+      groupChildren: dummyGroup?.children?.length || 0,
+      directDummies: dummyObjects.length,
+      sceneChildren: scene.children.length
+    });
+
+    // Check collision with all dummy objects found
+    for (const dummy of dummyObjects) {
+      const dummyDims = dummy.userData.dimensions;
+      const dummyPos = dummy.userData.position;
+
+      console.log('🔍 Checking collision with dummy:', {
+        id: dummy.userData.id,
+        dummyPos,
+        dummyDims,
+        furniturePos: newPos,
+        furnitureDims: { width: halfWidth * 2, depth: halfDepth * 2 }
+      });
+
+      // Check collision with dummy object
+      const f1 = {
+        minX: newPos.x - halfWidth,
+        maxX: newPos.x + halfWidth,
+        minZ: newPos.z - halfDepth,
+        maxZ: newPos.z + halfDepth,
+      };
+
+      const f2 = {
+        minX: dummyPos.x - dummyDims.width / 2,
+        maxX: dummyPos.x + dummyDims.width / 2,
+        minZ: dummyPos.z - dummyDims.depth / 2,
+        maxZ: dummyPos.z + dummyDims.depth / 2,
+      };
+
+      // Calculate overlap
+      const overlapX = Math.min(f1.maxX, f2.maxX) - Math.max(f1.minX, f2.minX);
+      const overlapZ = Math.min(f1.maxZ, f2.maxZ) - Math.max(f1.minZ, f2.minZ);
+
+      console.log('🔍 Collision calculation:', {
+        overlapX,
+        overlapZ,
+        isColliding: overlapX > 0 && overlapZ > 0,
+        f1,
+        f2
+      });
+
+      if (overlapX > 0 && overlapZ > 0) {
+        console.log('❌ Collision detected with dummy object:', dummy.userData.id, {
+          overlapX: overlapX.toFixed(3),
+          overlapZ: overlapZ.toFixed(3),
+          f1,
+          f2
+        });
+        return false;
+      }
+    }
+
     // Check collision with other furniture
     // Comprehensive 3D collision detection
     const penetrationThreshold = 0.02;
-    
+
     for (const other of furnitures) {
       if (furniture.id === other.id) continue;
       
@@ -700,6 +781,9 @@ function SceneContent({
       ) : (
         <Room roomDimensions={actualRoomDimensions} />
       )}
+
+      {/* Collision dummy objects for non-rectangular rooms */}
+      <CollisionDummy roomDimensions={actualRoomDimensions} />
 
       {furnitures.map((furniture) => (
         <Furniture 
