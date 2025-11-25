@@ -1,25 +1,47 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { FURNITURE_CATALOG, type FurnitureCatalogItem } from '@/types/catalog';
 import { useEditorStore } from '@/store/editorStore';
 import { useMaterialStore } from '@/store/materialStore';
 import { socketService } from '@/lib/socket';
 import type { FurnitureItem } from '@/types/furniture';
 import { MATERIAL_CATALOG, getMaterialsByCategory } from '@/data/materialCatalog';
+import { catalogAPI } from '@/lib/api';
 
 export function Sidebar() {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [activeTab, setActiveTab] = useState<'furniture' | 'materials'>('furniture');
   const [materialCategory, setMaterialCategory] = useState<'floor' | 'wall'>('floor');
-  
+  const [catalog, setCatalog] = useState<FurnitureCatalogItem[]>(FURNITURE_CATALOG);
+  const [isLoading, setIsLoading] = useState(true);
+
+  // Load catalog from S3 on mount
+  useEffect(() => {
+    const loadCatalog = async () => {
+      try {
+        setIsLoading(true);
+        const response = await catalogAPI.getCatalog();
+        if (response.items && response.items.length > 0) {
+          setCatalog(response.items);
+        }
+      } catch {
+        // Keep using local FURNITURE_CATALOG as fallback
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    loadCatalog();
+  }, []);
+
   const { addFurniture, furnitures } = useEditorStore();
-  const {
-    selectedMaterialId,
-    applicationMode,
-    setSelectedMaterial,
-    setApplicationMode
+  const { 
+    selectedMaterialId, 
+    applicationMode, 
+    setSelectedMaterial, 
+    setApplicationMode 
   } = useMaterialStore();
 
   // 배치된 가구들의 총 예상 비용 계산
@@ -35,7 +57,7 @@ export function Sidebar() {
   const categories = ['all', 'bedroom', 'living', 'office', 'kitchen', 'decoration'];
 
   const filteredFurniture = useMemo(() => {
-    return FURNITURE_CATALOG.filter((item) => {
+    return catalog.filter((item) => {
       const matchesSearch =
         item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
         item.tags.some((tag) => tag.includes(searchQuery.toLowerCase()));
@@ -43,7 +65,7 @@ export function Sidebar() {
         selectedCategory === 'all' || item.category === selectedCategory;
       return matchesSearch && matchesCategory;
     });
-  }, [searchQuery, selectedCategory]);
+  }, [catalog, searchQuery, selectedCategory]);
 
   const handleDragStart = (e: React.DragEvent, item: FurnitureCatalogItem) => {
     e.dataTransfer.setData('furniture', JSON.stringify(item));
@@ -58,7 +80,7 @@ export function Sidebar() {
     } else if (catalogItem.mountType === 'surface') {
       initialY = 0.5; // Slightly above ground for surface items
     }
-    
+
     const newFurniture: FurnitureItem = {
       id: `${catalogItem.id}-${Date.now()}`,
       type: catalogItem.type,
@@ -68,6 +90,7 @@ export function Sidebar() {
       dimensions: catalogItem.dimensions,
       color: catalogItem.color,
       mountType: catalogItem.mountType,
+      glbUrl: catalogItem.glbUrl, // S3 GLB URL
     };
 
     addFurniture(newFurniture);
@@ -231,7 +254,11 @@ export function Sidebar() {
       {/* Content */}
       <div className="furniture-grid overflow-y-auto flex-1">
         {activeTab === 'furniture' ? (
-          filteredFurniture.length === 0 ? (
+          isLoading ? (
+            <p style={{ gridColumn: '1 / -1', textAlign: 'center', padding: '2rem', color: 'var(--text-tertiary)' }}>
+              S3에서 카탈로그 로딩 중...
+            </p>
+          ) : filteredFurniture.length === 0 ? (
             <p style={{ gridColumn: '1 / -1', textAlign: 'center', padding: '2rem', color: 'var(--text-tertiary)' }}>
               가구를 찾을 수 없습니다
             </p>

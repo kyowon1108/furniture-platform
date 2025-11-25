@@ -151,4 +151,39 @@ export const filesAPI = {
   },
 };
 
+export const catalogAPI = {
+  getCatalog: async () => {
+    const response = await apiClient.get('/catalog');
+    return response.data;
+  },
+
+  uploadCatalog: async (items: any[]) => {
+    const response = await apiClient.post('/catalog', items);
+    return response.data;
+  },
+
+  uploadGlb: async (itemId: string, file: File) => {
+    const formData = new FormData();
+    formData.append('file', file);
+
+    const response = await apiClient.post(`/catalog/glb/${itemId}`, formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+    return response.data;
+  },
+
+  getGlbUrl: async (itemId: string) => {
+    const response = await apiClient.get(`/catalog/glb/${itemId}`);
+    return response.data;
+  },
+
+  listGlbFiles: async () => {
+    const response = await apiClient.get('/catalog/list-glb');
+    return response.data;
+  },
+
+};
+
 export default apiClient;

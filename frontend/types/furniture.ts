@@ -26,6 +26,7 @@ export interface FurnitureItem {
   mountType?: 'floor' | 'wall' | 'surface'; // floor: 바닥, wall: 벽걸이, surface: 가구 위
   mountedOn?: string; // ID of furniture this is mounted on (for surface type)
   wallSide?: 'north' | 'south' | 'east' | 'west'; // Which wall it's mounted on
+  glbUrl?: string; // S3 GLB file URL for 3D model
 }
 
 export interface LayoutState {

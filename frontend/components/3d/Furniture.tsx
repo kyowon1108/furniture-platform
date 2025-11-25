@@ -1,7 +1,9 @@
 'use client';
 
-import { useRef } from 'react';
+import { useRef, useState, useEffect, useMemo } from 'react';
 import * as THREE from 'three';
+import { useLoader } from '@react-three/fiber';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { useEditorStore } from '@/store/editorStore';
 import { useToastStore } from '@/store/toastStore';
 import type { FurnitureItem } from '@/types/furniture';
@@ -54,9 +56,86 @@ function getRotatedDimensions(
   }
 }
 
+// GLB Model component for loading actual 3D models from S3
+function GlbFurnitureModel({ glbUrl, dimensions, onClick }: {
+  glbUrl: string;
+  dimensions: { width: number; height: number; depth: number };
+  onClick: (e: any) => void;
+}) {
+  const [model, setModel] = useState<THREE.Group | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!glbUrl) return;
+
+    const loader = new GLTFLoader();
+
+    loader.load(
+      glbUrl,
+      (gltf) => {
+        // Calculate bounding box to scale model correctly
+        const box = new THREE.Box3().setFromObject(gltf.scene);
+        const size = new THREE.Vector3();
+        box.getSize(size);
+        const center = new THREE.Vector3();
+        box.getCenter(center);
+
+        // Use 1:1 scale - GLB dimensions from catalog should match actual GLB
+        // The dimensions were extracted from the GLB itself in split_glb.py
+        const scale = 1;
+
+        gltf.scene.scale.setScalar(scale);
+
+        // Center on XZ, align bottom to y=0
+        gltf.scene.position.set(
+          -center.x,
+          -box.min.y, // Align bottom to y=0
+          -center.z
+        );
+
+        // Enable shadows
+        gltf.scene.traverse((child) => {
+          if ((child as THREE.Mesh).isMesh) {
+            child.castShadow = true;
+            child.receiveShadow = true;
+          }
+        });
+
+        setModel(gltf.scene);
+      },
+      undefined,
+      (err) => {
+        console.error('Failed to load GLB:', glbUrl, err);
+        setError('GLB 로드 실패');
+      }
+    );
+  }, [glbUrl, dimensions]);
+
+  if (error || !model) {
+    // Fallback to simple box while loading or on error
+    return (
+      <mesh onClick={onClick} castShadow receiveShadow>
+        <boxGeometry args={[dimensions.width, dimensions.height, dimensions.depth]} />
+        <meshStandardMaterial color={error ? '#ff0000' : '#888888'} wireframe={!error} />
+      </mesh>
+    );
+  }
+
+  return (
+    <group onClick={onClick}>
+      <primitive object={model} />
+    </group>
+  );
+}
+
 // Render different furniture types with realistic shapes
-function FurnitureModel({ type, dimensions, color, onClick }: any) {
+function FurnitureModel({ type, dimensions, color, onClick, glbUrl }: any) {
   const { width, height, depth } = dimensions;
+
+  // If glbUrl is provided, render the actual GLB model
+  if (glbUrl) {
+    return <GlbFurnitureModel glbUrl={glbUrl} dimensions={dimensions} onClick={onClick} />;
+  }
 
   switch (type) {
     case 'bed':
@@ -658,7 +737,7 @@ export function Furniture(props: FurnitureProps) {
 
   // Position furniture based on mount type
   let finalPosition: [number, number, number];
-  
+
   if (props.mountType === 'wall') {
     // Wall-mounted items: use Y position directly (height from ground)
     finalPosition = [
@@ -666,19 +745,19 @@ export function Furniture(props: FurnitureProps) {
       props.position.y, // Use actual Y position for wall items
       props.position.z
     ];
-    console.log('🖼️ Rendering wall furniture:', {
-      id: props.id,
-      type: props.type,
-      mountType: props.mountType,
-      propsY: props.position.y,
-      finalY: finalPosition[1]
-    });
-  } else {
-    // Floor/surface items: bottom sits on the ground (y=0)
-    // The furniture models are centered, so we lift them by half their height
+  } else if (props.glbUrl) {
+    // GLB models: GlbFurnitureModel already aligns bottom to y=0
+    // So we don't need to lift by half height
     finalPosition = [
       props.position.x,
-      props.dimensions.height / 2, // Lift by half height so bottom touches ground
+      0,
+      props.position.z
+    ];
+  } else {
+    // Procedural models: centered around origin, lift by half height
+    finalPosition = [
+      props.position.x,
+      props.dimensions.height / 2,
       props.position.z
     ];
   }
@@ -700,6 +779,7 @@ export function Furniture(props: FurnitureProps) {
         dimensions={props.dimensions}
         color={color}
         onClick={handleClick}
+        glbUrl={props.glbUrl}
       />
 
       {isSelected && (
