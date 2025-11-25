@@ -32,6 +32,7 @@ const TileMesh: React.FC<{
       return;
     }
 
+    console.log(`Loading texture for ${tile.key}: ${textureUrl.substring(0, 50)}...`);
     const loader = new THREE.TextureLoader();
     loader.load(textureUrl, (tex) => {
       tex.colorSpace = THREE.SRGBColorSpace;
@@ -39,8 +40,9 @@ const TileMesh: React.FC<{
       tex.wrapT = THREE.RepeatWrapping;
       tex.needsUpdate = true;
       setTexture(tex);
+      console.log(`Texture loaded for ${tile.key}`);
     });
-  }, [textureUrl]);
+  }, [textureUrl, tile.key]);
 
   return (
     <mesh
@@ -358,6 +360,8 @@ const RoomScene = forwardRef<any, RoomSceneProps>(({
   useImperativeHandle(ref, () => ({
     getScene: () => groupRef.current,
   }));
+
+  console.log(`Rendering ${tiles.length} tiles, textures applied to:`, Object.keys(tileTextures));
 
   return (
     <group ref={groupRef}>

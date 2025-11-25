@@ -216,6 +216,23 @@ async def _process_glb_file(temp_path: Path, final_path: Path, project: Project,
 
         print(f"✅ Valid GLB file: version {version}, length {length} bytes")
 
+        # Extract dimensions from GLB file
+        from app.utils.glb_utils import extract_glb_dimensions
+        dimensions = extract_glb_dimensions(temp_path)
+
+        # Update project dimensions if extraction was successful
+        if dimensions and dimensions.get('width') and dimensions.get('height') and dimensions.get('depth'):
+            # Only update if we got valid dimensions (not the defaults)
+            if not (dimensions['width'] == 5.0 and dimensions['height'] == 3.0 and dimensions['depth'] == 4.0):
+                project.room_width = dimensions['width']
+                project.room_height = dimensions['height']
+                project.room_depth = dimensions['depth']
+                print(f"📐 Updated room dimensions from GLB: {dimensions['width']}x{dimensions['height']}x{dimensions['depth']}")
+            else:
+                print(f"⚠️ Got default dimensions, keeping existing: {project.room_width}x{project.room_height}x{project.room_depth}")
+        else:
+            print(f"⚠️ Could not extract dimensions from GLB, keeping existing: {project.room_width}x{project.room_height}x{project.room_depth}")
+
         # Remove old file if exists
         if project.file_path and os.path.exists(project.file_path):
             os.remove(project.file_path)
@@ -228,6 +245,7 @@ async def _process_glb_file(temp_path: Path, final_path: Path, project: Project,
             "glb_length": length,
             "is_mesh": True,  # GLB always contains mesh data
             "has_colors": True,  # GLB typically has materials/textures
+            "dimensions": dimensions if dimensions else None,
         }
 
     except HTTPException:

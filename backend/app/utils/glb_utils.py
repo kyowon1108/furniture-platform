@@ -122,8 +122,46 @@ def extract_dimensions_from_gltf_json(json_data: dict) -> Optional[Dict[str, flo
     Extract dimensions from glTF JSON data by looking at accessor bounds.
     """
     try:
-        # Look for POSITION accessor bounds
+        # First, check for dimensions in extras (where Three.js stores userData)
+        if 'extras' in json_data:
+            extras = json_data.get('extras', {})
+            if 'dimensions' in extras:
+                dims = extras['dimensions']
+                width = float(dims.get('width', 0))
+                height = float(dims.get('height', 0))
+                depth = float(dims.get('depth', 0))
+                if width > 0 and height > 0 and depth > 0:
+                    logger.info(f"Found dimensions in extras: {width}x{height}x{depth}")
+                    return {
+                        'width': round(width, 2),
+                        'height': round(height, 2),
+                        'depth': round(depth, 2)
+                    }
+
+        # Check in scene extras (Three.js may put scene.userData here)
+        if 'scenes' in json_data:
+            for scene in json_data['scenes']:
+                if 'extras' in scene:
+                    extras = scene.get('extras', {})
+                    if 'dimensions' in extras:
+                        dims = extras['dimensions']
+                        width = float(dims.get('width', 0))
+                        height = float(dims.get('height', 0))
+                        depth = float(dims.get('depth', 0))
+                        if width > 0 and height > 0 and depth > 0:
+                            logger.info(f"Found dimensions in scene extras: {width}x{height}x{depth}")
+                            return {
+                                'width': round(width, 2),
+                                'height': round(height, 2),
+                                'depth': round(depth, 2)
+                            }
+
+        # Fallback: Look for POSITION accessor bounds to calculate dimensions
         if 'accessors' in json_data:
+            max_width = 0
+            max_height = 0
+            max_depth = 0
+
             for accessor in json_data['accessors']:
                 if 'min' in accessor and 'max' in accessor:
                     min_vals = accessor['min']
@@ -134,24 +172,19 @@ def extract_dimensions_from_gltf_json(json_data: dict) -> Optional[Dict[str, flo
                         height = float(max_vals[1] - min_vals[1])
                         depth = float(max_vals[2] - min_vals[2])
 
-                        # Skip if dimensions are too small (probably not the room mesh)
-                        if width > 0.1 and height > 0.1 and depth > 0.1:
-                            logger.info(f"Found dimensions in accessor: {width}x{height}x{depth}")
-                            return {
-                                'width': round(width, 2),
-                                'height': round(height, 2),
-                                'depth': round(depth, 2)
-                            }
+                        # Track the maximum dimensions found (likely the room bounds)
+                        if width > max_width and height > 0.1 and depth > 0.1:
+                            max_width = width
+                            max_height = height
+                            max_depth = depth
 
-        # Alternative: Look at scene bounds if available
-        if 'scenes' in json_data and 'extras' in json_data:
-            extras = json_data.get('extras', {})
-            if 'dimensions' in extras:
-                dims = extras['dimensions']
+            # Return the largest dimensions found (likely the room)
+            if max_width > 0.1 and max_height > 0.1 and max_depth > 0.1:
+                logger.info(f"Found dimensions from accessors: {max_width}x{max_height}x{max_depth}")
                 return {
-                    'width': float(dims.get('width', 5.0)),
-                    'height': float(dims.get('height', 3.0)),
-                    'depth': float(dims.get('depth', 4.0))
+                    'width': round(max_width, 2),
+                    'height': round(max_height, 2),
+                    'depth': round(max_depth, 2)
                 }
 
         return None
