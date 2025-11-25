@@ -101,7 +101,7 @@ export function CreateProjectModal({ onClose, onSuccess }: CreateProjectModalPro
         const token = localStorage.getItem('token');
         const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8008/api/v1';
         
-        const response = await fetch(`${apiUrl}/files/upload-3d/${project.id}`, {
+        const response = await fetch(`${apiUrl}/files-3d/upload-3d/${project.id}`, {
           method: 'POST',
           headers: {
             'Authorization': `Bearer ${token}`,
