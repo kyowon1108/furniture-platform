@@ -19,6 +19,12 @@ class Settings(BaseSettings):
     HOST: str = "0.0.0.0"
     PORT: int = 8008
 
+    # AWS S3 Settings
+    AWS_ACCESS_KEY_ID: str = ""
+    AWS_SECRET_ACCESS_KEY: str = ""
+    AWS_REGION: str = "ap-northeast-2"
+    S3_BUCKET_NAME: str = "furniture-platform-eunryong"
+
     class Config:
         env_file = ".env"
         case_sensitive = True

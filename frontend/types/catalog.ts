@@ -13,6 +13,8 @@ export interface FurnitureCatalogItem {
   price?: number;
   tags: string[];
   mountType?: 'floor' | 'wall' | 'surface'; // floor: 바닥, wall: 벽걸이, surface: 가구 위
+  glbUrl?: string; // S3 GLB file presigned URL
+  glbKey?: string; // S3 GLB file key
 }
 
 export const FURNITURE_CATALOG: FurnitureCatalogItem[] = [
