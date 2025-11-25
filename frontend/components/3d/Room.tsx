@@ -357,11 +357,11 @@ export function Room({ roomDimensions }: RoomProps = {}) {
         'east'
       )}
 
-      {/* Ceiling - Very transparent */}
+      {/* Ceiling - 반투명 제거 (주석 처리)
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, height, 0]} receiveShadow>
         <planeGeometry args={[width, depth]} />
-        <meshStandardMaterial 
-          color="#ffffff" 
+        <meshStandardMaterial
+          color="#ffffff"
           roughness={0.9}
           transparent
           opacity={0.05}
@@ -369,6 +369,7 @@ export function Room({ roomDimensions }: RoomProps = {}) {
           depthWrite={false}
         />
       </mesh>
+      */}
 
       {/* Baseboard lines for detail */}
       <lineSegments>
