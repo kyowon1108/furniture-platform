@@ -1,6 +1,6 @@
 'use client';
 
-import React, { forwardRef, useImperativeHandle, useMemo, useRef, useEffect } from 'react';
+import React, { forwardRef, useImperativeHandle, useMemo, useRef, useEffect, useState, memo } from 'react';
 import * as THREE from 'three';
 import { useThree, useLoader } from '@react-three/fiber';
 import { RoomTemplate, Tile, ROOM_TEMPLATES } from './types';
@@ -23,15 +23,23 @@ const TileMesh: React.FC<{
   currentTemplate: RoomTemplate;
   onTileClick: (tileKey: string, e: any) => void;
 }> = ({ tile, isSelected, textureUrl, currentTemplate, onTileClick }) => {
-  // Load texture only when URL changes
-  const texture = useMemo(() => {
-    if (!textureUrl) return undefined;
+  // Load texture and force update when URL changes
+  const [texture, setTexture] = useState<THREE.Texture | undefined>(undefined);
+
+  useEffect(() => {
+    if (!textureUrl) {
+      setTexture(undefined);
+      return;
+    }
+
     const loader = new THREE.TextureLoader();
-    const tex = loader.load(textureUrl);
-    tex.colorSpace = THREE.SRGBColorSpace;
-    tex.wrapS = THREE.RepeatWrapping;
-    tex.wrapT = THREE.RepeatWrapping;
-    return tex;
+    loader.load(textureUrl, (tex) => {
+      tex.colorSpace = THREE.SRGBColorSpace;
+      tex.wrapS = THREE.RepeatWrapping;
+      tex.wrapT = THREE.RepeatWrapping;
+      tex.needsUpdate = true;
+      setTexture(tex);
+    });
   }, [textureUrl]);
 
   return (
@@ -49,6 +57,7 @@ const TileMesh: React.FC<{
       <meshStandardMaterial
         color={
           isSelected ? '#4CAF50' :
+          texture ? '#ffffff' :  // 텍스처가 있으면 흰색으로 설정하여 원본 색상 유지
           tile.type === 'floor' ? ROOM_TEMPLATES[currentTemplate].floorColor :
           ROOM_TEMPLATES[currentTemplate].wallColor
         }

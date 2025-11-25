@@ -11,7 +11,7 @@ import RoomTemplateSelector from '@/components/room-builder/RoomTemplateSelector
 import TextureGallery from '@/components/room-builder/TextureGallery';
 import RoomScene from '@/components/room-builder/RoomScene';
 import { RoomTemplate, UploadedImage, ROOM_TEMPLATES } from '@/components/room-builder/types';
-import { optimizeSceneTextures } from '@/utils/textureOptimizer';
+import { optimizeSceneForExport } from '@/utils/advancedTextureOptimizer';
 
 const TILE_SIZE = 0.5;
 const WALL_HEIGHT = 2.5;
@@ -362,9 +362,9 @@ export default function RoomBuilderPage() {
 
       setUploadProgress(30);
 
-      // Optimize textures before export to reduce file size
-      console.log('텍스처 최적화 중...');
-      await optimizeSceneTextures(scene);
+      // Optimize textures using advanced texture atlas method
+      console.log('텍스처 아틀라스 생성 및 최적화 중...');
+      await optimizeSceneForExport(scene);
       setUploadProgress(40);
 
       // Export as GLB
