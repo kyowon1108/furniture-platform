@@ -58,10 +58,10 @@ const TileMesh: React.FC<{
     >
       <planeGeometry args={[TILE_SIZE, TILE_SIZE]} />
       <meshStandardMaterial
-        key={`mat-${textureUrl || 'notexture'}`} // material도 key 추가
+        key={`mat-${tile.key}-${textureUrl || 'notexture'}`}
         color={
           isSelected ? '#4CAF50' :
-          texture ? '#ffffff' :  // 텍스처가 있으면 흰색으로 설정하여 원본 색상 유지
+          texture ? '#ffffff' : // 텍스처가 있으면 흰색
           tile.type === 'floor' ? ROOM_TEMPLATES[currentTemplate].floorColor :
           ROOM_TEMPLATES[currentTemplate].wallColor
         }
@@ -71,6 +71,8 @@ const TileMesh: React.FC<{
         side={THREE.DoubleSide}
         depthTest={true}
         depthWrite={true}
+        roughness={0.8}
+        metalness={0.0}
         needsUpdate={true}
       />
     </mesh>

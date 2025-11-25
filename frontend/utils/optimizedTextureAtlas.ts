@@ -102,7 +102,7 @@ export function groupTilesByWall(scene: THREE.Scene): Record<string, WallGroup> 
       const material = mesh.material as THREE.MeshStandardMaterial;
 
       // Skip tiles without textures
-      if (!material.map || !material.map.image) continue;
+      if (!material.map || !material.map.image) return;
 
       console.log('Processing tile for atlas:', tileKey);
 
