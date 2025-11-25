@@ -34,6 +34,8 @@ export function groupTilesByWall(scene: THREE.Scene): Record<string, WallGroup> 
       const mesh = child as THREE.Mesh;
       const material = mesh.material as THREE.MeshStandardMaterial;
 
+      console.log('Processing tile:', tileKey);
+
       // 타일 정보 파싱
       const parts = tileKey.split('-');
       let groupKey = '';
@@ -41,19 +43,21 @@ export function groupTilesByWall(scene: THREE.Scene): Record<string, WallGroup> 
 
       if (tileKey.startsWith('floor-')) {
         groupKey = 'floor';
-        x = parseInt(parts[1]);
-        y = parseInt(parts[2]);
+        x = parseInt(parts[1]) || 0;
+        y = parseInt(parts[2]) || 0;  // z coordinate for floor
       } else if (tileKey.startsWith('wall-')) {
         const wallType = parts[1];
         if (wallType === 'inner') {
           groupKey = 'wall-inner';
           // inner walls have more complex parsing
-          x = 0;
-          y = parseInt(parts[parts.length - 1]);
+          const coordinateIndex = parts.length - 2;
+          x = parseInt(parts[coordinateIndex]) || 0;
+          y = parseInt(parts[parts.length - 1]) || 0;
         } else {
           groupKey = `wall-${wallType}`;
-          x = parseInt(parts[parts.length - 2]);
-          y = parseInt(parts[parts.length - 1]);
+          const coordinateIndex = parts.length - 2;
+          x = parseInt(parts[coordinateIndex]) || 0;
+          y = parseInt(parts[parts.length - 1]) || 0;
         }
       }
 
