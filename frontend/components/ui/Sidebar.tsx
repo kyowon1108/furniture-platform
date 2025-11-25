@@ -44,6 +44,16 @@ export function Sidebar() {
     setApplicationMode 
   } = useMaterialStore();
 
+  // 배치된 가구들의 총 예상 비용 계산
+  const totalEstimatedCost = useMemo(() => {
+    return furnitures.reduce((total, furniture) => {
+      // furniture.id에서 카탈로그 ID 추출 (예: "bed-single-1234567890" -> "bed-single")
+      const catalogId = furniture.id.replace(/-\d+$/, '');
+      const catalogItem = FURNITURE_CATALOG.find(item => item.id === catalogId);
+      return total + (catalogItem?.price || 0);
+    }, 0);
+  }, [furnitures]);
+
   const categories = ['all', 'bedroom', 'living', 'office', 'kitchen', 'decoration'];
 
   const filteredFurniture = useMemo(() => {
@@ -268,7 +278,7 @@ export function Sidebar() {
                 </div>
                 {item.price && (
                   <div className="furniture-price" style={{ color: 'var(--success)', fontWeight: 600 }}>
-                    ${item.price}
+                    ₩{item.price.toLocaleString()}
                   </div>
                 )}
               </div>
@@ -287,8 +297,8 @@ export function Sidebar() {
                 border: selectedMaterialId === material.id ? '3px solid #3b82f6' : '1px solid #ddd',
               }}
             >
-              <div className="furniture-name text-center" style={{ 
-                color: material.color && material.color.startsWith('#') && 
+              <div className="furniture-name text-center" style={{
+                color: material.color && material.color.startsWith('#') &&
                        parseInt(material.color.slice(1), 16) > 0x888888 ? '#000' : '#fff',
                 textShadow: '0 1px 2px rgba(0,0,0,0.5)'
               }}>
@@ -298,6 +308,49 @@ export function Sidebar() {
           ))
         )}
       </div>
+
+      {/* 총 예상 비용 표시 */}
+      {activeTab === 'furniture' && (
+        <div
+          className="flex-shrink-0"
+          style={{
+            padding: '1rem',
+            borderTop: '1px solid var(--border-color)',
+            background: 'var(--bg-secondary)',
+          }}
+        >
+          <div style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+          }}>
+            <span style={{
+              fontSize: '0.875rem',
+              color: 'var(--text-secondary)',
+              fontWeight: 500
+            }}>
+              총 예상 비용:
+            </span>
+            <span style={{
+              fontSize: '1.125rem',
+              fontWeight: 700,
+              color: totalEstimatedCost > 0 ? 'var(--accent-primary)' : 'var(--text-tertiary)'
+            }}>
+              ₩{totalEstimatedCost.toLocaleString()}
+            </span>
+          </div>
+          {furnitures.length > 0 && (
+            <div style={{
+              fontSize: '0.75rem',
+              color: 'var(--text-tertiary)',
+              marginTop: '0.25rem',
+              textAlign: 'right'
+            }}>
+              배치된 가구 {furnitures.length}개
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }
