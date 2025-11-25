@@ -184,6 +184,11 @@ class Logger {
       return; // Already started
     }
 
+    // Only run in browser environment
+    if (typeof window === 'undefined') {
+      return;
+    }
+
     this.autoSaveInterval = window.setInterval(() => {
       if (this.logs.length > 0 && !this.isSaving) {
         this.saveLogs();
