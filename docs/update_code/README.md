@@ -24,3 +24,4 @@ mv "$FILENAME" "docs/update_code/"
 
 현재 저장된 파일들은 프로젝트 루트에서 이동된 문서들입니다.
 
+

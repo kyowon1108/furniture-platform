@@ -123,13 +123,14 @@ export function Toolbar() {
       >
         ↻
       </button>
-      <button
+      {/* 크기 조절 기능 비활성화 - 추후 필요시 주석 해제 */}
+      {/* <button
         onClick={() => setTransformMode('scale' as TransformMode)}
         className={buttonClass(transformMode === 'scale')}
         title="크기 (S)"
       >
         ⇲
-      </button>
+      </button> */}
 
       <div className="toolbar-divider" />
 

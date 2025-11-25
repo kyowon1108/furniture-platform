@@ -730,7 +730,8 @@ function SceneContent({
         maxDistance={50}
       />
 
-      {selectedFurniture && (
+      {/* 크기 조절 기능 비활성화 - scale 모드일 때는 TransformControls를 렌더링하지 않음 */}
+      {selectedFurniture && transformMode !== 'scale' && (
         <TransformControls
           ref={transformControlsRef}
           object={scene.getObjectByName(selectedFurniture.id) as any}
