@@ -11,7 +11,9 @@ interface CreateProjectModalProps {
 
 export function CreateProjectModal({ onClose, onSuccess }: CreateProjectModalProps) {
   const [creationMode, setCreationMode] = useState<'manual' | '3d'>('manual');
-  const [fileType, setFileType] = useState<'ply' | 'glb'>('ply');
+  // PLY 기능 주석 처리 - 기본값을 glb로 변경
+  // const [fileType, setFileType] = useState<'ply' | 'glb'>('ply');
+  const [fileType, setFileType] = useState<'ply' | 'glb'>('glb');
   const [formData, setFormData] = useState({
     name: '',
     room_width: 5.0,
@@ -29,11 +31,19 @@ export function CreateProjectModal({ onClose, onSuccess }: CreateProjectModalPro
     const file = e.target.files?.[0];
     if (file) {
       const fileName = file.name.toLowerCase();
+      /* PLY 파일 처리 주석 처리
       if (fileName.endsWith('.ply')) {
         setFileType('ply');
         setFile3D(file);
         setError('');
-      } else if (fileName.endsWith('.glb') || fileName.endsWith('.gltf')) {
+        setFormData({
+          ...formData,
+          room_width: 0,
+          room_height: 0,
+          room_depth: 0,
+        });
+      } else */
+      if (fileName.endsWith('.glb') || fileName.endsWith('.gltf')) {
         setFileType('glb');
         setFile3D(file);
         setError('');
@@ -45,7 +55,9 @@ export function CreateProjectModal({ onClose, onSuccess }: CreateProjectModalPro
           room_depth: 0,
         });
       } else {
-        setError('PLY 또는 GLB 파일만 업로드 가능합니다');
+        // PLY 에러 메시지 주석 처리
+        // setError('PLY 또는 GLB 파일만 업로드 가능합니다');
+        setError('GLB 파일만 업로드 가능합니다');
         return;
       }
     }
@@ -188,7 +200,16 @@ export function CreateProjectModal({ onClose, onSuccess }: CreateProjectModalPro
             </button>
             <button
               type="button"
-              onClick={() => setCreationMode('3d')}
+              onClick={() => {
+                setCreationMode('3d');
+                // 3D 모드 선택 시 방 크기를 0으로 설정 (자동 감지)
+                setFormData({
+                  ...formData,
+                  room_width: 0,
+                  room_height: 0,
+                  room_depth: 0,
+                });
+              }}
               className="flex-1 px-4 py-3 transition-all"
               style={{
                 borderRadius: 'var(--radius-lg)',
@@ -198,7 +219,9 @@ export function CreateProjectModal({ onClose, onSuccess }: CreateProjectModalPro
               }}
             >
               <div className="font-semibold">3D 파일 업로드</div>
-              <div className="text-sm mt-1" style={{ color: 'var(--text-secondary)' }}>PLY 또는 GLB 파일</div>
+              {/* PLY 관련 텍스트 주석 처리 */}
+              {/* <div className="text-sm mt-1" style={{ color: 'var(--text-secondary)' }}>PLY 또는 GLB 파일</div> */}
+              <div className="text-sm mt-1" style={{ color: 'var(--text-secondary)' }}>GLB 파일</div>
             </button>
           </div>
         </div>
@@ -223,29 +246,53 @@ export function CreateProjectModal({ onClose, onSuccess }: CreateProjectModalPro
           {creationMode === '3d' && (
             <div>
               <label className="block text-sm font-medium mb-1" style={{ color: 'var(--text-primary)' }}>
-                3D 파일 * (PLY 또는 GLB)
+                {/* PLY 관련 라벨 주석 처리 */}
+                {/* 3D 파일 * (PLY 또는 GLB) */}
+                3D 파일 * (GLB)
               </label>
               <input
                 type="file"
-                accept=".ply,.glb,.gltf"
+                /* PLY accept 주석 처리 */
+                /* accept=".ply,.glb,.gltf" */
+                accept=".glb,.gltf"
                 onChange={handleFileChange}
                 className="search-input w-full"
                 required
               />
               {file3D && (
-                <div className="mt-2 text-sm" style={{ color: 'var(--text-secondary)' }}>
-                  선택된 파일: {file3D.name} ({(file3D.size / 1024 / 1024).toFixed(2)} MB)
-                  <span className="ml-2 px-2 py-0.5 rounded text-xs" style={{ 
-                    background: fileType === 'ply' ? '#dbeafe' : '#fef3c7',
-                    color: fileType === 'ply' ? '#1e40af' : '#92400e'
-                  }}>
-                    {fileType.toUpperCase()}
-                  </span>
+                <div className="mt-2 flex items-center justify-between">
+                  <div className="text-sm" style={{ color: 'var(--text-secondary)' }}>
+                    선택된 파일: {file3D.name} ({(file3D.size / 1024 / 1024).toFixed(2)} MB)
+                    <span className="ml-2 px-2 py-0.5 rounded text-xs" style={{
+                      /* PLY 조건부 스타일 주석 처리 */
+                      /* background: fileType === 'ply' ? '#dbeafe' : '#fef3c7', */
+                      /* color: fileType === 'ply' ? '#1e40af' : '#92400e' */
+                      background: '#fef3c7',
+                      color: '#92400e'
+                    }}>
+                      {fileType.toUpperCase()}
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setFile3D(null);
+                    }}
+                    className="text-sm px-3 py-1 rounded hover:opacity-80 transition-opacity"
+                    style={{
+                      background: 'var(--error)',
+                      color: 'white',
+                      border: 'none'
+                    }}
+                  >
+                    제거
+                  </button>
                 </div>
               )}
               <div className="mt-2 text-sm" style={{ color: 'var(--text-tertiary)' }}>
-                <strong>PLY:</strong> 3D 스캔된 방 (Point Cloud, Gaussian Splatting)
-                <br />
+                {/* PLY 설명 주석 처리 */}
+                {/* <strong>PLY:</strong> 3D 스캔된 방 (Point Cloud, Gaussian Splatting)
+                <br /> */}
                 <strong>GLB:</strong> 3D 모델링 소프트웨어 출력 (Blender, SketchUp 등)
                 <br />
                 <span className="text-xs">개발/시연용으로 파일 크기 제한이 없습니다.</span>
@@ -253,15 +300,17 @@ export function CreateProjectModal({ onClose, onSuccess }: CreateProjectModalPro
             </div>
           )}
 
+          {/* 수동 입력 모드일 때만 방 크기 입력 필드 표시 (3D 업로드 모드에서는 숨김) */}
+          {creationMode === 'manual' && (
           <div className="grid grid-cols-3 gap-4">
             <div>
               <label className="block text-sm font-medium mb-1" style={{ color: 'var(--text-primary)' }}>
-                폭 (m) * {creationMode === '3d' && <span style={{ color: 'var(--text-tertiary)', fontSize: '0.75rem' }}>(0 = 자동)</span>}
+                폭 (m) *
               </label>
               <input
                 type="number"
                 step="0.1"
-                min={creationMode === '3d' ? "0" : "1"}
+                min="1"
                 max="50"
                 value={formData.room_width}
                 onChange={(e) => {
@@ -277,12 +326,12 @@ export function CreateProjectModal({ onClose, onSuccess }: CreateProjectModalPro
             </div>
             <div>
               <label className="block text-sm font-medium mb-1" style={{ color: 'var(--text-primary)' }}>
-                높이 (m) * {creationMode === '3d' && <span style={{ color: 'var(--text-tertiary)', fontSize: '0.75rem' }}>(0 = 자동)</span>}
+                높이 (m) *
               </label>
               <input
                 type="number"
                 step="0.1"
-                min={creationMode === '3d' ? "0" : "2"}
+                min="2"
                 max="10"
                 value={formData.room_height}
                 onChange={(e) => {
@@ -298,12 +347,12 @@ export function CreateProjectModal({ onClose, onSuccess }: CreateProjectModalPro
             </div>
             <div>
               <label className="block text-sm font-medium mb-1" style={{ color: 'var(--text-primary)' }}>
-                깊이 (m) * {creationMode === '3d' && <span style={{ color: 'var(--text-tertiary)', fontSize: '0.75rem' }}>(0 = 자동)</span>}
+                깊이 (m) *
               </label>
               <input
                 type="number"
                 step="0.1"
-                min={creationMode === '3d' ? "0" : "1"}
+                min="1"
                 max="50"
                 value={formData.room_depth}
                 onChange={(e) => {
@@ -318,34 +367,25 @@ export function CreateProjectModal({ onClose, onSuccess }: CreateProjectModalPro
               />
             </div>
           </div>
+          )}
 
-          {creationMode === '3d' && (
+          {/* 3D 파일이 선택되었을 때 안내 메시지 표시 */}
+          {creationMode === '3d' && file3D && (
             <div style={{
-              background: fileType === 'glb' ? '#dbeafe' : '#fef3c7',
-              border: `1px solid ${fileType === 'glb' ? '#3b82f6' : 'var(--warning)'}`,
+              background: '#dcfce7',
+              border: '1px solid #16a34a',
               borderRadius: 'var(--radius-md)',
               padding: '0.75rem',
               fontSize: '0.875rem',
-              color: fileType === 'glb' ? '#1e40af' : '#92400e'
+              color: '#15803d'
             }}>
-              {fileType === 'glb' ? (
-                <>
-                  <strong>✨ GLB 파일 자동 감지:</strong> GLB 파일에 포함된 실제 크기 정보를 자동으로 사용합니다.
-                  <br />
-                  방 크기를 <strong>0, 0, 0</strong>으로 설정하면 GLB 파일의 실제 크기가 자동으로 적용됩니다.
-                  <br /><br />
-                  <strong>권장:</strong> 방 크기를 모두 0으로 설정하세요. (자동 감지)
-                  <br />
-                  <strong>GLB 처리:</strong> 1:1 스케일 유지 → 텍스처 및 materials 보존 → 반투명 렌더링
-                </>
-              ) : (
-                <>
-                  <strong>참고:</strong> PLY 파일을 사용하는 경우 방 크기를 입력해야 합니다. 
-                  입력된 크기는 가구 배치 시 참고 치수로 사용됩니다.
-                  <br /><br />
-                  <strong>PLY 처리:</strong> Gaussian Splatting 자동 변환 → 메쉬 생성 → 반투명 렌더링
-                </>
-              )}
+              <strong>✅ 3D 파일이 선택되었습니다</strong>
+              <br />
+              방 크기는 자동으로 감지됩니다. 3D 파일의 실제 크기 정보를 사용하여 가구 배치 영역을 설정합니다.
+              <br /><br />
+              {/* PLY 처리 설명 주석 처리 */}
+              {/* <strong>{fileType === 'glb' ? 'GLB' : 'PLY'} 처리:</strong> {fileType === 'glb' ? '1:1 스케일 유지 → 텍스처 및 materials 보존 → 반투명 렌더링' : 'Gaussian Splatting 자동 변환 → 메쉬 생성 → 반투명 렌더링'} */}
+              <strong>GLB 처리:</strong> 1:1 스케일 유지 → 텍스처 및 materials 보존 → 반투명 렌더링
             </div>
           )}
 
