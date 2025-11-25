@@ -19,6 +19,10 @@ class Logger {
   private isSaving = false;
 
   constructor() {
+    // Only initialize in browser environment
+    if (typeof window === 'undefined') {
+      return;
+    }
     // Override console methods to capture logs
     this.setupConsoleOverrides();
     // Start auto-save
@@ -171,6 +175,11 @@ class Logger {
   }
 
   private startAutoSave() {
+    // Only run in browser environment
+    if (typeof window === 'undefined') {
+      return;
+    }
+
     if (this.autoSaveInterval !== null) {
       return; // Already started
     }
@@ -251,8 +260,8 @@ class Logger {
   }
 }
 
-// Create singleton instance
-export const logger = new Logger();
+// Create singleton instance only in browser
+export const logger = typeof window !== 'undefined' ? new Logger() : null as any;
 
 // Expose logger to window for manual testing
 if (typeof window !== 'undefined') {
