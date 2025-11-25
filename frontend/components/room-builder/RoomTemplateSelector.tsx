@@ -30,6 +30,7 @@ const RoomTemplateSelector: React.FC<RoomTemplateSelectorProps> = ({
           <option value="lshaped">{ROOM_TEMPLATES.lshaped.displayName} ({ROOM_TEMPLATES.lshaped.width}m × {ROOM_TEMPLATES.lshaped.depth}m)</option>
           <option value="square">{ROOM_TEMPLATES.square.displayName} ({ROOM_TEMPLATES.square.width}m × {ROOM_TEMPLATES.square.depth}m)</option>
           <option value="ushaped">{ROOM_TEMPLATES.ushaped.displayName} ({ROOM_TEMPLATES.ushaped.width}m × {ROOM_TEMPLATES.ushaped.depth}m)</option>
+          <option value="corridor">{ROOM_TEMPLATES.corridor.displayName} ({ROOM_TEMPLATES.corridor.width}m × {ROOM_TEMPLATES.corridor.depth}m)</option>
           <option value="custom">{ROOM_TEMPLATES.custom.displayName}</option>
         </select>
       </div>

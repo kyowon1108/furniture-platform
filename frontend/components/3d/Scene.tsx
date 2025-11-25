@@ -119,42 +119,52 @@ function SceneContent({
 
   // Check if position is valid (no collision and within bounds)
   const isValidPosition = (furniture: FurnitureItem, newPos: { x: number; y: number; z: number }) => {
-    const halfWidth = furniture.dimensions.width / 2;
-    const halfDepth = furniture.dimensions.depth / 2;
-    
+    // Get rotated dimensions for accurate collision detection
+    const rotatedDims = getRotatedDimensions(
+      furniture.dimensions,
+      (furniture.rotation.y * Math.PI) / 180
+    );
+
+    const halfWidth = rotatedDims.width / 2;
+    const halfDepth = rotatedDims.depth / 2;
+
     console.log('=== Checking position validity ===', {
       furnitureId: furniture.id,
       newPos,
-      dimensions: furniture.dimensions,
+      originalDimensions: furniture.dimensions,
+      rotatedDimensions: rotatedDims,
       halfWidth,
       halfDepth,
       usePlyBoundaries,
       actualRoomDimensions
     });
-    
+
     // Only check room boundaries if we have valid room dimensions
     // For PLY files with 0 dimensions, use a very large boundary
     if (!usePlyBoundaries) {
       const roomHalfWidth = actualRoomDimensions.width / 2;
       const roomHalfDepth = actualRoomDimensions.depth / 2;
-      
+
+      // Add small margin to prevent furniture from touching walls
+      const wallMargin = 0.05; // 5cm margin from walls
+
       // Calculate furniture edges
       const furnitureMinX = newPos.x - halfWidth;
       const furnitureMaxX = newPos.x + halfWidth;
       const furnitureMinZ = newPos.z - halfDepth;
       const furnitureMaxZ = newPos.z + halfDepth;
-      
-      // Calculate room boundaries
-      const roomMinX = -roomHalfWidth;
-      const roomMaxX = roomHalfWidth;
-      const roomMinZ = -roomHalfDepth;
-      const roomMaxZ = roomHalfDepth;
-      
+
+      // Calculate room boundaries with margin
+      const roomMinX = -roomHalfWidth + wallMargin;
+      const roomMaxX = roomHalfWidth - wallMargin;
+      const roomMinZ = -roomHalfDepth + wallMargin;
+      const roomMaxZ = roomHalfDepth - wallMargin;
+
       console.log('Boundary check:', {
         furniture: { minX: furnitureMinX, maxX: furnitureMaxX, minZ: furnitureMinZ, maxZ: furnitureMaxZ },
         room: { minX: roomMinX, maxX: roomMaxX, minZ: roomMinZ, maxZ: roomMaxZ }
       });
-      
+
       if (furnitureMinX < roomMinX || furnitureMaxX > roomMaxX) {
         console.log('❌ Boundary check failed: X out of bounds');
         return false;
@@ -163,7 +173,7 @@ function SceneContent({
         console.log('❌ Boundary check failed: Z out of bounds');
         return false;
       }
-      
+
       console.log('✓ Boundary check passed');
     } else {
       // For PLY with 0 dimensions, use a very large boundary (50 units)
@@ -666,8 +676,8 @@ function SceneContent({
         args={[20, 20]}
         cellSize={0.5}
         sectionSize={1}
-        fadeDistance={30}
-        fadeStrength={1}
+        fadeDistance={100}
+        fadeStrength={0.5}
         cellColor="#6b7280"
         sectionColor="#374151"
       />

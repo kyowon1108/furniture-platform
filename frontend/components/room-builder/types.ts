@@ -1,4 +1,4 @@
-export type RoomTemplate = 'small_studio' | 'rectangular' | 'lshaped' | 'square' | 'ushaped' | 'custom';
+export type RoomTemplate = 'small_studio' | 'rectangular' | 'lshaped' | 'square' | 'ushaped' | 'corridor' | 'custom';
 
 export interface RoomDimensions {
   width: number;
@@ -67,8 +67,8 @@ export const ROOM_TEMPLATES: Record<RoomTemplate, RoomTemplateConfig> = {
     depth: 3,
     wallHeight: WALL_HEIGHT,
     tileSize: TILE_SIZE,
-    floorColor: '#8B7355',
-    wallColor: '#F0F0F0',
+    floorColor: '#d4a574',
+    wallColor: '#F5F5F5',
   },
   rectangular: {
     name: 'rectangular',
@@ -78,8 +78,8 @@ export const ROOM_TEMPLATES: Record<RoomTemplate, RoomTemplateConfig> = {
     depth: 4,
     wallHeight: WALL_HEIGHT,
     tileSize: TILE_SIZE,
-    floorColor: '#8B7355',
-    wallColor: '#F0F0F0',
+    floorColor: '#d4a574',
+    wallColor: '#F5F5F5',
   },
   lshaped: {
     name: 'lshaped',
@@ -89,8 +89,8 @@ export const ROOM_TEMPLATES: Record<RoomTemplate, RoomTemplateConfig> = {
     depth: 5,
     wallHeight: WALL_HEIGHT,
     tileSize: TILE_SIZE,
-    floorColor: '#8B7355',
-    wallColor: '#F0F0F0',
+    floorColor: '#d4a574',
+    wallColor: '#F5F5F5',
   },
   square: {
     name: 'square',
@@ -100,8 +100,8 @@ export const ROOM_TEMPLATES: Record<RoomTemplate, RoomTemplateConfig> = {
     depth: 4,
     wallHeight: WALL_HEIGHT,
     tileSize: TILE_SIZE,
-    floorColor: '#8B7355',
-    wallColor: '#F0F0F0',
+    floorColor: '#d4a574',
+    wallColor: '#F5F5F5',
   },
   ushaped: {
     name: 'ushaped',
@@ -111,8 +111,19 @@ export const ROOM_TEMPLATES: Record<RoomTemplate, RoomTemplateConfig> = {
     depth: 5,
     wallHeight: WALL_HEIGHT,
     tileSize: TILE_SIZE,
-    floorColor: '#8B7355',
-    wallColor: '#F0F0F0',
+    floorColor: '#d4a574',
+    wallColor: '#F5F5F5',
+  },
+  corridor: {
+    name: 'corridor',
+    displayName: '복도형 원룸',
+    description: '긴 복도 형태 (6m x 2.5m)',
+    width: 6,
+    depth: 2.5,
+    wallHeight: WALL_HEIGHT,
+    tileSize: TILE_SIZE,
+    floorColor: '#d4a574',
+    wallColor: '#F5F5F5',
   },
   custom: {
     name: 'custom',
@@ -122,7 +133,7 @@ export const ROOM_TEMPLATES: Record<RoomTemplate, RoomTemplateConfig> = {
     depth: 3,
     wallHeight: WALL_HEIGHT,
     tileSize: TILE_SIZE,
-    floorColor: '#8B7355',
-    wallColor: '#F0F0F0',
+    floorColor: '#d4a574',
+    wallColor: '#F5F5F5',
   },
 };
