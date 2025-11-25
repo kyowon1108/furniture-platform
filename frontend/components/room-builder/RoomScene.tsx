@@ -41,110 +41,254 @@ const RoomScene = forwardRef<any, RoomSceneProps>(({
     const wallHeight = template.wallHeight;
 
     const allTiles: Tile[] = [];
-
-    // Generate floor tiles
     const xCount = Math.floor(width / TILE_SIZE);
     const zCount = Math.floor(depth / TILE_SIZE);
-
-    // Floor tiles
-    for (let x = 0; x < xCount; x++) {
-      for (let z = 0; z < zCount; z++) {
-        allTiles.push({
-          key: `floor-${x}-${z}`,
-          type: 'floor',
-          position: [
-            x * TILE_SIZE + TILE_SIZE / 2,
-            0,
-            z * TILE_SIZE + TILE_SIZE / 2
-          ],
-          rotation: [0, 0, 0],
-        });
-      }
-    }
-
-    // Generate wall tiles
     const yCount = Math.floor(wallHeight / TILE_SIZE);
 
-    for (let y = 0; y < yCount; y++) {
-      const yPos = y * TILE_SIZE + TILE_SIZE / 2;
-
-      // Back wall
-      for (let x = 0; x < xCount; x++) {
-        allTiles.push({
-          key: `wall-back-${x}-${y}`,
-          type: 'wall',
-          position: [
-            x * TILE_SIZE + TILE_SIZE / 2,
-            yPos,
-            0
-          ],
-          rotation: [-Math.PI / 2, 0, 0],
-          wallSurface: 'back',
-        });
-      }
-
-      // Front wall
-      for (let x = 0; x < xCount; x++) {
-        allTiles.push({
-          key: `wall-front-${x}-${y}`,
-          type: 'wall',
-          position: [
-            x * TILE_SIZE + TILE_SIZE / 2,
-            yPos,
-            depth
-          ],
-          rotation: [Math.PI / 2, 0, 0],
-          wallSurface: 'front',
-        });
-      }
-
-      // Left wall
-      for (let z = 0; z < zCount; z++) {
-        allTiles.push({
-          key: `wall-left-${z}-${y}`,
-          type: 'wall',
-          position: [
-            0,
-            yPos,
-            z * TILE_SIZE + TILE_SIZE / 2
-          ],
-          rotation: [0, 0, Math.PI / 2],
-          wallSurface: 'left',
-        });
-      }
-
-      // Right wall
-      for (let z = 0; z < zCount; z++) {
-        allTiles.push({
-          key: `wall-right-${z}-${y}`,
-          type: 'wall',
-          position: [
-            width,
-            yPos,
-            z * TILE_SIZE + TILE_SIZE / 2
-          ],
-          rotation: [0, 0, -Math.PI / 2],
-          wallSurface: 'right',
-        });
-      }
-    }
-
-    // Handle L-shaped room
+    // Generate floor tiles based on template
     if (currentTemplate === 'lshaped') {
-      // Remove some tiles for L-shape
+      // L-shaped room floor
       const splitX = Math.floor(xCount * 0.6);
       const splitZ = Math.floor(zCount * 0.6);
 
-      return allTiles.filter(tile => {
-        if (tile.type === 'floor') {
-          const x = parseInt(tile.key.split('-')[1]);
-          const z = parseInt(tile.key.split('-')[2]);
-          // Keep tiles in L-shape
-          return (z < splitZ) || (z >= splitZ && x < splitX);
+      for (let x = 0; x < xCount; x++) {
+        for (let z = 0; z < zCount * 0.6; z++) {
+          allTiles.push({
+            key: `floor-${x}-${z}`,
+            type: 'floor',
+            position: [x * TILE_SIZE + TILE_SIZE / 2, 0, z * TILE_SIZE + TILE_SIZE / 2],
+            rotation: [0, 0, 0],
+          });
         }
-        // Keep all wall tiles for now (could be optimized)
-        return true;
-      });
+      }
+      for (let x = 0; x < xCount * 0.6; x++) {
+        for (let z = Math.floor(zCount * 0.6); z < zCount; z++) {
+          allTiles.push({
+            key: `floor-${x}-${z}`,
+            type: 'floor',
+            position: [x * TILE_SIZE + TILE_SIZE / 2, 0, z * TILE_SIZE + TILE_SIZE / 2],
+            rotation: [0, 0, 0],
+          });
+        }
+      }
+
+      // L-shaped walls
+      for (let y = 0; y < yCount; y++) {
+        const yPos = y * TILE_SIZE + TILE_SIZE / 2;
+
+        // Back wall (full)
+        for (let x = 0; x < xCount; x++) {
+          allTiles.push({
+            key: `wall-back-${x}-${y}`,
+            type: 'wall',
+            position: [x * TILE_SIZE + TILE_SIZE / 2, yPos, 0],
+            rotation: [-Math.PI / 2, 0, 0],
+            wallSurface: 'back',
+          });
+        }
+
+        // Left wall (full)
+        for (let z = 0; z < zCount; z++) {
+          allTiles.push({
+            key: `wall-left-${z}-${y}`,
+            type: 'wall',
+            position: [0, yPos, z * TILE_SIZE + TILE_SIZE / 2],
+            rotation: [0, 0, Math.PI / 2],
+            wallSurface: 'left',
+          });
+        }
+
+        // Inner walls for L-shape
+        for (let x = splitX; x < xCount; x++) {
+          allTiles.push({
+            key: `wall-inner-h-${x}-${y}`,
+            type: 'wall',
+            position: [x * TILE_SIZE + TILE_SIZE / 2, yPos, splitZ * TILE_SIZE],
+            rotation: [Math.PI / 2, 0, 0],
+            wallSurface: 'inner',
+          });
+        }
+        for (let z = splitZ; z < zCount; z++) {
+          allTiles.push({
+            key: `wall-inner-v-${z}-${y}`,
+            type: 'wall',
+            position: [splitX * TILE_SIZE, yPos, z * TILE_SIZE + TILE_SIZE / 2],
+            rotation: [0, 0, -Math.PI / 2],
+            wallSurface: 'inner',
+          });
+        }
+
+        // Outer walls
+        for (let z = 0; z < splitZ; z++) {
+          allTiles.push({
+            key: `wall-right-bottom-${z}-${y}`,
+            type: 'wall',
+            position: [width, yPos, z * TILE_SIZE + TILE_SIZE / 2],
+            rotation: [0, 0, -Math.PI / 2],
+            wallSurface: 'right',
+          });
+        }
+        for (let x = 0; x < splitX; x++) {
+          allTiles.push({
+            key: `wall-front-top-${x}-${y}`,
+            type: 'wall',
+            position: [x * TILE_SIZE + TILE_SIZE / 2, yPos, depth],
+            rotation: [Math.PI / 2, 0, 0],
+            wallSurface: 'front',
+          });
+        }
+      }
+    } else if (currentTemplate === 'ushaped') {
+      // U-shaped room floor
+      const excludeXStart = Math.floor(xCount * 0.3);
+      const excludeXEnd = Math.floor(xCount * 0.7);
+      const excludeZStart = Math.floor(zCount * 0.6);
+
+      for (let x = 0; x < xCount; x++) {
+        for (let z = 0; z < zCount; z++) {
+          if (x >= excludeXStart && x < excludeXEnd && z >= excludeZStart) {
+            continue;
+          }
+          allTiles.push({
+            key: `floor-${x}-${z}`,
+            type: 'floor',
+            position: [x * TILE_SIZE + TILE_SIZE / 2, 0, z * TILE_SIZE + TILE_SIZE / 2],
+            rotation: [0, 0, 0],
+          });
+        }
+      }
+
+      // U-shaped walls
+      for (let y = 0; y < yCount; y++) {
+        const yPos = y * TILE_SIZE + TILE_SIZE / 2;
+
+        // Back wall (full)
+        for (let x = 0; x < xCount; x++) {
+          allTiles.push({
+            key: `wall-back-${x}-${y}`,
+            type: 'wall',
+            position: [x * TILE_SIZE + TILE_SIZE / 2, yPos, 0],
+            rotation: [-Math.PI / 2, 0, 0],
+            wallSurface: 'back',
+          });
+        }
+
+        // Side walls
+        for (let z = 0; z < zCount; z++) {
+          allTiles.push({
+            key: `wall-left-${z}-${y}`,
+            type: 'wall',
+            position: [0, yPos, z * TILE_SIZE + TILE_SIZE / 2],
+            rotation: [0, 0, Math.PI / 2],
+            wallSurface: 'left',
+          });
+          allTiles.push({
+            key: `wall-right-${z}-${y}`,
+            type: 'wall',
+            position: [width, yPos, z * TILE_SIZE + TILE_SIZE / 2],
+            rotation: [0, 0, -Math.PI / 2],
+            wallSurface: 'right',
+          });
+        }
+
+        // Front walls (partial)
+        for (let x = 0; x < excludeXStart; x++) {
+          allTiles.push({
+            key: `wall-front-left-${x}-${y}`,
+            type: 'wall',
+            position: [x * TILE_SIZE + TILE_SIZE / 2, yPos, depth],
+            rotation: [Math.PI / 2, 0, 0],
+            wallSurface: 'front',
+          });
+        }
+        for (let x = excludeXEnd; x < xCount; x++) {
+          allTiles.push({
+            key: `wall-front-right-${x}-${y}`,
+            type: 'wall',
+            position: [x * TILE_SIZE + TILE_SIZE / 2, yPos, depth],
+            rotation: [Math.PI / 2, 0, 0],
+            wallSurface: 'front',
+          });
+        }
+
+        // Inner walls for U-shape
+        for (let z = 0; z < excludeZStart; z++) {
+          allTiles.push({
+            key: `wall-inner-left-${z}-${y}`,
+            type: 'wall',
+            position: [excludeXStart * TILE_SIZE, yPos, z * TILE_SIZE + TILE_SIZE / 2],
+            rotation: [0, 0, Math.PI / 2],
+            wallSurface: 'inner',
+          });
+          allTiles.push({
+            key: `wall-inner-right-${z}-${y}`,
+            type: 'wall',
+            position: [excludeXEnd * TILE_SIZE, yPos, z * TILE_SIZE + TILE_SIZE / 2],
+            rotation: [0, 0, -Math.PI / 2],
+            wallSurface: 'inner',
+          });
+        }
+      }
+    } else {
+      // Regular rectangular room
+      for (let x = 0; x < xCount; x++) {
+        for (let z = 0; z < zCount; z++) {
+          allTiles.push({
+            key: `floor-${x}-${z}`,
+            type: 'floor',
+            position: [x * TILE_SIZE + TILE_SIZE / 2, 0, z * TILE_SIZE + TILE_SIZE / 2],
+            rotation: [0, 0, 0],
+          });
+        }
+      }
+
+      for (let y = 0; y < yCount; y++) {
+        const yPos = y * TILE_SIZE + TILE_SIZE / 2;
+
+        // Back wall
+        for (let x = 0; x < xCount; x++) {
+          allTiles.push({
+            key: `wall-back-${x}-${y}`,
+            type: 'wall',
+            position: [x * TILE_SIZE + TILE_SIZE / 2, yPos, 0],
+            rotation: [-Math.PI / 2, 0, 0],
+            wallSurface: 'back',
+          });
+        }
+
+        // Front wall
+        for (let x = 0; x < xCount; x++) {
+          allTiles.push({
+            key: `wall-front-${x}-${y}`,
+            type: 'wall',
+            position: [x * TILE_SIZE + TILE_SIZE / 2, yPos, depth],
+            rotation: [Math.PI / 2, 0, 0],
+            wallSurface: 'front',
+          });
+        }
+
+        // Left wall
+        for (let z = 0; z < zCount; z++) {
+          allTiles.push({
+            key: `wall-left-${z}-${y}`,
+            type: 'wall',
+            position: [0, yPos, z * TILE_SIZE + TILE_SIZE / 2],
+            rotation: [0, 0, Math.PI / 2],
+            wallSurface: 'left',
+          });
+        }
+
+        // Right wall
+        for (let z = 0; z < zCount; z++) {
+          allTiles.push({
+            key: `wall-right-${z}-${y}`,
+            type: 'wall',
+            position: [width, yPos, z * TILE_SIZE + TILE_SIZE / 2],
+            rotation: [0, 0, -Math.PI / 2],
+            wallSurface: 'right',
+          });
+        }
+      }
     }
 
     return allTiles;
