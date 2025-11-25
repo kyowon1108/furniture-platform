@@ -6,6 +6,7 @@ import { Furniture } from './Furniture';
 import { Room } from './Room';
 import { PlyModel } from './PlyModel';
 import { GlbModel } from './GlbModel';
+import { CollisionDummy } from './CollisionDummy';
 import { useEditorStore } from '@/store/editorStore';
 import { useToastStore } from '@/store/toastStore';
 import { socketService } from '@/lib/socket';
@@ -90,6 +91,7 @@ function SceneContent({
   const { camera, raycaster, scene, gl } = useThree();
   const orbitControlsRef = useRef<any>(null);
   const transformControlsRef = useRef<any>(null);
+  const dummyObjectsRef = useRef<Array<{ id: string; position: any; dimensions: any; }>>([]);
 
   const selectedFurniture = selectedIds.length === 1 ? furnitures.find(f => f.id === selectedIds[0]) : null;
   const previousPositionRef = useRef<{ x: number; y: number; z: number } | null>(null);
@@ -119,42 +121,52 @@ function SceneContent({
 
   // Check if position is valid (no collision and within bounds)
   const isValidPosition = (furniture: FurnitureItem, newPos: { x: number; y: number; z: number }) => {
-    const halfWidth = furniture.dimensions.width / 2;
-    const halfDepth = furniture.dimensions.depth / 2;
-    
+    // Get rotated dimensions for accurate collision detection
+    const rotatedDims = getRotatedDimensions(
+      furniture.dimensions,
+      (furniture.rotation.y * Math.PI) / 180
+    );
+
+    const halfWidth = rotatedDims.width / 2;
+    const halfDepth = rotatedDims.depth / 2;
+
     console.log('=== Checking position validity ===', {
       furnitureId: furniture.id,
       newPos,
-      dimensions: furniture.dimensions,
+      originalDimensions: furniture.dimensions,
+      rotatedDimensions: rotatedDims,
       halfWidth,
       halfDepth,
       usePlyBoundaries,
       actualRoomDimensions
     });
-    
+
     // Only check room boundaries if we have valid room dimensions
     // For PLY files with 0 dimensions, use a very large boundary
     if (!usePlyBoundaries) {
       const roomHalfWidth = actualRoomDimensions.width / 2;
       const roomHalfDepth = actualRoomDimensions.depth / 2;
-      
+
+      // Add small margin to prevent furniture from touching walls
+      const wallMargin = 0.05; // 5cm margin from walls
+
       // Calculate furniture edges
       const furnitureMinX = newPos.x - halfWidth;
       const furnitureMaxX = newPos.x + halfWidth;
       const furnitureMinZ = newPos.z - halfDepth;
       const furnitureMaxZ = newPos.z + halfDepth;
-      
-      // Calculate room boundaries
-      const roomMinX = -roomHalfWidth;
-      const roomMaxX = roomHalfWidth;
-      const roomMinZ = -roomHalfDepth;
-      const roomMaxZ = roomHalfDepth;
-      
+
+      // Calculate room boundaries with margin
+      const roomMinX = -roomHalfWidth + wallMargin;
+      const roomMaxX = roomHalfWidth - wallMargin;
+      const roomMinZ = -roomHalfDepth + wallMargin;
+      const roomMaxZ = roomHalfDepth - wallMargin;
+
       console.log('Boundary check:', {
         furniture: { minX: furnitureMinX, maxX: furnitureMaxX, minZ: furnitureMinZ, maxZ: furnitureMaxZ },
         room: { minX: roomMinX, maxX: roomMaxX, minZ: roomMinZ, maxZ: roomMaxZ }
       });
-      
+
       if (furnitureMinX < roomMinX || furnitureMaxX > roomMaxX) {
         console.log('❌ Boundary check failed: X out of bounds');
         return false;
@@ -163,7 +175,7 @@ function SceneContent({
         console.log('❌ Boundary check failed: Z out of bounds');
         return false;
       }
-      
+
       console.log('✓ Boundary check passed');
     } else {
       // For PLY with 0 dimensions, use a very large boundary (50 units)
@@ -175,10 +187,89 @@ function SceneContent({
       console.log('✓ PLY boundary check passed');
     }
     
+    // Check collision with dummy objects (for L-shaped and other template rooms)
+    // First try to find by name
+    let dummyGroup = scene.getObjectByName('collision-dummies');
+
+    // If not found, traverse scene to find dummies
+    if (!dummyGroup) {
+      scene.traverse((obj) => {
+        if (obj.name === 'collision-dummies') {
+          dummyGroup = obj;
+        }
+      });
+    }
+
+    // Also check for individual dummy objects
+    const dummyObjects: any[] = [];
+    scene.traverse((obj) => {
+      if (obj.userData?.isDummy) {
+        dummyObjects.push(obj);
+      }
+    });
+
+    console.log('🔍 Checking for dummy collision:', {
+      groupFound: !!dummyGroup,
+      groupChildren: dummyGroup?.children?.length || 0,
+      directDummies: dummyObjects.length,
+      sceneChildren: scene.children.length
+    });
+
+    // Check collision with all dummy objects found
+    for (const dummy of dummyObjects) {
+      const dummyDims = dummy.userData.dimensions;
+      const dummyPos = dummy.userData.position;
+
+      console.log('🔍 Checking collision with dummy:', {
+        id: dummy.userData.id,
+        dummyPos,
+        dummyDims,
+        furniturePos: newPos,
+        furnitureDims: { width: halfWidth * 2, depth: halfDepth * 2 }
+      });
+
+      // Check collision with dummy object
+      const f1 = {
+        minX: newPos.x - halfWidth,
+        maxX: newPos.x + halfWidth,
+        minZ: newPos.z - halfDepth,
+        maxZ: newPos.z + halfDepth,
+      };
+
+      const f2 = {
+        minX: dummyPos.x - dummyDims.width / 2,
+        maxX: dummyPos.x + dummyDims.width / 2,
+        minZ: dummyPos.z - dummyDims.depth / 2,
+        maxZ: dummyPos.z + dummyDims.depth / 2,
+      };
+
+      // Calculate overlap
+      const overlapX = Math.min(f1.maxX, f2.maxX) - Math.max(f1.minX, f2.minX);
+      const overlapZ = Math.min(f1.maxZ, f2.maxZ) - Math.max(f1.minZ, f2.minZ);
+
+      console.log('🔍 Collision calculation:', {
+        overlapX,
+        overlapZ,
+        isColliding: overlapX > 0 && overlapZ > 0,
+        f1,
+        f2
+      });
+
+      if (overlapX > 0 && overlapZ > 0) {
+        console.log('❌ Collision detected with dummy object:', dummy.userData.id, {
+          overlapX: overlapX.toFixed(3),
+          overlapZ: overlapZ.toFixed(3),
+          f1,
+          f2
+        });
+        return false;
+      }
+    }
+
     // Check collision with other furniture
     // Comprehensive 3D collision detection
     const penetrationThreshold = 0.02;
-    
+
     for (const other of furnitures) {
       if (furniture.id === other.id) continue;
       
@@ -563,27 +654,27 @@ function SceneContent({
   const lightingConfig = useMemo(() => ({
     morning: {
       position: [10, 10, 5] as [number, number, number],
-      intensity: 0.8,  // Reduced from 1.2
+      intensity: 1.2,  // Increased for better visibility
       color: '#FFFACD',
-      ambient: 0.3,    // Reduced from 0.4
+      ambient: 0.6,    // Increased for better visibility
     },
     afternoon: {
       position: [0, 10, 0] as [number, number, number],
-      intensity: 1.0,  // Reduced from 1.5
+      intensity: 1.5,  // Increased for better visibility
       color: '#FFFFFF',
-      ambient: 0.4,    // Reduced from 0.6
+      ambient: 0.7,    // Increased for better visibility
     },
     evening: {
       position: [-10, 5, 5] as [number, number, number],
-      intensity: 0.6,  // Reduced from 0.8
+      intensity: 0.8,  // Increased for better visibility
       color: '#FFB347',
-      ambient: 0.2,    // Reduced from 0.3
+      ambient: 0.5,    // Increased for better visibility
     },
     night: {
       position: [0, 5, 0] as [number, number, number],
-      intensity: 0.2,  // Reduced from 0.3
+      intensity: 0.3,  // Increased for better visibility
       color: '#4169E1',
-      ambient: 0.05,   // Reduced from 0.1
+      ambient: 0.3,    // Increased for better visibility
     },
   }), []); // Empty dependency array - config is constant
 
@@ -666,8 +757,8 @@ function SceneContent({
         args={[20, 20]}
         cellSize={0.5}
         sectionSize={1}
-        fadeDistance={30}
-        fadeStrength={1}
+        fadeDistance={100}
+        fadeStrength={0.5}
         cellColor="#6b7280"
         sectionColor="#374151"
       />
@@ -690,6 +781,9 @@ function SceneContent({
       ) : (
         <Room roomDimensions={actualRoomDimensions} />
       )}
+
+      {/* Collision dummy objects for non-rectangular rooms */}
+      <CollisionDummy roomDimensions={actualRoomDimensions} />
 
       {furnitures.map((furniture) => (
         <Furniture 

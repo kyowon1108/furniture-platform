@@ -5,7 +5,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api.v1 import auth, catalog, files, files_3d, layouts, logs, projects, websocket
+from app.api.v1 import auth, catalog, files, files_3d, layouts, logs, projects, room_builder, websocket
 from app.config import settings
 
 
@@ -47,7 +47,8 @@ app.include_router(auth.router, prefix="/api/v1/auth", tags=["auth"])
 app.include_router(projects.router, prefix="/api/v1/projects", tags=["projects"])
 app.include_router(layouts.router, prefix="/api/v1", tags=["layouts"])
 app.include_router(files.router, prefix="/api/v1/files", tags=["files"])  # Legacy PLY support
-app.include_router(files_3d.router, prefix="/api/v1/files", tags=["3d-files"])  # New 3D file support
+app.include_router(files_3d.router, prefix="/api/v1/files-3d", tags=["3d-files"])  # New 3D file support
+app.include_router(room_builder.router, prefix="/api/v1/room-builder", tags=["room-builder"])  # Room builder support
 app.include_router(logs.router, prefix="/api/v1/logs", tags=["logs"])
 app.include_router(catalog.router, prefix="/api/v1", tags=["catalog"])
 

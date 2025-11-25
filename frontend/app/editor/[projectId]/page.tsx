@@ -18,6 +18,7 @@ import { LightingPanel } from '@/components/ui/LightingPanel';
 import { useToastStore } from '@/store/toastStore';
 // Initialize logger to capture all console logs
 import '@/lib/logger';
+import { DebugInfo } from '@/components/3d/DebugInfo';
 
 export default function EditorPage() {
   const params = useParams();
@@ -142,7 +143,7 @@ export default function EditorPage() {
         <LightingPanel />
         <ConnectionStatus isConnected={isConnected} />
         
-        {/* Debug Info - Below ConnectionStatus */}
+        {/* Debug Info - 주석 처리 (추후 필요시 해제)
         <div className="lighting-panel absolute top-36 left-4 z-50 w-64">
           <h3 className="lighting-title">🔍 Debug Info</h3>
           <div className="space-y-1" style={{ fontSize: '0.75rem' }}>
@@ -166,8 +167,8 @@ export default function EditorPage() {
                 <div className="mt-2 pt-2" style={{ borderTop: '1px solid var(--border-color)' }}>
                   <div style={{ color: 'var(--text-primary)', fontWeight: '600', marginBottom: '0.25rem' }}>Room Size:</div>
                   <div style={{ color: 'var(--text-secondary)' }}>
-                    W: <span style={{ color: 'var(--accent-primary)', fontWeight: '500' }}>{projectData.room_width || 0}</span> × 
-                    H: <span style={{ color: 'var(--accent-primary)', fontWeight: '500' }}>{projectData.room_height || 0}</span> × 
+                    W: <span style={{ color: 'var(--accent-primary)', fontWeight: '500' }}>{projectData.room_width || 0}</span> ×
+                    H: <span style={{ color: 'var(--accent-primary)', fontWeight: '500' }}>{projectData.room_height || 0}</span> ×
                     D: <span style={{ color: 'var(--accent-primary)', fontWeight: '500' }}>{projectData.room_depth || 0}</span>
                   </div>
                 </div>
@@ -209,8 +210,10 @@ export default function EditorPage() {
             브라우저 콘솔(F12)을 확인하세요
           </div>
         </div>
-        
+        */}
+
         <ToastContainer />
+        <DebugInfo roomDimensions={roomDimensions} />
 
         {/* Unsaved Changes Warning */}
         {hasUnsavedChanges && (
