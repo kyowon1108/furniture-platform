@@ -1,8 +1,8 @@
 'use client';
 
-import React, { forwardRef, useImperativeHandle, useMemo, useRef } from 'react';
+import React, { forwardRef, useImperativeHandle, useMemo, useRef, useEffect } from 'react';
 import * as THREE from 'three';
-import { useThree } from '@react-three/fiber';
+import { useThree, useLoader } from '@react-three/fiber';
 import { RoomTemplate, Tile, ROOM_TEMPLATES } from './types';
 
 interface RoomSceneProps {
@@ -14,6 +14,54 @@ interface RoomSceneProps {
 }
 
 const TILE_SIZE = 0.5;
+
+// Texture loader component for each tile
+const TileMesh: React.FC<{
+  tile: Tile;
+  isSelected: boolean;
+  textureUrl: string | undefined;
+  currentTemplate: RoomTemplate;
+  onTileClick: (tileKey: string, e: any) => void;
+}> = ({ tile, isSelected, textureUrl, currentTemplate, onTileClick }) => {
+  // Load texture only when URL changes
+  const texture = useMemo(() => {
+    if (!textureUrl) return undefined;
+    const loader = new THREE.TextureLoader();
+    const tex = loader.load(textureUrl);
+    tex.colorSpace = THREE.SRGBColorSpace;
+    tex.wrapS = THREE.RepeatWrapping;
+    tex.wrapT = THREE.RepeatWrapping;
+    return tex;
+  }, [textureUrl]);
+
+  return (
+    <mesh
+      position={tile.position}
+      rotation={tile.rotation}
+      onClick={(e) => {
+        e.stopPropagation();
+        onTileClick(tile.key, e);
+      }}
+      userData={{ tileKey: tile.key, tileType: tile.type }}
+      renderOrder={isSelected ? 1 : 0}
+    >
+      <planeGeometry args={[TILE_SIZE, TILE_SIZE]} />
+      <meshStandardMaterial
+        color={
+          isSelected ? '#4CAF50' :
+          tile.type === 'floor' ? ROOM_TEMPLATES[currentTemplate].floorColor :
+          ROOM_TEMPLATES[currentTemplate].wallColor
+        }
+        opacity={isSelected ? 0.8 : 1}
+        transparent={isSelected}
+        map={texture}
+        side={THREE.DoubleSide}
+        depthTest={true}
+        depthWrite={true}
+      />
+    </mesh>
+  );
+};
 
 const RoomScene = forwardRef<any, RoomSceneProps>(({
   currentTemplate,
@@ -57,7 +105,7 @@ const RoomScene = forwardRef<any, RoomSceneProps>(({
             key: `floor-${x}-${z}`,
             type: 'floor',
             position: [x * TILE_SIZE + TILE_SIZE / 2, 0, z * TILE_SIZE + TILE_SIZE / 2],
-            rotation: [0, 0, 0],
+            rotation: [-Math.PI / 2, 0, 0],
           });
         }
       }
@@ -67,7 +115,7 @@ const RoomScene = forwardRef<any, RoomSceneProps>(({
             key: `floor-${x}-${z}`,
             type: 'floor',
             position: [x * TILE_SIZE + TILE_SIZE / 2, 0, z * TILE_SIZE + TILE_SIZE / 2],
-            rotation: [0, 0, 0],
+            rotation: [-Math.PI / 2, 0, 0],
           });
         }
       }
@@ -82,7 +130,7 @@ const RoomScene = forwardRef<any, RoomSceneProps>(({
             key: `wall-back-${x}-${y}`,
             type: 'wall',
             position: [x * TILE_SIZE + TILE_SIZE / 2, yPos, 0],
-            rotation: [-Math.PI / 2, 0, 0],
+            rotation: [0, 0, 0],
             wallSurface: 'back',
           });
         }
@@ -93,7 +141,7 @@ const RoomScene = forwardRef<any, RoomSceneProps>(({
             key: `wall-left-${z}-${y}`,
             type: 'wall',
             position: [0, yPos, z * TILE_SIZE + TILE_SIZE / 2],
-            rotation: [0, 0, Math.PI / 2],
+            rotation: [0, Math.PI / 2, 0],
             wallSurface: 'left',
           });
         }
@@ -104,7 +152,7 @@ const RoomScene = forwardRef<any, RoomSceneProps>(({
             key: `wall-inner-h-${x}-${y}`,
             type: 'wall',
             position: [x * TILE_SIZE + TILE_SIZE / 2, yPos, splitZ * TILE_SIZE],
-            rotation: [Math.PI / 2, 0, 0],
+            rotation: [0, Math.PI, 0],
             wallSurface: 'inner',
           });
         }
@@ -113,7 +161,7 @@ const RoomScene = forwardRef<any, RoomSceneProps>(({
             key: `wall-inner-v-${z}-${y}`,
             type: 'wall',
             position: [splitX * TILE_SIZE, yPos, z * TILE_SIZE + TILE_SIZE / 2],
-            rotation: [0, 0, -Math.PI / 2],
+            rotation: [0, -Math.PI / 2, 0],
             wallSurface: 'inner',
           });
         }
@@ -124,7 +172,7 @@ const RoomScene = forwardRef<any, RoomSceneProps>(({
             key: `wall-right-bottom-${z}-${y}`,
             type: 'wall',
             position: [width, yPos, z * TILE_SIZE + TILE_SIZE / 2],
-            rotation: [0, 0, -Math.PI / 2],
+            rotation: [0, -Math.PI / 2, 0],
             wallSurface: 'right',
           });
         }
@@ -133,7 +181,7 @@ const RoomScene = forwardRef<any, RoomSceneProps>(({
             key: `wall-front-top-${x}-${y}`,
             type: 'wall',
             position: [x * TILE_SIZE + TILE_SIZE / 2, yPos, depth],
-            rotation: [Math.PI / 2, 0, 0],
+            rotation: [0, Math.PI, 0],
             wallSurface: 'front',
           });
         }
@@ -153,7 +201,7 @@ const RoomScene = forwardRef<any, RoomSceneProps>(({
             key: `floor-${x}-${z}`,
             type: 'floor',
             position: [x * TILE_SIZE + TILE_SIZE / 2, 0, z * TILE_SIZE + TILE_SIZE / 2],
-            rotation: [0, 0, 0],
+            rotation: [-Math.PI / 2, 0, 0],
           });
         }
       }
@@ -168,7 +216,7 @@ const RoomScene = forwardRef<any, RoomSceneProps>(({
             key: `wall-back-${x}-${y}`,
             type: 'wall',
             position: [x * TILE_SIZE + TILE_SIZE / 2, yPos, 0],
-            rotation: [-Math.PI / 2, 0, 0],
+            rotation: [0, 0, 0],
             wallSurface: 'back',
           });
         }
@@ -179,14 +227,14 @@ const RoomScene = forwardRef<any, RoomSceneProps>(({
             key: `wall-left-${z}-${y}`,
             type: 'wall',
             position: [0, yPos, z * TILE_SIZE + TILE_SIZE / 2],
-            rotation: [0, 0, Math.PI / 2],
+            rotation: [0, Math.PI / 2, 0],
             wallSurface: 'left',
           });
           allTiles.push({
             key: `wall-right-${z}-${y}`,
             type: 'wall',
             position: [width, yPos, z * TILE_SIZE + TILE_SIZE / 2],
-            rotation: [0, 0, -Math.PI / 2],
+            rotation: [0, -Math.PI / 2, 0],
             wallSurface: 'right',
           });
         }
@@ -197,7 +245,7 @@ const RoomScene = forwardRef<any, RoomSceneProps>(({
             key: `wall-front-left-${x}-${y}`,
             type: 'wall',
             position: [x * TILE_SIZE + TILE_SIZE / 2, yPos, depth],
-            rotation: [Math.PI / 2, 0, 0],
+            rotation: [0, Math.PI, 0],
             wallSurface: 'front',
           });
         }
@@ -206,7 +254,7 @@ const RoomScene = forwardRef<any, RoomSceneProps>(({
             key: `wall-front-right-${x}-${y}`,
             type: 'wall',
             position: [x * TILE_SIZE + TILE_SIZE / 2, yPos, depth],
-            rotation: [Math.PI / 2, 0, 0],
+            rotation: [0, Math.PI, 0],
             wallSurface: 'front',
           });
         }
@@ -217,14 +265,14 @@ const RoomScene = forwardRef<any, RoomSceneProps>(({
             key: `wall-inner-left-${z}-${y}`,
             type: 'wall',
             position: [excludeXStart * TILE_SIZE, yPos, z * TILE_SIZE + TILE_SIZE / 2],
-            rotation: [0, 0, Math.PI / 2],
+            rotation: [0, Math.PI / 2, 0],
             wallSurface: 'inner',
           });
           allTiles.push({
             key: `wall-inner-right-${z}-${y}`,
             type: 'wall',
             position: [excludeXEnd * TILE_SIZE, yPos, z * TILE_SIZE + TILE_SIZE / 2],
-            rotation: [0, 0, -Math.PI / 2],
+            rotation: [0, -Math.PI / 2, 0],
             wallSurface: 'inner',
           });
         }
@@ -237,7 +285,7 @@ const RoomScene = forwardRef<any, RoomSceneProps>(({
             key: `floor-${x}-${z}`,
             type: 'floor',
             position: [x * TILE_SIZE + TILE_SIZE / 2, 0, z * TILE_SIZE + TILE_SIZE / 2],
-            rotation: [0, 0, 0],
+            rotation: [-Math.PI / 2, 0, 0],
           });
         }
       }
@@ -251,7 +299,7 @@ const RoomScene = forwardRef<any, RoomSceneProps>(({
             key: `wall-back-${x}-${y}`,
             type: 'wall',
             position: [x * TILE_SIZE + TILE_SIZE / 2, yPos, 0],
-            rotation: [-Math.PI / 2, 0, 0],
+            rotation: [0, 0, 0],
             wallSurface: 'back',
           });
         }
@@ -262,7 +310,7 @@ const RoomScene = forwardRef<any, RoomSceneProps>(({
             key: `wall-front-${x}-${y}`,
             type: 'wall',
             position: [x * TILE_SIZE + TILE_SIZE / 2, yPos, depth],
-            rotation: [Math.PI / 2, 0, 0],
+            rotation: [0, Math.PI, 0],
             wallSurface: 'front',
           });
         }
@@ -273,7 +321,7 @@ const RoomScene = forwardRef<any, RoomSceneProps>(({
             key: `wall-left-${z}-${y}`,
             type: 'wall',
             position: [0, yPos, z * TILE_SIZE + TILE_SIZE / 2],
-            rotation: [0, 0, Math.PI / 2],
+            rotation: [0, Math.PI / 2, 0],
             wallSurface: 'left',
           });
         }
@@ -284,7 +332,7 @@ const RoomScene = forwardRef<any, RoomSceneProps>(({
             key: `wall-right-${z}-${y}`,
             type: 'wall',
             position: [width, yPos, z * TILE_SIZE + TILE_SIZE / 2],
-            rotation: [0, 0, -Math.PI / 2],
+            rotation: [0, -Math.PI / 2, 0],
             wallSurface: 'right',
           });
         }
@@ -301,33 +349,16 @@ const RoomScene = forwardRef<any, RoomSceneProps>(({
 
   return (
     <group ref={groupRef}>
-      {tiles.map((tile) => {
-        const isSelected = selectedTiles.includes(tile.key);
-        const textureUrl = tileTextures[tile.key];
-
-        return (
-          <mesh
-            key={tile.key}
-            position={tile.position}
-            rotation={tile.rotation}
-            onClick={() => onTileClick(tile.key)}
-            userData={{ tileKey: tile.key, tileType: tile.type }}
-          >
-            <planeGeometry args={[TILE_SIZE, TILE_SIZE]} />
-            <meshStandardMaterial
-              color={
-                isSelected ? '#4CAF50' :
-                tile.type === 'floor' ? ROOM_TEMPLATES[currentTemplate].floorColor :
-                ROOM_TEMPLATES[currentTemplate].wallColor
-              }
-              opacity={isSelected ? 0.8 : 1}
-              transparent={isSelected}
-              map={textureUrl ? new THREE.TextureLoader().load(textureUrl) : undefined}
-              side={THREE.DoubleSide}
-            />
-          </mesh>
-        );
-      })}
+      {tiles.map((tile) => (
+        <TileMesh
+          key={tile.key}
+          tile={tile}
+          isSelected={selectedTiles.includes(tile.key)}
+          textureUrl={tileTextures[tile.key]}
+          currentTemplate={currentTemplate}
+          onTileClick={onTileClick}
+        />
+      ))}
     </group>
   );
 });
