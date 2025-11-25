@@ -10,7 +10,7 @@ interface CreateProjectModalProps {
 }
 
 export function CreateProjectModal({ onClose, onSuccess }: CreateProjectModalProps) {
-  const [creationMode, setCreationMode] = useState<'manual' | '3d' | 'room-builder'>('manual');
+  const [creationMode, setCreationMode] = useState<'3d' | 'room-builder'>('room-builder');
   // PLY 기능 주석 처리 - 기본값을 glb로 변경
   // const [fileType, setFileType] = useState<'ply' | 'glb'>('ply');
   const [fileType, setFileType] = useState<'ply' | 'glb'>('glb');
@@ -185,31 +185,6 @@ export function CreateProjectModal({ onClose, onSuccess }: CreateProjectModalPro
             <button
               type="button"
               onClick={() => {
-                setCreationMode('manual');
-                // 수동 입력 모드로 전환 시 기본값 복원
-                if (formData.room_width === 0 && formData.room_height === 0 && formData.room_depth === 0) {
-                  setFormData({
-                    ...formData,
-                    room_width: 5.0,
-                    room_height: 3.0,
-                    room_depth: 4.0,
-                  });
-                }
-              }}
-              className="flex-1 px-3 py-3 transition-all"
-              style={{
-                borderRadius: 'var(--radius-lg)',
-                border: `2px solid ${creationMode === 'manual' ? 'var(--accent-primary)' : 'var(--border-color)'}`,
-                background: creationMode === 'manual' ? 'var(--accent-light)' : 'var(--bg-secondary)',
-                color: creationMode === 'manual' ? 'var(--accent-primary)' : 'var(--text-primary)'
-              }}
-            >
-              <div className="font-semibold">수동 입력</div>
-              <div className="text-sm mt-1" style={{ color: 'var(--text-secondary)', fontSize: '0.75rem' }}>방 크기 직접 입력</div>
-            </button>
-            <button
-              type="button"
-              onClick={() => {
                 setCreationMode('room-builder');
               }}
               className="flex-1 px-3 py-3 transition-all"
@@ -325,74 +300,7 @@ export function CreateProjectModal({ onClose, onSuccess }: CreateProjectModalPro
             </div>
           )}
 
-          {/* 수동 입력 모드일 때만 방 크기 입력 필드 표시 (3D 업로드 모드에서는 숨김) */}
-          {creationMode === 'manual' && (
-          <div className="grid grid-cols-3 gap-4">
-            <div>
-              <label className="block text-sm font-medium mb-1" style={{ color: 'var(--text-primary)' }}>
-                폭 (m) *
-              </label>
-              <input
-                type="number"
-                step="0.1"
-                min="1"
-                max="50"
-                value={formData.room_width}
-                onChange={(e) => {
-                  const value = parseFloat(e.target.value);
-                  setFormData({
-                    ...formData,
-                    room_width: isNaN(value) ? 0 : value,
-                  });
-                }}
-                className="search-input w-full"
-                required
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium mb-1" style={{ color: 'var(--text-primary)' }}>
-                높이 (m) *
-              </label>
-              <input
-                type="number"
-                step="0.1"
-                min="2"
-                max="10"
-                value={formData.room_height}
-                onChange={(e) => {
-                  const value = parseFloat(e.target.value);
-                  setFormData({
-                    ...formData,
-                    room_height: isNaN(value) ? 0 : value,
-                  });
-                }}
-                className="search-input w-full"
-                required
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium mb-1" style={{ color: 'var(--text-primary)' }}>
-                깊이 (m) *
-              </label>
-              <input
-                type="number"
-                step="0.1"
-                min="1"
-                max="50"
-                value={formData.room_depth}
-                onChange={(e) => {
-                  const value = parseFloat(e.target.value);
-                  setFormData({
-                    ...formData,
-                    room_depth: isNaN(value) ? 0 : value,
-                  });
-                }}
-                className="search-input w-full"
-                required
-              />
-            </div>
-          </div>
-          )}
+          {/* 수동 입력 모드 제거 - 방 구조 디자인과 3D 파일 업로드만 지원 */}
 
           {/* 3D 파일이 선택되었을 때 안내 메시지 표시 */}
           {creationMode === '3d' && file3D && (

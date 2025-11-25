@@ -29,7 +29,7 @@ interface MergedTextureResult {
 /**
  * Compress image to reduce file size
  */
-async function compressImage(imageUrl: string, quality: number = 0.8, maxSize: number = 512): Promise<string> {
+async function compressImage(imageUrl: string, quality: number = 0.6, maxSize: number = 256): Promise<string> {
   return new Promise((resolve, reject) => {
     const img = new Image();
     img.crossOrigin = 'anonymous';
@@ -56,7 +56,7 @@ async function compressImage(imageUrl: string, quality: number = 0.8, maxSize: n
       canvas.height = height;
       ctx.drawImage(img, 0, 0, width, height);
 
-      // Convert to JPEG with quality setting
+      // Convert to JPEG with quality setting (60% quality)
       canvas.toBlob(
         (blob) => {
           if (blob) {
@@ -101,7 +101,7 @@ export function groupTilesByWall(scene: THREE.Scene): Record<string, WallGroup> 
       const mesh = child as THREE.Mesh;
       const material = mesh.material as THREE.MeshStandardMaterial;
 
-      // Skip tiles without textures
+      // Skip tiles without textures - must use return (not continue) in traverse callback
       if (!material.map || !material.map.image) return;
 
       console.log('Processing tile for atlas:', tileKey);
@@ -179,7 +179,7 @@ export function groupTilesByWall(scene: THREE.Scene): Record<string, WallGroup> 
 export async function mergeWallTextures(
   group: WallGroup,
   groupKey: string,
-  tileSize: number = 512
+  tileSize: number = 256
 ): Promise<string | null> {
   if (group.tiles.length === 0) return null;
 
@@ -220,8 +220,8 @@ export async function mergeWallTextures(
     if (!tile.textureUrl) return;
 
     try {
-      // Compress image first
-      const compressedUrl = await compressImage(tile.textureUrl, 0.8, finalTileSize);
+      // Compress image first (60% quality, max 256px)
+      const compressedUrl = await compressImage(tile.textureUrl, 0.6, Math.min(finalTileSize, 256));
 
       return new Promise<void>((resolve) => {
         const img = new Image();
@@ -276,7 +276,7 @@ export async function mergeWallTextures(
         }
       },
       'image/jpeg',
-      0.8 // 80% quality for good balance
+      0.6 // 60% quality for smaller file size
     );
   });
 }

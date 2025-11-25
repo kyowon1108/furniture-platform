@@ -326,7 +326,7 @@ export const GlbModel = memo(function GlbModel({ projectId, glbFilePath, roomDim
     if (projectId) {
       // Construct the API URL to download the GLB file with auth token
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8008/api/v1';
-      const url = `${apiUrl}/files/download-3d/${projectId}`;
+      const url = `${apiUrl}/files-3d/download-3d/${projectId}`;
       setGlbUrl(url);
     }
   }, [projectId, glbFilePath]);

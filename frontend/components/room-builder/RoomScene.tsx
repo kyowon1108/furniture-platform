@@ -26,23 +26,42 @@ const TileMesh: React.FC<{
   // Load texture and force update when URL changes
   const [texture, setTexture] = useState<THREE.Texture | undefined>(undefined);
 
+  // Get the correct color based on tile type
+  const defaultColor = tile.type === 'floor' ?
+    ROOM_TEMPLATES[currentTemplate].floorColor :
+    ROOM_TEMPLATES[currentTemplate].wallColor;
+
   useEffect(() => {
     if (!textureUrl) {
       setTexture(undefined);
+      console.log(`[${tile.key}] No texture URL, using default ${tile.type} color: ${defaultColor}`);
       return;
     }
 
-    console.log(`Loading texture for ${tile.key}: ${textureUrl.substring(0, 50)}...`);
+    console.log(`[${tile.key}] Loading texture from: ${textureUrl.substring(0, 50)}...`);
     const loader = new THREE.TextureLoader();
-    loader.load(textureUrl, (tex) => {
-      tex.colorSpace = THREE.SRGBColorSpace;
-      tex.wrapS = THREE.RepeatWrapping;
-      tex.wrapT = THREE.RepeatWrapping;
-      tex.needsUpdate = true;
-      setTexture(tex);
-      console.log(`Texture loaded for ${tile.key}`);
-    });
-  }, [textureUrl, tile.key]);
+    loader.load(
+      textureUrl,
+      (tex) => {
+        tex.colorSpace = THREE.SRGBColorSpace;
+        tex.wrapS = THREE.RepeatWrapping;
+        tex.wrapT = THREE.RepeatWrapping;
+        tex.needsUpdate = true;
+        setTexture(tex);
+        console.log(`[${tile.key}] ✅ Texture loaded successfully, material will use white color`);
+      },
+      undefined,
+      (error) => {
+        console.error(`[${tile.key}] ❌ Failed to load texture:`, error);
+        setTexture(undefined);
+      }
+    );
+  }, [textureUrl, tile.key, defaultColor]);
+
+  // Determine the material color
+  const materialColor = isSelected ? '#4CAF50' :
+                       texture ? '#ffffff' :  // Only use white when texture is actually loaded
+                       defaultColor;  // Use default color when no texture
 
   return (
     <mesh
@@ -58,16 +77,11 @@ const TileMesh: React.FC<{
     >
       <planeGeometry args={[TILE_SIZE, TILE_SIZE]} />
       <meshStandardMaterial
-        key={`mat-${tile.key}-${textureUrl || 'notexture'}`}
-        color={
-          isSelected ? '#4CAF50' :
-          texture ? '#ffffff' : // 텍스처가 있으면 흰색
-          tile.type === 'floor' ? ROOM_TEMPLATES[currentTemplate].floorColor :
-          ROOM_TEMPLATES[currentTemplate].wallColor
-        }
+        key={`mat-${tile.key}-${textureUrl || 'notexture'}-${texture ? 'loaded' : 'loading'}`}
+        color={materialColor}
         opacity={isSelected ? 0.8 : 1}
         transparent={isSelected}
-        map={texture}
+        map={texture || undefined}
         side={THREE.DoubleSide}
         depthTest={true}
         depthWrite={true}
