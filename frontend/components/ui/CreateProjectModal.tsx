@@ -10,7 +10,7 @@ interface CreateProjectModalProps {
 }
 
 export function CreateProjectModal({ onClose, onSuccess }: CreateProjectModalProps) {
-  const [creationMode, setCreationMode] = useState<'manual' | '3d'>('manual');
+  const [creationMode, setCreationMode] = useState<'manual' | '3d' | 'room-builder'>('manual');
   // PLY 기능 주석 처리 - 기본값을 glb로 변경
   // const [fileType, setFileType] = useState<'ply' | 'glb'>('ply');
   const [fileType, setFileType] = useState<'ply' | 'glb'>('glb');
@@ -83,6 +83,10 @@ export function CreateProjectModal({ onClose, onSuccess }: CreateProjectModalPro
         has_3d_file: creationMode === '3d',
         file_type: creationMode === '3d' ? fileType : null,
         has_ply_file: creationMode === '3d' && fileType === 'ply', // Legacy support
+        // For room-builder mode, set temporary dimensions
+        room_width: creationMode === 'room-builder' ? 0 : formData.room_width,
+        room_height: creationMode === 'room-builder' ? 0 : formData.room_height,
+        room_depth: creationMode === 'room-builder' ? 0 : formData.room_depth,
       };
       const project = await projectsAPI.create(projectData);
 
@@ -116,11 +120,16 @@ export function CreateProjectModal({ onClose, onSuccess }: CreateProjectModalPro
 
       setUploadProgress('완료!');
       onSuccess();
-      
+
       // Small delay to ensure database is updated before navigating
       await new Promise(resolve => setTimeout(resolve, 500));
-      
-      router.push(`/editor/${project.id}`);
+
+      // Navigate to room builder for room-builder mode, otherwise to editor
+      if (creationMode === 'room-builder') {
+        router.push(`/room-builder/${project.id}`);
+      } else {
+        router.push(`/editor/${project.id}`);
+      }
     } catch (err: any) {
       console.error('Failed to create project:', err);
       setError(err.message || err.response?.data?.detail || '프로젝트 생성에 실패했습니다');
@@ -172,7 +181,7 @@ export function CreateProjectModal({ onClose, onSuccess }: CreateProjectModalPro
         {/* Mode Selection */}
         <div className="mb-6">
           <label className="block text-sm font-medium mb-2" style={{ color: 'var(--text-primary)' }}>생성 방식</label>
-          <div className="flex gap-4">
+          <div className="flex gap-3">
             <button
               type="button"
               onClick={() => {
@@ -187,7 +196,7 @@ export function CreateProjectModal({ onClose, onSuccess }: CreateProjectModalPro
                   });
                 }
               }}
-              className="flex-1 px-4 py-3 transition-all"
+              className="flex-1 px-3 py-3 transition-all"
               style={{
                 borderRadius: 'var(--radius-lg)',
                 border: `2px solid ${creationMode === 'manual' ? 'var(--accent-primary)' : 'var(--border-color)'}`,
@@ -196,7 +205,23 @@ export function CreateProjectModal({ onClose, onSuccess }: CreateProjectModalPro
               }}
             >
               <div className="font-semibold">수동 입력</div>
-              <div className="text-sm mt-1" style={{ color: 'var(--text-secondary)' }}>방 크기를 직접 입력</div>
+              <div className="text-sm mt-1" style={{ color: 'var(--text-secondary)', fontSize: '0.75rem' }}>방 크기 직접 입력</div>
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setCreationMode('room-builder');
+              }}
+              className="flex-1 px-3 py-3 transition-all"
+              style={{
+                borderRadius: 'var(--radius-lg)',
+                border: `2px solid ${creationMode === 'room-builder' ? 'var(--accent-primary)' : 'var(--border-color)'}`,
+                background: creationMode === 'room-builder' ? 'var(--accent-light)' : 'var(--bg-secondary)',
+                color: creationMode === 'room-builder' ? 'var(--accent-primary)' : 'var(--text-primary)'
+              }}
+            >
+              <div className="font-semibold">방 구조 디자인</div>
+              <div className="text-sm mt-1" style={{ color: 'var(--text-secondary)', fontSize: '0.75rem' }}>3D 룸 빌더로 생성</div>
             </button>
             <button
               type="button"
@@ -210,7 +235,7 @@ export function CreateProjectModal({ onClose, onSuccess }: CreateProjectModalPro
                   room_depth: 0,
                 });
               }}
-              className="flex-1 px-4 py-3 transition-all"
+              className="flex-1 px-3 py-3 transition-all"
               style={{
                 borderRadius: 'var(--radius-lg)',
                 border: `2px solid ${creationMode === '3d' ? 'var(--accent-primary)' : 'var(--border-color)'}`,
@@ -218,10 +243,10 @@ export function CreateProjectModal({ onClose, onSuccess }: CreateProjectModalPro
                 color: creationMode === '3d' ? 'var(--accent-primary)' : 'var(--text-primary)'
               }}
             >
-              <div className="font-semibold">3D 파일 업로드</div>
+              <div className="font-semibold">3D 파일</div>
               {/* PLY 관련 텍스트 주석 처리 */}
               {/* <div className="text-sm mt-1" style={{ color: 'var(--text-secondary)' }}>PLY 또는 GLB 파일</div> */}
-              <div className="text-sm mt-1" style={{ color: 'var(--text-secondary)' }}>GLB 파일</div>
+              <div className="text-sm mt-1" style={{ color: 'var(--text-secondary)', fontSize: '0.75rem' }}>GLB 파일 업로드</div>
             </button>
           </div>
         </div>
