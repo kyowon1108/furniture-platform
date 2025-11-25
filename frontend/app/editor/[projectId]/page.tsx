@@ -18,6 +18,7 @@ import { LightingPanel } from '@/components/ui/LightingPanel';
 import { useToastStore } from '@/store/toastStore';
 // Initialize logger to capture all console logs
 import '@/lib/logger';
+import { DebugInfo } from '@/components/3d/DebugInfo';
 
 export default function EditorPage() {
   const params = useParams();
@@ -212,6 +213,7 @@ export default function EditorPage() {
         */}
 
         <ToastContainer />
+        <DebugInfo roomDimensions={roomDimensions} />
 
         {/* Unsaved Changes Warning */}
         {hasUnsavedChanges && (
