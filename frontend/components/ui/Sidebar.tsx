@@ -36,7 +36,7 @@ export function Sidebar() {
     loadCatalog();
   }, []);
 
-  const { addFurniture } = useEditorStore();
+  const { addFurniture, furnitures } = useEditorStore();
   const { 
     selectedMaterialId, 
     applicationMode, 
