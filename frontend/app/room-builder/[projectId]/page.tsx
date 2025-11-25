@@ -11,8 +11,8 @@ import RoomTemplateSelector from '@/components/room-builder/RoomTemplateSelector
 import TextureGallery from '@/components/room-builder/TextureGallery';
 import RoomScene from '@/components/room-builder/RoomScene';
 import { RoomTemplate, UploadedImage, ROOM_TEMPLATES } from '@/components/room-builder/types';
-import { optimizeSceneTextures } from '@/utils/textureOptimizer';
-// import { optimizeSceneForExport } from '@/utils/advancedTextureOptimizer';
+// import { optimizeSceneTextures } from '@/utils/textureOptimizer';
+import { optimizeSceneTextures } from '@/utils/optimizedTextureAtlas';
 
 const TILE_SIZE = 0.5;
 const WALL_HEIGHT = 2.5;
@@ -363,30 +363,26 @@ export default function RoomBuilderPage() {
 
       setUploadProgress(30);
 
-      // Optimize textures before export to reduce file size
-      console.log('텍스처 최적화 중...');
-      await optimizeSceneTextures(scene);
-      setUploadProgress(40);
-
-      // Export as GLB
-      console.log('GLB 파일 생성 중...');
-      const exporter = new GLTFExporter();
-
       // Get actual room dimensions
       const templateConfig = ROOM_TEMPLATES[currentTemplate];
       const roomWidth = currentTemplate === 'custom' ? customDimensions.width : templateConfig.width;
       const roomDepth = currentTemplate === 'custom' ? customDimensions.depth : templateConfig.depth;
       const roomHeight = templateConfig.wallHeight;
 
-      // Add dimensions metadata to the scene
-      scene.userData.dimensions = {
+      // Optimize textures before export to reduce file size
+      console.log('텍스처 최적화 중...');
+      const optimizedScene = await optimizeSceneTextures(scene);
+      setUploadProgress(40);
+
+      // Add dimensions metadata to the optimized scene
+      optimizedScene.userData.dimensions = {
         width: roomWidth,
         height: roomHeight,
         depth: roomDepth
       };
 
       // Also add to extras for GLB export (GLTFExporter uses extras)
-      scene.extras = {
+      optimizedScene.extras = {
         dimensions: {
           width: roomWidth,
           height: roomHeight,
@@ -394,12 +390,16 @@ export default function RoomBuilderPage() {
         }
       };
 
+      // Export as GLB
+      console.log('GLB 파일 생성 중...');
+      const exporter = new GLTFExporter();
+
       const glbBlob = await new Promise<Blob>((resolve, reject) => {
         exporter.parse(
-          scene,
+          optimizedScene,
           (gltf) => {
             const blob = new Blob([gltf as ArrayBuffer], { type: 'model/gltf-binary' });
-            console.log('GLB 파일 생성 완료:', blob.size, 'bytes, dimensions:', scene.userData.dimensions);
+            console.log('GLB 파일 생성 완료:', blob.size, 'bytes, dimensions:', optimizedScene.userData.dimensions);
             resolve(blob);
           },
           (error) => {
@@ -408,6 +408,7 @@ export default function RoomBuilderPage() {
           },
           {
             binary: true,
+            embedImages: true, // Embed textures in GLB file
             includeCustomExtensions: true // Ensure extras are included
           }
         );
