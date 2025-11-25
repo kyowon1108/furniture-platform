@@ -44,6 +44,7 @@ const TileMesh: React.FC<{
 
   return (
     <mesh
+      key={`${tile.key}-${textureUrl || 'notexture'}`} // 텍스처 변경 시 강제 리렌더링
       position={tile.position}
       rotation={tile.rotation}
       onClick={(e) => {
@@ -55,6 +56,7 @@ const TileMesh: React.FC<{
     >
       <planeGeometry args={[TILE_SIZE, TILE_SIZE]} />
       <meshStandardMaterial
+        key={`mat-${textureUrl || 'notexture'}`} // material도 key 추가
         color={
           isSelected ? '#4CAF50' :
           texture ? '#ffffff' :  // 텍스처가 있으면 흰색으로 설정하여 원본 색상 유지
@@ -67,6 +69,7 @@ const TileMesh: React.FC<{
         side={THREE.DoubleSide}
         depthTest={true}
         depthWrite={true}
+        needsUpdate={true}
       />
     </mesh>
   );
