@@ -183,6 +183,7 @@ export const catalogAPI = {
     const response = await apiClient.get('/catalog/list-glb');
     return response.data;
   },
+
 };
 
 export default apiClient;

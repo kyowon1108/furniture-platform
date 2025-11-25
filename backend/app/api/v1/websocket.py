@@ -47,7 +47,7 @@ async def join_project(sid, data):
         return
 
     room = f"project_{project_id}"
-    sio.enter_room(sid, room)
+    await sio.enter_room(sid, room)
 
     # Track connection
     if project_id not in active_rooms:
