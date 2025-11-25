@@ -1,11 +1,13 @@
 'use client';
 
 import { useParams, useRouter } from 'next/navigation';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { Canvas } from '@react-three/fiber';
 import { OrbitControls } from '@react-three/drei';
 import { projectsAPI } from '@/lib/api';
-import RoomBuilder from '@/components/room-builder/RoomBuilder';
+import RoomBuilderSimple from '@/components/room-builder/RoomBuilderSimple';
+import RoomScene from '@/components/room-builder/RoomScene';
+import { RoomTemplate } from '@/components/room-builder/types';
 
 export default function RoomBuilderPage() {
   const params = useParams();
@@ -15,6 +17,13 @@ export default function RoomBuilderPage() {
   const [project, setProject] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  // Room builder state
+  const [currentTemplate, setCurrentTemplate] = useState<RoomTemplate>('rectangular');
+  const [customDimensions, setCustomDimensions] = useState({ width: 3, depth: 3 });
+  const [selectedTiles, setSelectedTiles] = useState<string[]>([]);
+  const [tileTextures, setTileTextures] = useState<Record<string, string>>({});
+  const roomSceneRef = useRef<any>(null);
 
   useEffect(() => {
     const loadProject = async () => {
@@ -109,11 +118,33 @@ export default function RoomBuilderPage() {
               </p>
             </div>
 
-            {/* Room Builder Controls will be rendered here */}
-            <RoomBuilder
+            {/* Room Builder Controls */}
+            <RoomBuilderSimple
               projectId={projectId}
               projectName={project?.name || ''}
               onComplete={handleRoomComplete}
+              currentTemplate={currentTemplate}
+              onTemplateChange={setCurrentTemplate}
+              customDimensions={customDimensions}
+              onCustomDimensionsChange={setCustomDimensions}
+              selectedTiles={selectedTiles}
+              tileTextures={tileTextures}
+              onApplyTexture={(tileKeys, textureUrl) => {
+                const newTextures = { ...tileTextures };
+                tileKeys.forEach(key => {
+                  newTextures[key] = textureUrl;
+                });
+                setTileTextures(newTextures);
+                setSelectedTiles([]);
+              }}
+              onRemoveTexture={(tileKeys) => {
+                const newTextures = { ...tileTextures };
+                tileKeys.forEach(key => {
+                  delete newTextures[key];
+                });
+                setTileTextures(newTextures);
+                setSelectedTiles([]);
+              }}
             />
           </div>
         </div>
@@ -128,8 +159,21 @@ export default function RoomBuilderPage() {
             <directionalLight position={[10, 10, 5]} intensity={1} />
             <OrbitControls makeDefault />
 
-            {/* 3D Scene will be rendered by RoomBuilder */}
-            <RoomBuilder.Scene />
+            {/* 3D Scene */}
+            <RoomScene
+              ref={roomSceneRef}
+              currentTemplate={currentTemplate}
+              customDimensions={customDimensions}
+              selectedTiles={selectedTiles}
+              tileTextures={tileTextures}
+              onTileClick={(tileKey) => {
+                setSelectedTiles(prev =>
+                  prev.includes(tileKey)
+                    ? prev.filter(k => k !== tileKey)
+                    : [...prev, tileKey]
+                );
+              }}
+            />
           </Canvas>
         </div>
       </div>
