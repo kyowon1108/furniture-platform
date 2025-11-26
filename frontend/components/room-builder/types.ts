@@ -1,4 +1,4 @@
-export type RoomTemplate = 'small_studio' | 'rectangular' | 'lshaped' | 'square' | 'ushaped' | 'corridor' | 'custom';
+export type RoomTemplate = 'small_studio' | 'rectangular' | 'square' | 'corridor' | 'custom';
 
 export interface RoomDimensions {
   width: number;
@@ -81,34 +81,12 @@ export const ROOM_TEMPLATES: Record<RoomTemplate, RoomTemplateConfig> = {
     floorColor: '#d4a574',
     wallColor: '#F5F5F5',
   },
-  lshaped: {
-    name: 'lshaped',
-    displayName: 'ㄱ자 방',
-    description: 'ㄱ자 형태 구조 (5m x 5m)',
-    width: 5,
-    depth: 5,
-    wallHeight: WALL_HEIGHT,
-    tileSize: TILE_SIZE,
-    floorColor: '#d4a574',
-    wallColor: '#F5F5F5',
-  },
   square: {
     name: 'square',
     displayName: '정사각형 원룸',
     description: '정방형 구조 (4m x 4m)',
     width: 4,
     depth: 4,
-    wallHeight: WALL_HEIGHT,
-    tileSize: TILE_SIZE,
-    floorColor: '#d4a574',
-    wallColor: '#F5F5F5',
-  },
-  ushaped: {
-    name: 'ushaped',
-    displayName: 'ㄷ자형 원룸',
-    description: 'ㄷ자 구조 (5m x 5m)',
-    width: 5,
-    depth: 5,
     wallHeight: WALL_HEIGHT,
     tileSize: TILE_SIZE,
     floorColor: '#d4a574',

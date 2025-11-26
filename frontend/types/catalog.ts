@@ -204,17 +204,6 @@ export const FURNITURE_CATALOG: FurnitureCatalogItem[] = [
   },
   // Office furniture - Desks
   {
-    id: 'desk-l-shaped',
-    name: 'L-Shaped Desk',
-    type: 'desk',
-    category: 'office',
-    dimensions: { width: 1.8, height: 0.75, depth: 1.5 },
-    thumbnail: '/furniture/desk-l-shaped.png',
-    color: '#2F4F4F',
-    price: 249000,
-    tags: ['desk', 'office', 'l-shaped', 'work'],
-  },
-  {
     id: 'desk-standing',
     name: 'Standing Desk',
     type: 'desk',

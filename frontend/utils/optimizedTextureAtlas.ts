@@ -91,7 +91,6 @@ export function groupTilesByWall(scene: THREE.Scene): Record<string, WallGroup> 
     'wall-back': { tiles: [], minX: Infinity, maxX: -Infinity, minY: Infinity, maxY: -Infinity },
     'wall-left': { tiles: [], minX: Infinity, maxX: -Infinity, minY: Infinity, maxY: -Infinity },
     'wall-right': { tiles: [], minX: Infinity, maxX: -Infinity, minY: Infinity, maxY: -Infinity },
-    'wall-inner': { tiles: [], minX: Infinity, maxX: -Infinity, minY: Infinity, maxY: -Infinity },
     'floor': { tiles: [], minX: Infinity, maxX: -Infinity, minY: Infinity, maxY: -Infinity },
   };
 
@@ -130,8 +129,6 @@ export function groupTilesByWall(scene: THREE.Scene): Record<string, WallGroup> 
         } else if (wallType === 'right') {
           groupKey = 'wall-right';
           rotation = -Math.PI / 2; // -90 degrees for right wall
-        } else if (wallType === 'inner') {
-          groupKey = 'wall-inner';
         }
 
         // Extract coordinates
@@ -379,7 +376,6 @@ export async function optimizeSceneTextures(scene: THREE.Scene): Promise<THREE.S
       else if (tileKey.startsWith('wall-back')) groupKey = 'wall-back';
       else if (tileKey.startsWith('wall-left')) groupKey = 'wall-left';
       else if (tileKey.startsWith('wall-right')) groupKey = 'wall-right';
-      else if (tileKey.startsWith('wall-inner')) groupKey = 'wall-inner';
       else if (tileKey.startsWith('floor')) groupKey = 'floor';
 
       if (groupKey && loadedTextures[groupKey] && mergedTextures[groupKey]) {

@@ -24,7 +24,6 @@ export function groupTilesByWall(scene: THREE.Scene): Record<string, WallGroup> 
     'wall-back': { tiles: [], minX: Infinity, maxX: -Infinity, minY: Infinity, maxY: -Infinity },
     'wall-left': { tiles: [], minX: Infinity, maxX: -Infinity, minY: Infinity, maxY: -Infinity },
     'wall-right': { tiles: [], minX: Infinity, maxX: -Infinity, minY: Infinity, maxY: -Infinity },
-    'wall-inner': { tiles: [], minX: Infinity, maxX: -Infinity, minY: Infinity, maxY: -Infinity },
     'floor': { tiles: [], minX: Infinity, maxX: -Infinity, minY: Infinity, maxY: -Infinity },
   };
 
@@ -47,18 +46,10 @@ export function groupTilesByWall(scene: THREE.Scene): Record<string, WallGroup> 
         y = parseInt(parts[2]) || 0;  // z coordinate for floor
       } else if (tileKey.startsWith('wall-')) {
         const wallType = parts[1];
-        if (wallType === 'inner') {
-          groupKey = 'wall-inner';
-          // inner walls have more complex parsing
-          const coordinateIndex = parts.length - 2;
-          x = parseInt(parts[coordinateIndex]) || 0;
-          y = parseInt(parts[parts.length - 1]) || 0;
-        } else {
-          groupKey = `wall-${wallType}`;
-          const coordinateIndex = parts.length - 2;
-          x = parseInt(parts[coordinateIndex]) || 0;
-          y = parseInt(parts[parts.length - 1]) || 0;
-        }
+        groupKey = `wall-${wallType}`;
+        const coordinateIndex = parts.length - 2;
+        x = parseInt(parts[coordinateIndex]) || 0;
+        y = parseInt(parts[parts.length - 1]) || 0;
       }
 
       if (groupKey && wallGroups[groupKey]) {
@@ -224,7 +215,6 @@ export async function optimizeSceneForExport(scene: THREE.Scene): Promise<void> 
       else if (tileKey.startsWith('wall-back')) groupKey = 'wall-back';
       else if (tileKey.startsWith('wall-left')) groupKey = 'wall-left';
       else if (tileKey.startsWith('wall-right')) groupKey = 'wall-right';
-      else if (tileKey.startsWith('wall-inner')) groupKey = 'wall-inner';
       else if (tileKey.startsWith('floor')) groupKey = 'floor';
 
       if (groupKey && loadedTextures[groupKey] && mergedTextures[groupKey]) {
