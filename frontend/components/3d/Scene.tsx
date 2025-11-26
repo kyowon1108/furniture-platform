@@ -186,7 +186,7 @@ function SceneContent({
       console.log('✓ PLY boundary check passed');
     }
     
-    // Check collision with dummy objects (for L-shaped and other template rooms)
+    // Check collision with dummy objects (for template rooms)
     // First try to find by name
     let dummyGroup = scene.getObjectByName('collision-dummies');
 
@@ -267,7 +267,9 @@ function SceneContent({
 
     // Check collision with other furniture
     // Comprehensive 3D collision detection
-    const penetrationThreshold = 0.02;
+    // Reduced threshold from 0.02 to 0.005 - allows furniture to be closer to walls
+    // but still prevents overlap
+    const penetrationThreshold = 0.005;
 
     for (const other of furnitures) {
       if (furniture.id === other.id) continue;
@@ -286,19 +288,27 @@ function SceneContent({
         other.dimensions,
         (other.rotation.y * Math.PI) / 180
       );
-      
+
+      // Apply small reduction factor (0.95) to allow furniture to be placed closer
+      // This prevents oversized collision boxes
+      const collisionFactor = 0.95;
+      const adjustedHalfWidth = halfWidth * collisionFactor;
+      const adjustedHalfDepth = halfDepth * collisionFactor;
+      const adjustedOtherWidth = (otherRotatedDims.width / 2) * collisionFactor;
+      const adjustedOtherDepth = (otherRotatedDims.depth / 2) * collisionFactor;
+
       const f1 = {
-        minX: newPos.x - halfWidth,
-        maxX: newPos.x + halfWidth,
-        minZ: newPos.z - halfDepth,
-        maxZ: newPos.z + halfDepth,
+        minX: newPos.x - adjustedHalfWidth,
+        maxX: newPos.x + adjustedHalfWidth,
+        minZ: newPos.z - adjustedHalfDepth,
+        maxZ: newPos.z + adjustedHalfDepth,
       };
-      
+
       const f2 = {
-        minX: other.position.x - otherRotatedDims.width / 2,
-        maxX: other.position.x + otherRotatedDims.width / 2,
-        minZ: other.position.z - otherRotatedDims.depth / 2,
-        maxZ: other.position.z + otherRotatedDims.depth / 2,
+        minX: other.position.x - adjustedOtherWidth,
+        maxX: other.position.x + adjustedOtherWidth,
+        minZ: other.position.z - adjustedOtherDepth,
+        maxZ: other.position.z + adjustedOtherDepth,
       };
       
       // Calculate actual overlap (penetration)
@@ -389,18 +399,20 @@ function SceneContent({
         );
         
         // XZ plane collision check
+        // Apply collision factor to make collision boxes smaller
+        const collisionFactor = 0.95;
         const f1 = {
-          minX: furniture.position.x - f1RotatedDims.width / 2,
-          maxX: furniture.position.x + f1RotatedDims.width / 2,
-          minZ: furniture.position.z - f1RotatedDims.depth / 2,
-          maxZ: furniture.position.z + f1RotatedDims.depth / 2,
+          minX: furniture.position.x - (f1RotatedDims.width / 2) * collisionFactor,
+          maxX: furniture.position.x + (f1RotatedDims.width / 2) * collisionFactor,
+          minZ: furniture.position.z - (f1RotatedDims.depth / 2) * collisionFactor,
+          maxZ: furniture.position.z + (f1RotatedDims.depth / 2) * collisionFactor,
         };
-        
+
         const f2 = {
-          minX: other.position.x - f2RotatedDims.width / 2,
-          maxX: other.position.x + f2RotatedDims.width / 2,
-          minZ: other.position.z - f2RotatedDims.depth / 2,
-          maxZ: other.position.z + f2RotatedDims.depth / 2,
+          minX: other.position.x - (f2RotatedDims.width / 2) * collisionFactor,
+          maxX: other.position.x + (f2RotatedDims.width / 2) * collisionFactor,
+          minZ: other.position.z - (f2RotatedDims.depth / 2) * collisionFactor,
+          maxZ: other.position.z + (f2RotatedDims.depth / 2) * collisionFactor,
         };
         
         // Calculate actual overlap (penetration)
@@ -884,10 +896,11 @@ function SceneContent({
                 });
                 obj.position.y = newY;
               } else if (transformMode === 'translate') {
-                // Floor items: only fix Y when actually translating
+                // Floor items: only fix Y when significantly different (prevent jumping)
                 const groundY = selectedFurniture.dimensions.height / 2;
-                // Check if Y position significantly differs from ground level
-                if (Math.abs(obj.position.y - groundY) > 0.01) {
+                // Increased threshold from 0.01 to 0.1 to prevent constant jumping
+                // This allows minor Y variations without forcing adjustment
+                if (Math.abs(obj.position.y - groundY) > 0.1) {
                   console.log('⬇️ Floor item Y adjusted to:', groundY);
                   obj.position.y = groundY;
                 }
@@ -1183,15 +1196,17 @@ function SceneContent({
                   const checkZ = Math.abs(obj.position.z) + halfDepth > maxBoundary;
                   wouldExceedBounds = checkX || checkZ;
                 } else {
-                  const roomHalfWidth = actualRoomDimensions.width / 2;
-                  const roomHalfDepth = actualRoomDimensions.depth / 2;
-                  
+                  // Add small margin (0.05) to allow furniture to touch walls without going through
+                  const wallMargin = 0.05;
+                  const roomHalfWidth = actualRoomDimensions.width / 2 - wallMargin;
+                  const roomHalfDepth = actualRoomDimensions.depth / 2 - wallMargin;
+
                   const minX = obj.position.x - halfWidth;
                   const maxX = obj.position.x + halfWidth;
                   const minZ = obj.position.z - halfDepth;
                   const maxZ = obj.position.z + halfDepth;
-                  
-                  wouldExceedBounds = 
+
+                  wouldExceedBounds =
                     minX < -roomHalfWidth ||
                     maxX > roomHalfWidth ||
                     minZ < -roomHalfDepth ||

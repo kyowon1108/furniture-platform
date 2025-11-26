@@ -25,8 +25,8 @@ const RoomTemplateSelector: React.FC<RoomTemplateSelectorProps> = ({
           onChange={(e) => onTemplateChange(e.target.value as RoomTemplate)}
           className="w-full px-3 py-2 border border-border rounded-md bg-background text-foreground"
         >
-          <option value="small_studio">{ROOM_TEMPLATES.small_studio.displayName} ({ROOM_TEMPLATES.small_studio.width}m × {ROOM_TEMPLATES.small_studio.depth}m)</option>
           <option value="rectangular">{ROOM_TEMPLATES.rectangular.displayName} ({ROOM_TEMPLATES.rectangular.width}m × {ROOM_TEMPLATES.rectangular.depth}m)</option>
+          <option value="small_studio">{ROOM_TEMPLATES.small_studio.displayName} ({ROOM_TEMPLATES.small_studio.width}m × {ROOM_TEMPLATES.small_studio.depth}m)</option>
           <option value="square">{ROOM_TEMPLATES.square.displayName} ({ROOM_TEMPLATES.square.width}m × {ROOM_TEMPLATES.square.depth}m)</option>
           <option value="corridor">{ROOM_TEMPLATES.corridor.displayName} ({ROOM_TEMPLATES.corridor.width}m × {ROOM_TEMPLATES.corridor.depth}m)</option>
           <option value="custom">{ROOM_TEMPLATES.custom.displayName}</option>

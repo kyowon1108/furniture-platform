@@ -89,37 +89,10 @@ export default function RoomBuilderPage() {
       const xCount = Math.floor(dimensions.width / TILE_SIZE);
       const zCount = Math.floor(dimensions.depth / TILE_SIZE);
 
-      if (currentTemplate === 'lshaped') {
-        // L-shaped floor
-        for (let x = 0; x < xCount; x++) {
-          for (let z = 0; z < zCount * 0.6; z++) {
-            tiles.push(`floor-${x}-${z}`);
-          }
-        }
-        for (let x = 0; x < xCount * 0.6; x++) {
-          for (let z = Math.floor(zCount * 0.6); z < zCount; z++) {
-            tiles.push(`floor-${x}-${z}`);
-          }
-        }
-      } else if (currentTemplate === 'ushaped') {
-        // U-shaped floor
-        const excludeXStart = Math.floor(xCount * 0.3);
-        const excludeXEnd = Math.floor(xCount * 0.7);
-        const excludeZStart = Math.floor(zCount * 0.6);
-
-        for (let x = 0; x < xCount; x++) {
-          for (let z = 0; z < zCount; z++) {
-            if (!(x >= excludeXStart && x < excludeXEnd && z >= excludeZStart)) {
-              tiles.push(`floor-${x}-${z}`);
-            }
-          }
-        }
-      } else {
-        // Regular floor
-        for (let x = 0; x < xCount; x++) {
-          for (let z = 0; z < zCount; z++) {
-            tiles.push(`floor-${x}-${z}`);
-          }
+      // Regular floor only - L-shaped and U-shaped removed
+      for (let x = 0; x < xCount; x++) {
+        for (let z = 0; z < zCount; z++) {
+          tiles.push(`floor-${x}-${z}`);
         }
       }
     } else if (type === 'wall') {
@@ -133,7 +106,7 @@ export default function RoomBuilderPage() {
       const yCount = Math.floor(WALL_HEIGHT / TILE_SIZE);
 
       // Parse the wall type from the clicked tile
-      const wallType = parts[1]; // 'back', 'front', 'left', 'right', 'inner'
+      const wallType = parts[1]; // 'back', 'front', 'left', 'right'
 
       for (let y = 0; y < yCount; y++) {
         if (wallType === 'back') {
@@ -142,30 +115,9 @@ export default function RoomBuilderPage() {
             tiles.push(`wall-back-${x}-${y}`);
           }
         } else if (wallType === 'front') {
-          if (currentTemplate === 'lshaped') {
-            // L-shaped has partial front wall
-            // Check if it's the "top" section
-            if (wallIdentifier.includes('top')) {
-              for (let x = 0; x < Math.floor(xCount * 0.6); x++) {
-                tiles.push(`wall-front-top-${x}-${y}`);
-              }
-            }
-          } else if (currentTemplate === 'ushaped') {
-            // U-shaped has two front wall sections
-            if (wallIdentifier.includes('left')) {
-              for (let x = 0; x < Math.floor(xCount * 0.3); x++) {
-                tiles.push(`wall-front-left-${x}-${y}`);
-              }
-            } else if (wallIdentifier.includes('right')) {
-              for (let x = Math.floor(xCount * 0.7); x < xCount; x++) {
-                tiles.push(`wall-front-right-${x}-${y}`);
-              }
-            }
-          } else {
-            // Regular front wall
-            for (let x = 0; x < xCount; x++) {
-              tiles.push(`wall-front-${x}-${y}`);
-            }
+          // Regular front wall only - L-shaped and U-shaped removed
+          for (let x = 0; x < xCount; x++) {
+            tiles.push(`wall-front-${x}-${y}`);
           }
         } else if (wallType === 'left') {
           // Left wall is always full depth
@@ -173,52 +125,12 @@ export default function RoomBuilderPage() {
             tiles.push(`wall-left-${z}-${y}`);
           }
         } else if (wallType === 'right') {
-          if (currentTemplate === 'lshaped') {
-            // L-shaped has partial right wall
-            if (wallIdentifier.includes('bottom')) {
-              for (let z = 0; z < Math.floor(zCount * 0.6); z++) {
-                tiles.push(`wall-right-bottom-${z}-${y}`);
-              }
-            }
-          } else {
-            // Regular right wall
-            for (let z = 0; z < zCount; z++) {
-              tiles.push(`wall-right-${z}-${y}`);
-            }
-          }
-        } else if (wallType === 'inner') {
-          // Handle inner walls for L-shaped and U-shaped rooms
-          if (currentTemplate === 'lshaped') {
-            const splitX = Math.floor(xCount * 0.6);
-            const splitZ = Math.floor(zCount * 0.6);
-
-            // Check which inner wall section
-            if (wallIdentifier.includes('h')) {
-              // Horizontal inner wall
-              for (let x = splitX; x < xCount; x++) {
-                tiles.push(`wall-inner-h-${x}-${y}`);
-              }
-            } else if (wallIdentifier.includes('v')) {
-              // Vertical inner wall
-              for (let z = splitZ; z < zCount; z++) {
-                tiles.push(`wall-inner-v-${z}-${y}`);
-              }
-            }
-          } else if (currentTemplate === 'ushaped') {
-            const excludeZStart = Math.floor(zCount * 0.6);
-
-            // Check which inner wall section
-            if (wallIdentifier.includes('left')) {
-              for (let z = 0; z < excludeZStart; z++) {
-                tiles.push(`wall-inner-left-${z}-${y}`);
-              }
-            } else if (wallIdentifier.includes('right')) {
-              for (let z = 0; z < excludeZStart; z++) {
-                tiles.push(`wall-inner-right-${z}-${y}`);
-              }
-            }
+          // Regular right wall only - L-shaped removed
+          for (let z = 0; z < zCount; z++) {
+            tiles.push(`wall-right-${z}-${y}`);
           }
         }
+        // Inner walls removed - only support rectangular rooms
       }
     }
 
