@@ -5,7 +5,7 @@ import { useEffect, useState, useRef, useCallback } from 'react';
 import { Canvas } from '@react-three/fiber';
 import { OrbitControls } from '@react-three/drei';
 import * as THREE from 'three';
-import { GLTFExporter } from 'three/examples/jsm/exporters/GLTFExporter.js';
+import { GLTFExporter } from 'three/addons/exporters/GLTFExporter.js';
 import { projectsAPI } from '@/lib/api';
 import RoomTemplateSelector from '@/components/room-builder/RoomTemplateSelector';
 import TextureGallery from '@/components/room-builder/TextureGallery';
@@ -58,7 +58,7 @@ export default function RoomBuilderPage() {
           return;
         }
 
-        const projectData = await projectsAPI.getById(projectId);
+        const projectData = await projectsAPI.get(projectId);
         setProject(projectData);
         setLoading(false);
       } catch (err) {
@@ -294,7 +294,7 @@ export default function RoomBuilderPage() {
       };
 
       // Also add to extras for GLB export (GLTFExporter uses extras)
-      optimizedScene.extras = {
+      (optimizedScene as any).extras = {
         dimensions: {
           width: roomWidth,
           height: roomHeight,
