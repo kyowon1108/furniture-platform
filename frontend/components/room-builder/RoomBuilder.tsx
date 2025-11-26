@@ -3,6 +3,7 @@
 import React, { useState, useRef, useCallback, useMemo, useEffect } from 'react';
 import * as THREE from 'three';
 import { useThree } from '@react-three/fiber';
+// @ts-ignore
 import { GLTFExporter } from 'three/examples/jsm/exporters/GLTFExporter';
 import {
   RoomTemplate,
@@ -127,8 +128,8 @@ const RoomBuilder: React.FC<RoomBuilderProps> & { Scene: typeof RoomScene } = ({
       const gltfData = await new Promise<ArrayBuffer>((resolve, reject) => {
         exporter.parse(
           scene,
-          (gltf) => resolve(gltf as ArrayBuffer),
-          (error) => reject(error),
+          (gltf: any) => resolve(gltf as ArrayBuffer),
+          (error: any) => reject(error),
           {
             binary: true,
             embedImages: true
