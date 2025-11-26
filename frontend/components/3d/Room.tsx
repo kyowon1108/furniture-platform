@@ -23,7 +23,7 @@ export function Room({ roomDimensions }: RoomProps = {}) {
   const halfWidth = width / 2;
   const halfDepth = depth / 2;
   const wallThickness = 0.1;
-  
+
   // Fixed wall opacity - no dynamic changes based on camera
   const wallOpacity = 0.15; // Semi-transparent walls to see inside
 
@@ -79,18 +79,18 @@ export function Room({ roomDimensions }: RoomProps = {}) {
   // Handle click on surfaces with proper event stopping
   // DISABLED: Material system temporarily disabled
   const handleSurfaceClick = (
-    surface: 'floor' | 'wall-north' | 'wall-south' | 'wall-east' | 'wall-west', 
+    surface: 'floor' | 'wall-north' | 'wall-south' | 'wall-east' | 'wall-west',
     event: any
   ) => {
     // Material system disabled - do nothing
     return;
-    
+
     /* DISABLED CODE - uncomment to re-enable material system
     // Stop propagation immediately
     if (event.stopPropagation) {
       event.stopPropagation();
     }
-    
+
     console.log('🖱️ Surface clicked:', {
       surface,
       applicationMode,
@@ -107,12 +107,12 @@ export function Room({ roomDimensions }: RoomProps = {}) {
     // Check if the clicked surface matches the target surface type
     const isFloor = surface === 'floor';
     const isWall = surface.startsWith('wall-');
-    
+
     if (targetSurface === 'floor' && !isFloor) {
       console.log('❌ Cannot apply floor material to wall');
       return;
     }
-    
+
     if (targetSurface === 'wall' && !isWall) {
       console.log('❌ Cannot apply wall material to floor');
       return;
@@ -133,18 +133,19 @@ export function Room({ roomDimensions }: RoomProps = {}) {
         applyMaterialPartial(surface, selectedMaterialId, { x: tileX, z: tileZ });
       }
     }
+    */
   };
 
   // Render floor with tiles for partial application
   const renderFloor = () => {
     const tileSize = 0.5;
-    
+
     // If full application or no partial tiles, render as single mesh
     if (!floorMaterial?.tiles || floorMaterial.tiles.length === 0) {
       return (
-        <mesh 
-          rotation={[-Math.PI / 2, 0, 0]} 
-          position={[0, 0.001, 0]} 
+        <mesh
+          rotation={[-Math.PI / 2, 0, 0]}
+          position={[0, 0.001, 0]}
           receiveShadow
           onClick={(e) => handleSurfaceClick('floor', e)}
         >
@@ -157,13 +158,13 @@ export function Room({ roomDimensions }: RoomProps = {}) {
     // Render base floor + individual tiles
     const tiles = [];
     const appliedTileSet = new Set(floorMaterial.tiles.map(t => `${t.x},${t.z}`));
-    
+
     // Base floor (default material)
     tiles.push(
-      <mesh 
+      <mesh
         key="floor-base"
-        rotation={[-Math.PI / 2, 0, 0]} 
-        position={[0, 0, 0]} 
+        rotation={[-Math.PI / 2, 0, 0]}
+        position={[0, 0, 0]}
         receiveShadow
         onClick={(e) => handleSurfaceClick('floor', e)}
       >
@@ -176,12 +177,12 @@ export function Room({ roomDimensions }: RoomProps = {}) {
     floorMaterial.tiles.forEach((tile, idx) => {
       const x = tile.x * tileSize + tileSize / 2;
       const z = tile.z * tileSize + tileSize / 2;
-      
+
       tiles.push(
-        <mesh 
+        <mesh
           key={`floor-tile-${idx}`}
-          rotation={[-Math.PI / 2, 0, 0]} 
-          position={[x, 0.002, z]} 
+          rotation={[-Math.PI / 2, 0, 0]}
+          position={[x, 0.002, z]}
           receiveShadow
           onClick={(e) => handleSurfaceClick('floor', e)}
         >

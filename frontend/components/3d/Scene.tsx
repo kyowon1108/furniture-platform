@@ -6,7 +6,6 @@ import { Furniture } from './Furniture';
 import { Room } from './Room';
 import { PlyModel } from './PlyModel';
 import { GlbModel } from './GlbModel';
-import { CollisionDummy } from './CollisionDummy';
 import { useEditorStore } from '@/store/editorStore';
 import { useToastStore } from '@/store/toastStore';
 import { socketService } from '@/lib/socket';
@@ -782,9 +781,6 @@ function SceneContent({
         <Room roomDimensions={actualRoomDimensions} />
       )}
 
-      {/* Collision dummy objects for non-rectangular rooms */}
-      <CollisionDummy roomDimensions={actualRoomDimensions} />
-
       {furnitures.map((furniture) => (
         <Furniture 
           key={furniture.id} 
@@ -887,11 +883,14 @@ function SceneContent({
                   maxHeight
                 });
                 obj.position.y = newY;
-              } else {
-                // Floor items: keep on ground
+              } else if (transformMode === 'translate') {
+                // Floor items: only fix Y when actually translating
                 const groundY = selectedFurniture.dimensions.height / 2;
-                console.log('⬇️ Floor item Y fixed to:', groundY);
-                obj.position.y = groundY;
+                // Check if Y position significantly differs from ground level
+                if (Math.abs(obj.position.y - groundY) > 0.01) {
+                  console.log('⬇️ Floor item Y adjusted to:', groundY);
+                  obj.position.y = groundY;
+                }
               }
               
               // CRITICAL: In rotate mode, ALWAYS check boundaries on every change
