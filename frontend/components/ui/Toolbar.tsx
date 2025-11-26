@@ -54,9 +54,6 @@ export function Toolbar() {
     }
   };
 
-  const buttonClass = (active: boolean) =>
-    `toolbar-button ${active ? 'active' : ''}`;
-
   const formatLastSaved = () => {
     if (!lastSaved) return '저장 안됨';
     const diff = Math.floor((Date.now() - lastSaved.getTime()) / 1000);
@@ -68,123 +65,123 @@ export function Toolbar() {
   return (
     <>
       {/* Navigation Bar - Top Left */}
-      <div className="toolbar-container absolute top-4 left-4 z-10 flex items-center gap-1">
+      <div className="floating-toolbar-nav">
         <button
           onClick={handleBackToProjects}
-          className="toolbar-button"
+          className="floating-toolbar-btn"
           title="프로젝트 목록으로"
         >
-          ← 프로젝트
+          <span style={{ marginRight: '0.25rem' }}>←</span>
+          프로젝트
         </button>
+        <div className="floating-toolbar-divider" />
         <button
           onClick={handleLogout}
-          className="toolbar-button"
-          style={{ background: 'var(--error)', color: 'white', borderColor: 'var(--error)' }}
+          className="floating-toolbar-btn danger"
           title="로그아웃"
         >
           로그아웃
         </button>
       </div>
 
-      {/* Main Toolbar - Top Center */}
-      <div className="toolbar-container absolute top-4 left-1/2 transform -translate-x-1/2 z-10 flex items-center gap-1">
-      {/* Undo/Redo */}
-      <button
-        onClick={undo}
-        disabled={!canUndo}
-        className="toolbar-button disabled:opacity-50 disabled:cursor-not-allowed"
-        title="실행 취소 (Ctrl+Z)"
-      >
-        ↶
-      </button>
-      <button
-        onClick={redo}
-        disabled={!canRedo}
-        className="toolbar-button disabled:opacity-50 disabled:cursor-not-allowed"
-        title="다시 실행 (Ctrl+Y)"
-      >
-        ↷
-      </button>
+      {/* Main Toolbar - Top Center (Floating Glassmorphism) */}
+      <div className="floating-toolbar">
+        {/* Undo/Redo */}
+        <button
+          onClick={undo}
+          disabled={!canUndo}
+          className="floating-toolbar-btn"
+          title="실행 취소 (Ctrl+Z)"
+        >
+          ↶
+        </button>
+        <button
+          onClick={redo}
+          disabled={!canRedo}
+          className="floating-toolbar-btn"
+          title="다시 실행 (Ctrl+Y)"
+        >
+          ↷
+        </button>
 
-      <div className="toolbar-divider" />
+        <div className="floating-toolbar-divider" />
 
-      {/* Transform Modes */}
-      <button
-        onClick={() => setTransformMode('translate' as TransformMode)}
-        className={buttonClass(transformMode === 'translate')}
-        title="이동 (T)"
-      >
-        ↔
-      </button>
-      <button
-        onClick={() => setTransformMode('rotate' as TransformMode)}
-        className={buttonClass(transformMode === 'rotate')}
-        title="회전 (R)"
-      >
-        ↻
-      </button>
-      {/* 크기 조절 기능 비활성화 - 추후 필요시 주석 해제 */}
-      {/* <button
-        onClick={() => setTransformMode('scale' as TransformMode)}
-        className={buttonClass(transformMode === 'scale')}
-        title="크기 (S)"
-      >
-        ⇲
-      </button> */}
+        {/* Transform Modes */}
+        <button
+          onClick={() => setTransformMode('translate' as TransformMode)}
+          className={`floating-toolbar-btn ${transformMode === 'translate' ? 'active' : ''}`}
+          title="이동 (T)"
+        >
+          ↔
+        </button>
+        <button
+          onClick={() => setTransformMode('rotate' as TransformMode)}
+          className={`floating-toolbar-btn ${transformMode === 'rotate' ? 'active' : ''}`}
+          title="회전 (R)"
+        >
+          ↻
+        </button>
 
-      <div className="toolbar-divider" />
+        <div className="floating-toolbar-divider" />
 
-      {/* Grid Snap */}
-      <button
-        onClick={toggleGridSnap}
-        className={buttonClass(isGridSnap)}
-        title="그리드 스냅"
-      >
-        🔗
-      </button>
+        {/* Grid Snap */}
+        <button
+          onClick={toggleGridSnap}
+          className={`floating-toolbar-btn ${isGridSnap ? 'active' : ''}`}
+          title="그리드 스냅"
+        >
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+            <path d="M0 2a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2V2zm5 0v5H2V2h3zm1 0h4v5H6V2zm5 0h3v5h-3V2zM2 8h3v5H2V8zm4 0h4v5H6V8zm5 0h3v5h-3V8z"/>
+          </svg>
+        </button>
 
-      <div className="toolbar-divider" />
+        <div className="floating-toolbar-divider" />
 
-      {/* Delete Button */}
-      <button
-        onClick={handleDelete}
-        disabled={selectedIds.length === 0}
-        className="toolbar-button disabled:opacity-50 disabled:cursor-not-allowed"
-        style={selectedIds.length > 0 ? { background: 'var(--error)', color: 'white', borderColor: 'var(--error)' } : {}}
-        title="삭제 (Delete/Backspace)"
-      >
-        🗑️
-      </button>
+        {/* Delete Button */}
+        <button
+          onClick={handleDelete}
+          disabled={selectedIds.length === 0}
+          className={`floating-toolbar-btn danger ${selectedIds.length > 0 ? 'active-danger' : ''}`}
+          title="삭제 (Delete/Backspace)"
+        >
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+            <path d="M5.5 5.5A.5.5 0 0 1 6 6v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5zm2.5 0a.5.5 0 0 1 .5.5v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5zm3 .5a.5.5 0 0 0-1 0v6a.5.5 0 0 0 1 0V6z"/>
+            <path fillRule="evenodd" d="M14.5 3a1 1 0 0 1-1 1H13v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V4h-.5a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1H6a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1h3.5a1 1 0 0 1 1 1v1zM4.118 4 4 4.059V13a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V4.059L11.882 4H4.118zM2.5 3V2h11v1h-11z"/>
+          </svg>
+        </button>
 
-      <div className="toolbar-divider" />
+        <div className="floating-toolbar-divider" />
 
-      {/* Save Button */}
-      <button
-        onClick={saveLayout}
-        disabled={!hasUnsavedChanges || isSaving}
-        className="toolbar-button disabled:opacity-50 disabled:cursor-not-allowed"
-        style={hasUnsavedChanges && !isSaving ? { background: 'var(--success)', color: 'white', borderColor: 'var(--success)' } : {}}
-        title="저장 (Ctrl+S)"
-      >
-        {isSaving ? '💾' : '💾'}
-      </button>
+        {/* Save Button */}
+        <button
+          onClick={saveLayout}
+          disabled={!hasUnsavedChanges || isSaving}
+          className={`floating-toolbar-btn success ${hasUnsavedChanges && !isSaving ? 'active-success' : ''}`}
+          title="저장 (Ctrl+S)"
+        >
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+            <path d="M2 1a1 1 0 0 0-1 1v12a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V2a1 1 0 0 0-1-1H9.5a1 1 0 0 0-1 1v7.293l2.646-2.647a.5.5 0 0 1 .708.708l-3.5 3.5a.5.5 0 0 1-.708 0l-3.5-3.5a.5.5 0 1 1 .708-.708L7.5 9.293V2a2 2 0 0 1 2-2H14a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2V2a2 2 0 0 1 2-2h2.5a.5.5 0 0 1 0 1H2z"/>
+          </svg>
+        </button>
 
-      {/* Export PNG */}
-      <button
-        onClick={exportPNG}
-        className="toolbar-button"
-        style={{ background: '#9333ea', color: 'white', borderColor: '#9333ea' }}
-        title="PNG로 내보내기"
-      >
-        📸
-      </button>
+        {/* Export PNG */}
+        <button
+          onClick={exportPNG}
+          className="floating-toolbar-btn"
+          title="PNG로 내보내기"
+        >
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+            <path d="M10.5 8.5a2.5 2.5 0 1 1-5 0 2.5 2.5 0 0 1 5 0z"/>
+            <path d="M2 4a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2h-1.172a2 2 0 0 1-1.414-.586l-.828-.828A2 2 0 0 0 9.172 2H6.828a2 2 0 0 0-1.414.586l-.828.828A2 2 0 0 1 3.172 4H2zm.5 2a.5.5 0 1 1 0-1 .5.5 0 0 1 0 1zm9 2.5a3.5 3.5 0 1 1-7 0 3.5 3.5 0 0 1 7 0z"/>
+          </svg>
+        </button>
 
-      <div className="toolbar-divider" />
+        <div className="floating-toolbar-divider" />
 
-      {/* Last Saved */}
-      <div className="text-xs" style={{ color: 'var(--text-secondary)', padding: '0 0.5rem', whiteSpace: 'nowrap' }}>
-        <span style={{ color: 'var(--text-tertiary)' }}>저장:</span> {formatLastSaved()}
-      </div>
+        {/* Last Saved Status */}
+        <div className="floating-toolbar-info">
+          <span style={{ opacity: 0.6 }}>저장:</span> {formatLastSaved()}
+        </div>
       </div>
     </>
   );

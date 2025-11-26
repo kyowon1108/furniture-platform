@@ -564,6 +564,58 @@ function SceneContent({
     };
   }, [gl, scene, camera]);
 
+  // Camera control handler
+  useEffect(() => {
+    const handleCameraControl = (event: CustomEvent<{ action: string }>) => {
+      const { action } = event.detail;
+      const controls = orbitControlsRef.current;
+
+      if (!controls) return;
+
+      // Define camera presets
+      const zoomFactor = 1.5;
+      const currentDistance = camera.position.distanceTo(controls.target);
+
+      switch (action) {
+        case 'zoomIn':
+          camera.position.lerp(controls.target, 0.2);
+          break;
+        case 'zoomOut':
+          const direction = camera.position.clone().sub(controls.target).normalize();
+          camera.position.add(direction.multiplyScalar(currentDistance * 0.3));
+          break;
+        case 'resetView':
+          // Isometric 3D view
+          camera.position.set(5, 5, 5);
+          controls.target.set(0, 1, 0);
+          break;
+        case 'viewTop':
+          // Top-down view (floor plan)
+          camera.position.set(0, 10, 0.01);
+          controls.target.set(0, 0, 0);
+          break;
+        case 'viewFront':
+          // Front view
+          camera.position.set(0, 2, 8);
+          controls.target.set(0, 1, 0);
+          break;
+        case 'viewSide':
+          // Side view
+          camera.position.set(8, 2, 0);
+          controls.target.set(0, 1, 0);
+          break;
+      }
+
+      controls.update();
+    };
+
+    window.addEventListener('cameraControl', handleCameraControl as EventListener);
+
+    return () => {
+      window.removeEventListener('cameraControl', handleCameraControl as EventListener);
+    };
+  }, [camera]);
+
   // WebGL Context Loss Prevention and Recovery
   useEffect(() => {
     const canvas = gl.domElement;

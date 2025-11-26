@@ -125,7 +125,7 @@ export function Sidebar() {
   }, [materialCategory]);
 
   return (
-    <div className="sidebar-container absolute left-0 top-0 h-screen w-80 z-10 flex flex-col">
+    <div className="sidebar-enhanced">
       {/* Header */}
       <div className="sidebar-header flex-shrink-0">
         {/* Tab Switcher - Materials tab disabled for now */}
