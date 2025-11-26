@@ -27,6 +27,7 @@ export interface FurnitureItem {
   mountedOn?: string; // ID of furniture this is mounted on (for surface type)
   wallSide?: 'north' | 'south' | 'east' | 'west'; // Which wall it's mounted on
   glbUrl?: string; // S3 GLB file URL for 3D model
+  price?: number; // Price of the furniture item
 }
 
 export interface LayoutState {

@@ -77,16 +77,18 @@ const GlbGeometry = memo(function GlbGeometry({ url, roomDimensions, onDimension
     });
   }, [model]);
 
-  // Set fixed opacity for all materials
-  // Wall visibility feature removed as requested
+  // Set materials to be fully opaque for clear visibility
+  // Removed wall transparency feature as it causes foggy appearance
   useEffect(() => {
     if (materialsListRef.current.length === 0) return;
 
-    const fixedOpacity = 0.3; // Fixed semi-transparent opacity for GLB model
+    const fixedOpacity = 1.0; // Full opacity for clear visibility
 
     materialsListRef.current.forEach((mat) => {
       mat.opacity = fixedOpacity;
-      mat.transparent = true;
+      mat.transparent = false; // Disable transparency for better performance
+      mat.depthWrite = true; // Enable proper depth testing
+      mat.depthTest = true;
     });
   }, [model]);
 
