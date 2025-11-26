@@ -46,6 +46,13 @@ const TileMesh: React.FC<{
         tex.colorSpace = THREE.SRGBColorSpace;
         tex.wrapS = THREE.RepeatWrapping;
         tex.wrapT = THREE.RepeatWrapping;
+
+        // Rotate texture 90 degrees for left and right walls
+        if (tile.wallSurface === 'left' || tile.wallSurface === 'right') {
+          tex.rotation = Math.PI / 2;  // 90도 회전
+          tex.center.set(0.5, 0.5);    // 중심점 설정
+        }
+
         tex.needsUpdate = true;
         setTexture(tex);
         console.log(`[${tile.key}] ✅ Texture loaded successfully, material will use white color`);
