@@ -133,7 +133,6 @@ export function Room({ roomDimensions }: RoomProps = {}) {
         applyMaterialPartial(surface, selectedMaterialId, { x: tileX, z: tileZ });
       }
     }
-    */
   };
 
   // Render floor with tiles for partial application
@@ -257,11 +256,6 @@ export function Room({ roomDimensions }: RoomProps = {}) {
 
       {/* Ceiling removed - open top for better visibility */}
 
-      {/* Baseboard lines for detail */}
-      <lineSegments>
-        <edgesGeometry attach="geometry" args={[new THREE.BoxGeometry(width, height, depth)]} />
-        <lineBasicMaterial attach="material" color="#999999" linewidth={1} />
-      </lineSegments>
     </group>
   );
 }
