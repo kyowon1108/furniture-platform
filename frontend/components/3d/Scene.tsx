@@ -1,7 +1,7 @@
 'use client';
 
 import { Canvas, useThree } from '@react-three/fiber';
-import { OrbitControls, Grid, Line, TransformControls } from '@react-three/drei';
+import { OrbitControls, Line, TransformControls } from '@react-three/drei';
 import { Furniture } from './Furniture';
 import { Room } from './Room';
 import { PlyModel } from './PlyModel';
@@ -762,16 +762,6 @@ function SceneContent({
         color={lighting.color}
         groundColor={timeOfDay === 'night' ? '#222222' : '#888888'}
         intensity={lighting.ambient * 0.5}
-      />
-
-      <Grid
-        args={[20, 20]}
-        cellSize={0.5}
-        sectionSize={1}
-        fadeDistance={100}
-        fadeStrength={0.5}
-        cellColor="#6b7280"
-        sectionColor="#374151"
       />
 
       {/* Show 3D model (PLY or GLB) if available, otherwise show default room */}

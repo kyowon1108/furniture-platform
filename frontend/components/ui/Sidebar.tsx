@@ -47,12 +47,16 @@ export function Sidebar() {
   // 배치된 가구들의 총 예상 비용 계산
   const totalEstimatedCost = useMemo(() => {
     return furnitures.reduce((total, furniture) => {
-      // furniture.id에서 카탈로그 ID 추출 (예: "bed-single-1234567890" -> "bed-single")
+      // Use price directly from furniture if available
+      if (furniture.price) {
+        return total + furniture.price;
+      }
+      // Fallback: look up price from catalog (for backward compatibility)
       const catalogId = furniture.id.replace(/-\d+$/, '');
-      const catalogItem = FURNITURE_CATALOG.find(item => item.id === catalogId);
+      const catalogItem = catalog.find(item => item.id === catalogId);
       return total + (catalogItem?.price || 0);
     }, 0);
-  }, [furnitures]);
+  }, [furnitures, catalog]);
 
   const categories = ['all', 'bedroom', 'living', 'office', 'kitchen', 'decoration'];
 
@@ -91,6 +95,7 @@ export function Sidebar() {
       color: catalogItem.color,
       mountType: catalogItem.mountType,
       glbUrl: catalogItem.glbUrl, // S3 GLB URL
+      price: catalogItem.price, // Include price for budget calculation
     };
 
     addFurniture(newFurniture);
