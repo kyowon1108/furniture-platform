@@ -293,12 +293,6 @@ export function Room({ roomDimensions }: RoomProps = {}) {
         />
       ))}
 
-      {/* Grid lines for visual reference */}
-      <gridHelper
-        args={[Math.max(width, depth) * 2, Math.max(width, depth) * 4]}
-        position={[0, -0.001, 0]}
-        rotation={[0, 0, 0]}
-      />
     </group>
   );
 }
