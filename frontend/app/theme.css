@@ -1,38 +1,44 @@
-/* Modern Light Theme for Furniture Platform */
+/* Deep Dark & Vibrant Purple Theme for Furniture Platform */
 
 :root {
-  /* Light Theme Colors */
-  --bg-primary: #f8fafc;
-  --bg-secondary: #ffffff;
-  --bg-tertiary: #f1f5f9;
-  --bg-hover: #e2e8f0;
-  
-  --text-primary: #1e293b;
-  --text-secondary: #475569;
-  --text-tertiary: #64748b;
-  
-  --border-color: #e2e8f0;
-  --border-hover: #cbd5e1;
-  
-  --accent-primary: #3b82f6;
-  --accent-hover: #2563eb;
-  --accent-light: #dbeafe;
-  
+  /* Dark Theme Colors */
+  --bg-primary: #0A0A0A;
+  --bg-secondary: #121214;
+  --bg-tertiary: #1A1A1D;
+  --bg-hover: #252528;
+
+  --text-primary: #F4F4F5;
+  --text-secondary: #A1A1AA;
+  --text-tertiary: #71717A;
+
+  --border-color: #27272A;
+  --border-hover: #3F3F46;
+
+  --accent-primary: #8B5CF6;
+  --accent-hover: #7C3AED;
+  --accent-light: rgba(139, 92, 246, 0.15);
+
   --success: #10b981;
   --warning: #f59e0b;
   --error: #ef4444;
-  
-  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
-  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
-  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
-  --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
-  
+
+  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.4), 0 2px 4px -1px rgba(0, 0, 0, 0.3);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.4), 0 4px 6px -2px rgba(0, 0, 0, 0.3);
+  --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.5), 0 10px 10px -5px rgba(0, 0, 0, 0.4);
+
   --radius-sm: 0.375rem;
   --radius-md: 0.5rem;
   --radius-lg: 0.75rem;
   --radius-xl: 1rem;
-  
+
   --transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Global body style */
+body {
+  background: var(--bg-primary);
+  color: var(--text-primary);
 }
 
 /* Sidebar Styling */
@@ -43,7 +49,7 @@
 }
 
 .sidebar-header {
-  background: linear-gradient(135deg, var(--accent-primary) 0%, #6366f1 100%);
+  background: linear-gradient(135deg, var(--accent-primary) 0%, #7C3AED 100%);
   color: white;
   padding: 1.5rem;
   border-bottom: none;
@@ -154,13 +160,12 @@
 
 /* Toolbar Styling */
 .toolbar-container {
-  background: var(--bg-secondary);
+  background: rgba(18, 18, 20, 0.95);
   border: 1px solid var(--border-color);
   border-radius: var(--radius-lg);
   padding: 0.5rem;
   box-shadow: var(--shadow-xl);
   backdrop-filter: blur(10px);
-  background: rgba(255, 255, 255, 0.95);
 }
 
 .toolbar-button {
@@ -201,14 +206,14 @@
 
 /* Connection Status */
 .connection-status {
-  background: var(--bg-secondary);
+  background: rgba(18, 18, 20, 0.95);
   border: 1px solid var(--border-color);
   border-radius: var(--radius-md);
   padding: 0.5rem 0.75rem;
   box-shadow: var(--shadow-md);
   backdrop-filter: blur(10px);
-  background: rgba(255, 255, 255, 0.95);
   font-size: 0.875rem;
+  color: var(--text-primary);
 }
 
 .connection-dot {
@@ -230,13 +235,12 @@
 
 /* Lighting Panel */
 .lighting-panel {
-  background: var(--bg-secondary);
+  background: rgba(18, 18, 20, 0.95);
   border: 1px solid var(--border-color);
   border-radius: var(--radius-lg);
   padding: 1rem;
   box-shadow: var(--shadow-xl);
   backdrop-filter: blur(10px);
-  background: rgba(255, 255, 255, 0.95);
 }
 
 .lighting-title {
@@ -276,13 +280,13 @@
 
 /* Toast Notifications */
 .toast {
-  background: var(--bg-secondary);
+  background: rgba(18, 18, 20, 0.95);
   border: 1px solid var(--border-color);
   border-radius: var(--radius-lg);
   padding: 1rem 1.25rem;
   box-shadow: var(--shadow-xl);
   backdrop-filter: blur(10px);
-  background: rgba(255, 255, 255, 0.95);
+  color: var(--text-primary);
   animation: slideIn 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
@@ -311,13 +315,12 @@
 
 /* Measure Panel */
 .measure-panel {
-  background: var(--bg-secondary);
+  background: rgba(18, 18, 20, 0.95);
   border: 1px solid var(--border-color);
   border-radius: var(--radius-lg);
   padding: 1rem;
   box-shadow: var(--shadow-xl);
   backdrop-filter: blur(10px);
-  background: rgba(255, 255, 255, 0.95);
 }
 
 /* Scrollbar Styling */

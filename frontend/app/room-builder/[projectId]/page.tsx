@@ -58,7 +58,7 @@ export default function RoomBuilderPage() {
           return;
         }
 
-        const projectData = await projectsAPI.getById(projectId);
+        const projectData = await projectsAPI.get(projectId);
         setProject(projectData);
         setLoading(false);
       } catch (err) {
@@ -294,7 +294,7 @@ export default function RoomBuilderPage() {
       };
 
       // Also add to extras for GLB export (GLTFExporter uses extras)
-      optimizedScene.extras = {
+      (optimizedScene as any).extras = {
         dimensions: {
           width: roomWidth,
           height: roomHeight,

@@ -2,6 +2,7 @@
 
 import React, { useState, useRef, useMemo, useCallback } from 'react';
 import * as THREE from 'three';
+// @ts-ignore
 import { GLTFExporter } from 'three/examples/jsm/exporters/GLTFExporter';
 import { RoomTemplate, UploadedImage, ROOM_TEMPLATES } from './types';
 import RoomTemplateSelector from './RoomTemplateSelector';
@@ -464,14 +465,14 @@ const RoomBuilderComplete: React.FC<RoomBuilderCompleteProps> = ({
 
       exporter.parse(
         clonedScene,
-        async (gltf) => {
+        async (gltf: any) => {
           const blob = new Blob([gltf as ArrayBuffer], { type: 'model/gltf-binary' });
           console.log('GLB 파일 생성 완료:', blob.size, 'bytes');
 
           setUploadProgress(100);
           await onComplete(blob);
         },
-        (error) => {
+        (error: any) => {
           console.error('GLB export error:', error);
           alert('GLB 내보내기 실패: ' + error.message);
         },
