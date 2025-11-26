@@ -61,21 +61,13 @@ export function Room({ roomDimensions }: RoomProps) {
   const zCount = Math.floor(depth / TILE_SIZE);
   const yCount = Math.floor(height / TILE_SIZE);
 
-  // Center the room
-  const offsetX = width / 2;
-  const offsetZ = depth / 2;
-
-  // Generate floor tiles
+  // Generate floor tiles - same coordinate system as RoomScene
   for (let x = 0; x < xCount; x++) {
     for (let z = 0; z < zCount; z++) {
       tiles.push({
         key: `floor-${x}-${z}`,
         type: 'floor',
-        position: [
-          x * TILE_SIZE + TILE_SIZE / 2 - offsetX,
-          0,
-          z * TILE_SIZE + TILE_SIZE / 2 - offsetZ
-        ],
+        position: [x * TILE_SIZE + TILE_SIZE / 2, 0, z * TILE_SIZE + TILE_SIZE / 2],
         rotation: [-Math.PI / 2, 0, 0],
       });
     }
@@ -90,11 +82,7 @@ export function Room({ roomDimensions }: RoomProps) {
       tiles.push({
         key: `wall-back-${x}-${y}`,
         type: 'wall',
-        position: [
-          x * TILE_SIZE + TILE_SIZE / 2 - offsetX,
-          yPos,
-          -offsetZ
-        ],
+        position: [x * TILE_SIZE + TILE_SIZE / 2, yPos, 0],
         rotation: [0, 0, 0],
         wallSurface: 'back',
       });
@@ -105,11 +93,7 @@ export function Room({ roomDimensions }: RoomProps) {
       tiles.push({
         key: `wall-front-${x}-${y}`,
         type: 'wall',
-        position: [
-          x * TILE_SIZE + TILE_SIZE / 2 - offsetX,
-          yPos,
-          offsetZ
-        ],
+        position: [x * TILE_SIZE + TILE_SIZE / 2, yPos, depth],
         rotation: [0, Math.PI, 0],
         wallSurface: 'front',
       });
@@ -120,11 +104,7 @@ export function Room({ roomDimensions }: RoomProps) {
       tiles.push({
         key: `wall-left-${z}-${y}`,
         type: 'wall',
-        position: [
-          -offsetX,
-          yPos,
-          z * TILE_SIZE + TILE_SIZE / 2 - offsetZ
-        ],
+        position: [0, yPos, z * TILE_SIZE + TILE_SIZE / 2],
         rotation: [0, Math.PI / 2, 0],
         wallSurface: 'left',
       });
@@ -135,22 +115,22 @@ export function Room({ roomDimensions }: RoomProps) {
       tiles.push({
         key: `wall-right-${z}-${y}`,
         type: 'wall',
-        position: [
-          offsetX,
-          yPos,
-          z * TILE_SIZE + TILE_SIZE / 2 - offsetZ
-        ],
+        position: [width, yPos, z * TILE_SIZE + TILE_SIZE / 2],
         rotation: [0, -Math.PI / 2, 0],
         wallSurface: 'right',
       });
     }
   }
 
+  // Center the entire room group
+  const offsetX = width / 2;
+  const offsetZ = depth / 2;
+
   return (
-    <group>
+    <group position={[-offsetX, 0, -offsetZ]}>
       {/* Single large floor plane to receive shadows cleanly */}
       <mesh
-        position={[0, -0.01, 0]}
+        position={[width / 2, -0.01, depth / 2]}
         rotation={[-Math.PI / 2, 0, 0]}
         receiveShadow
       >
