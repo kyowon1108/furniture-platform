@@ -57,13 +57,15 @@ function getRotatedDimensions(
 }
 
 // GLB Model component for loading actual 3D models from S3
-function GlbFurnitureModel({ glbUrl, dimensions, onClick }: {
+function GlbFurnitureModel({ glbUrl, dimensions, onClick, onActualDimensionsLoaded }: {
   glbUrl: string;
   dimensions: { width: number; height: number; depth: number };
   onClick: (e: any) => void;
+  onActualDimensionsLoaded?: (dims: { width: number; height: number; depth: number }) => void;
 }) {
   const [model, setModel] = useState<THREE.Group | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const dimensionsUpdatedRef = useRef(false);
 
   useEffect(() => {
     if (!glbUrl) return;
@@ -79,6 +81,23 @@ function GlbFurnitureModel({ glbUrl, dimensions, onClick }: {
         box.getSize(size);
         const center = new THREE.Vector3();
         box.getCenter(center);
+
+        // Log actual GLB dimensions for debugging
+        console.log('📦 GLB actual dimensions:', {
+          glbUrl: glbUrl.split('?')[0], // Remove query params for cleaner log
+          actualSize: { width: size.x.toFixed(2), height: size.y.toFixed(2), depth: size.z.toFixed(2) },
+          catalogDimensions: dimensions
+        });
+
+        // Notify parent of actual dimensions if callback provided (only once)
+        if (onActualDimensionsLoaded && !dimensionsUpdatedRef.current) {
+          dimensionsUpdatedRef.current = true;
+          onActualDimensionsLoaded({
+            width: size.x,
+            height: size.y,
+            depth: size.z
+          });
+        }
 
         // Use 1:1 scale - GLB dimensions from catalog should match actual GLB
         // The dimensions were extracted from the GLB itself in split_glb.py
@@ -109,7 +128,7 @@ function GlbFurnitureModel({ glbUrl, dimensions, onClick }: {
         setError('GLB 로드 실패');
       }
     );
-  }, [glbUrl, dimensions]);
+  }, [glbUrl, dimensions, onActualDimensionsLoaded]);
 
   if (error || !model) {
     // Fallback to simple box while loading or on error
@@ -129,12 +148,36 @@ function GlbFurnitureModel({ glbUrl, dimensions, onClick }: {
 }
 
 // Render different furniture types with realistic shapes
-function FurnitureModel({ type, dimensions, color, onClick, glbUrl }: any) {
+function FurnitureModel({ type, dimensions, color, onClick, glbUrl, furnitureId, onDimensionsUpdate }: any) {
   const { width, height, depth } = dimensions;
 
   // If glbUrl is provided, render the actual GLB model
   if (glbUrl) {
-    return <GlbFurnitureModel glbUrl={glbUrl} dimensions={dimensions} onClick={onClick} />;
+    return (
+      <GlbFurnitureModel
+        glbUrl={glbUrl}
+        dimensions={dimensions}
+        onClick={onClick}
+        onActualDimensionsLoaded={(actualDims) => {
+          // Update dimensions if they differ significantly from catalog
+          const threshold = 0.1; // 10cm difference threshold
+          if (
+            Math.abs(actualDims.width - dimensions.width) > threshold ||
+            Math.abs(actualDims.height - dimensions.height) > threshold ||
+            Math.abs(actualDims.depth - dimensions.depth) > threshold
+          ) {
+            console.log('🔄 Updating furniture dimensions from GLB:', {
+              furnitureId,
+              old: dimensions,
+              new: actualDims
+            });
+            if (onDimensionsUpdate) {
+              onDimensionsUpdate(actualDims);
+            }
+          }
+        }}
+      />
+    );
   }
 
   switch (type) {
@@ -735,32 +778,13 @@ export function Furniture(props: FurnitureProps) {
     });
   };
 
-  // Position furniture based on mount type
-  let finalPosition: [number, number, number];
-
-  if (props.mountType === 'wall') {
-    // Wall-mounted items: use Y position directly (height from ground)
-    finalPosition = [
-      props.position.x,
-      props.position.y, // Use actual Y position for wall items
-      props.position.z
-    ];
-  } else if (props.glbUrl) {
-    // GLB models: GlbFurnitureModel already aligns bottom to y=0
-    // So we don't need to lift by half height
-    finalPosition = [
-      props.position.x,
-      0,
-      props.position.z
-    ];
-  } else {
-    // Procedural models: centered around origin, lift by half height
-    finalPosition = [
-      props.position.x,
-      props.dimensions.height / 2,
-      props.position.z
-    ];
-  }
+  // Position furniture: use stored position directly
+  // Y position is managed by Scene.tsx TransformControls and saved correctly
+  const finalPosition: [number, number, number] = [
+    props.position.x,
+    props.position.y,
+    props.position.z
+  ];
 
   return (
     <group
@@ -780,6 +804,11 @@ export function Furniture(props: FurnitureProps) {
         color={color}
         onClick={handleClick}
         glbUrl={props.glbUrl}
+        furnitureId={props.id}
+        onDimensionsUpdate={(newDims: { width: number; height: number; depth: number }) => {
+          // Update furniture dimensions in store when GLB loads with actual size
+          updateFurniture(props.id, { dimensions: newDims });
+        }}
       />
 
       {isSelected && (
