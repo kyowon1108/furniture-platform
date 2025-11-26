@@ -838,7 +838,7 @@ function SceneContent({
           ref={transformControlsRef}
           object={scene.getObjectByName(selectedFurniture.id) as any}
           mode={transformMode}
-          showY={selectedFurniture.mountType === 'wall' || transformMode !== 'translate'}
+          showY={selectedFurniture.mountType === 'wall'}
           showX={transformMode !== 'rotate'}
           showZ={transformMode !== 'rotate'}
           onMouseDown={() => {
@@ -895,12 +895,12 @@ function SceneContent({
                   maxHeight
                 });
                 obj.position.y = newY;
-              } else if (transformMode === 'translate') {
-                // Floor items: only fix Y when significantly different (prevent jumping)
-                const groundY = selectedFurniture.dimensions.height / 2;
-                // Increased threshold from 0.01 to 0.1 to prevent constant jumping
-                // This allows minor Y variations without forcing adjustment
-                if (Math.abs(obj.position.y - groundY) > 0.1) {
+              } else {
+                // Floor items: always fix Y position regardless of transform mode
+                // GLB models: Y=0 (model is already aligned to ground)
+                // Procedural models: Y=height/2 (model is centered, need to lift)
+                const groundY = selectedFurniture.glbUrl ? 0 : selectedFurniture.dimensions.height / 2;
+                if (Math.abs(obj.position.y - groundY) > 0.01) {
                   console.log('⬇️ Floor item Y adjusted to:', groundY);
                   obj.position.y = groundY;
                 }
@@ -1622,8 +1622,72 @@ function SceneContent({
                 }
               }
               
-              const savedY = selectedFurniture.mountType === 'wall' ? obj.position.y : 0;
-              
+              // ALWAYS apply boundary correction before saving (for all modes)
+              // This ensures furniture never goes outside the room
+              const rotatedDims = getRotatedDimensions(selectedFurniture.dimensions, obj.rotation.y);
+              const halfWidth = rotatedDims.width / 2;
+              const halfDepth = rotatedDims.depth / 2;
+              const roomHalfWidth = actualRoomDimensions.width / 2;
+              const roomHalfDepth = actualRoomDimensions.depth / 2;
+
+              console.log('🔍 Boundary check values:', {
+                usePlyBoundaries,
+                furnitureDimensions: selectedFurniture.dimensions,
+                rotatedDims,
+                halfWidth,
+                halfDepth,
+                roomDimensions: actualRoomDimensions,
+                roomHalfWidth,
+                roomHalfDepth,
+                objPosition: { x: obj.position.x, z: obj.position.z }
+              });
+
+              // Correct X position
+              const furnitureMinX = obj.position.x - halfWidth;
+              const furnitureMaxX = obj.position.x + halfWidth;
+
+              console.log('🔍 X boundary check:', {
+                furnitureMinX,
+                furnitureMaxX,
+                roomMinX: -roomHalfWidth,
+                roomMaxX: roomHalfWidth,
+                needsCorrectionLeft: furnitureMinX < -roomHalfWidth,
+                needsCorrectionRight: furnitureMaxX > roomHalfWidth
+              });
+
+              if (furnitureMinX < -roomHalfWidth) {
+                obj.position.x = -roomHalfWidth + halfWidth;
+                console.log('🔧 Boundary correction: X too far left, new X:', obj.position.x);
+              } else if (furnitureMaxX > roomHalfWidth) {
+                obj.position.x = roomHalfWidth - halfWidth;
+                console.log('🔧 Boundary correction: X too far right, new X:', obj.position.x);
+              }
+
+              // Correct Z position
+              const furnitureMinZ = obj.position.z - halfDepth;
+              const furnitureMaxZ = obj.position.z + halfDepth;
+
+              console.log('🔍 Z boundary check:', {
+                furnitureMinZ,
+                furnitureMaxZ,
+                roomMinZ: -roomHalfDepth,
+                roomMaxZ: roomHalfDepth,
+                needsCorrectionBack: furnitureMinZ < -roomHalfDepth,
+                needsCorrectionFront: furnitureMaxZ > roomHalfDepth
+              });
+
+              if (furnitureMinZ < -roomHalfDepth) {
+                obj.position.z = -roomHalfDepth + halfDepth;
+                console.log('🔧 Boundary correction: Z too far back, new Z:', obj.position.z);
+              } else if (furnitureMaxZ > roomHalfDepth) {
+                obj.position.z = roomHalfDepth - halfDepth;
+                console.log('🔧 Boundary correction: Z too far front, new Z:', obj.position.z);
+              }
+
+              // Save the actual object Y position directly
+              // Furniture.tsx now uses position.y as-is without modification
+              const savedY = obj.position.y;
+
               console.log('💾 Saving furniture position:', {
                 id: selectedFurniture.id,
                 mountType: selectedFurniture.mountType,
