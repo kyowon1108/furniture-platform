@@ -15,6 +15,7 @@ import { ConnectionStatus } from '@/components/ui/ConnectionStatus';
 import { ToastContainer } from '@/components/ui/Toast';
 import { MeasurePanel } from '@/components/ui/MeasurePanel';
 import { LightingPanel } from '@/components/ui/LightingPanel';
+import { CameraControls } from '@/components/ui/CameraControls';
 import { useToastStore } from '@/store/toastStore';
 // Initialize logger to capture all console logs
 import '@/lib/logger';
@@ -141,6 +142,7 @@ export default function EditorPage() {
         <Toolbar />
         <MeasurePanel />
         <LightingPanel />
+        <CameraControls />
         <ConnectionStatus isConnected={isConnected} />
         
         {/* Debug Info - 주석 처리 (추후 필요시 해제)

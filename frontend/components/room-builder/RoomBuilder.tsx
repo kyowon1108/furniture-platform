@@ -127,8 +127,8 @@ const RoomBuilder: React.FC<RoomBuilderProps> & { Scene: typeof RoomScene } = ({
       const gltfData = await new Promise<ArrayBuffer>((resolve, reject) => {
         exporter.parse(
           scene,
-          (gltf) => resolve(gltf as ArrayBuffer),
-          (error) => reject(error),
+          (gltf: any) => resolve(gltf as ArrayBuffer),
+          (error: any) => reject(error),
           {
             binary: true,
             embedImages: true

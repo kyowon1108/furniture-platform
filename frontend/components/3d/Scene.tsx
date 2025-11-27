@@ -1,7 +1,7 @@
 'use client';
 
 import { Canvas, useThree } from '@react-three/fiber';
-import { OrbitControls, Grid, Line, TransformControls } from '@react-three/drei';
+import { OrbitControls, Line, TransformControls } from '@react-three/drei';
 import { Furniture } from './Furniture';
 import { Room } from './Room';
 import { PlyModel } from './PlyModel';
@@ -564,6 +564,58 @@ function SceneContent({
     };
   }, [gl, scene, camera]);
 
+  // Camera control handler
+  useEffect(() => {
+    const handleCameraControl = (event: CustomEvent<{ action: string }>) => {
+      const { action } = event.detail;
+      const controls = orbitControlsRef.current;
+
+      if (!controls) return;
+
+      // Define camera presets
+      const zoomFactor = 1.5;
+      const currentDistance = camera.position.distanceTo(controls.target);
+
+      switch (action) {
+        case 'zoomIn':
+          camera.position.lerp(controls.target, 0.2);
+          break;
+        case 'zoomOut':
+          const direction = camera.position.clone().sub(controls.target).normalize();
+          camera.position.add(direction.multiplyScalar(currentDistance * 0.3));
+          break;
+        case 'resetView':
+          // Isometric 3D view
+          camera.position.set(5, 5, 5);
+          controls.target.set(0, 1, 0);
+          break;
+        case 'viewTop':
+          // Top-down view (floor plan)
+          camera.position.set(0, 10, 0.01);
+          controls.target.set(0, 0, 0);
+          break;
+        case 'viewFront':
+          // Front view
+          camera.position.set(0, 2, 8);
+          controls.target.set(0, 1, 0);
+          break;
+        case 'viewSide':
+          // Side view
+          camera.position.set(8, 2, 0);
+          controls.target.set(0, 1, 0);
+          break;
+      }
+
+      controls.update();
+    };
+
+    window.addEventListener('cameraControl', handleCameraControl as EventListener);
+
+    return () => {
+      window.removeEventListener('cameraControl', handleCameraControl as EventListener);
+    };
+  }, [camera]);
+
   // WebGL Context Loss Prevention and Recovery
   useEffect(() => {
     const canvas = gl.domElement;
@@ -762,16 +814,6 @@ function SceneContent({
         color={lighting.color}
         groundColor={timeOfDay === 'night' ? '#222222' : '#888888'}
         intensity={lighting.ambient * 0.5}
-      />
-
-      <Grid
-        args={[20, 20]}
-        cellSize={0.5}
-        sectionSize={1}
-        fadeDistance={100}
-        fadeStrength={0.5}
-        cellColor="#6b7280"
-        sectionColor="#374151"
       />
 
       {/* Show 3D model (PLY or GLB) if available, otherwise show default room */}

@@ -421,14 +421,28 @@ const RoomBuilderComplete: React.FC<RoomBuilderCompleteProps> = ({
               const uvAttribute = child.geometry.attributes.uv;
               const uvArray = uvAttribute.array;
 
-              uvArray[0] = uOffset;
-              uvArray[1] = 1 - vOffset - vSize;
-              uvArray[2] = uOffset + uSize;
-              uvArray[3] = 1 - vOffset - vSize;
-              uvArray[4] = uOffset;
-              uvArray[5] = 1 - vOffset;
-              uvArray[6] = uOffset + uSize;
-              uvArray[7] = 1 - vOffset;
+              // Rotate UV coordinates 90 degrees for left and right walls
+              if (groupKey === 'wall-left' || groupKey === 'wall-right') {
+                // Rotated UV mapping (90 degrees clockwise)
+                uvArray[0] = uOffset;
+                uvArray[1] = 1 - vOffset;
+                uvArray[2] = uOffset;
+                uvArray[3] = 1 - vOffset - vSize;
+                uvArray[4] = uOffset + uSize;
+                uvArray[5] = 1 - vOffset;
+                uvArray[6] = uOffset + uSize;
+                uvArray[7] = 1 - vOffset - vSize;
+              } else {
+                // Normal UV mapping for other walls and floor
+                uvArray[0] = uOffset;
+                uvArray[1] = 1 - vOffset - vSize;
+                uvArray[2] = uOffset + uSize;
+                uvArray[3] = 1 - vOffset - vSize;
+                uvArray[4] = uOffset;
+                uvArray[5] = 1 - vOffset;
+                uvArray[6] = uOffset + uSize;
+                uvArray[7] = 1 - vOffset;
+              }
 
               uvAttribute.needsUpdate = true;
             }
@@ -450,14 +464,14 @@ const RoomBuilderComplete: React.FC<RoomBuilderCompleteProps> = ({
 
       exporter.parse(
         clonedScene,
-        async (gltf) => {
+        async (gltf: any) => {
           const blob = new Blob([gltf as ArrayBuffer], { type: 'model/gltf-binary' });
           console.log('GLB 파일 생성 완료:', blob.size, 'bytes');
 
           setUploadProgress(100);
           await onComplete(blob);
         },
-        (error) => {
+        (error: any) => {
           console.error('GLB export error:', error);
           alert('GLB 내보내기 실패: ' + error.message);
         },

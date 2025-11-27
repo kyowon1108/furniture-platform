@@ -131,7 +131,7 @@ async function mergeWallTextures(group: WallGroup, groupKey: string, tileSize: n
         resolve();
       };
 
-      img.src = tile.textureUrl!;
+      img.src = tile.textureUrl || "";
     });
   });
 
