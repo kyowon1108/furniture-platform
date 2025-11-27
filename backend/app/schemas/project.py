@@ -16,7 +16,9 @@ class ProjectBase(BaseModel):
     room_depth: float
     has_3d_file: Optional[bool] = False
     file_type: Optional[str] = None  # 'ply' or 'glb'
+    file_type: Optional[str] = None  # 'ply' or 'glb'
     has_ply_file: Optional[bool] = False  # Legacy support
+    is_shared: Optional[bool] = False
 
 
 class ProjectCreate(ProjectBase):
@@ -32,7 +34,9 @@ class ProjectUpdate(BaseModel):
     description: Optional[str] = None
     room_width: Optional[float] = None
     room_height: Optional[float] = None
+    room_height: Optional[float] = None
     room_depth: Optional[float] = None
+    is_shared: Optional[bool] = None
 
 
 class ProjectResponse(ProjectBase):

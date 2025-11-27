@@ -1,6 +1,8 @@
 'use client';
 
 import { useEditorStore } from '@/store/editorStore';
+import { useToastStore } from '@/store/toastStore';
+import { useState } from 'react';
 import { useAuthStore } from '@/store/authStore';
 import { useRouter } from 'next/navigation';
 
@@ -14,8 +16,35 @@ export function Toolbar() {
     selectedIds,
     clearSelection,
     saveLayout,
-    lastSaved
+    lastSaved,
+    projectId,
+    hasUnsavedChanges
   } = useEditorStore();
+
+  const [isSharing, setIsSharing] = useState(false);
+  const { addToast } = useToastStore();
+
+  const handleShare = async () => {
+    if (!projectId) return;
+
+    try {
+      // Toggle share status (enable if not already)
+      // For now, we assume clicking share always enables it or copies link
+      const { projectsAPI } = await import('@/lib/api');
+
+      // First get current project status to check if already shared
+      // But for simplicity, we'll just enable it and copy link
+      await projectsAPI.toggleShare(projectId, true);
+
+      const url = `${window.location.origin}/editor/${projectId}`;
+      await navigator.clipboard.writeText(url);
+
+      addToast('🔗 링크가 복사되었습니다! 친구에게 공유하세요.', 'success');
+    } catch (error) {
+      console.error('Failed to share project:', error);
+      addToast('공유 링크 생성 실패', 'error');
+    }
+  };
   const router = useRouter();
 
   return (
@@ -72,8 +101,20 @@ export function Toolbar() {
 
         <div className="w-px h-6 bg-white/10 mx-1" />
 
+        {/* Share Button */}
+        <button
+          onClick={handleShare}
+          className="p-2 text-white/70 hover:text-blue-400 hover:bg-white/5 rounded-lg transition-all"
+          title="공유하기"
+        >
+          🔗
+        </button>
+
+        <div className="w-px h-6 bg-white/10 mx-1" />
+
         <button
           onClick={saveLayout}
+          disabled={!hasUnsavedChanges}
           className="p-2 text-[var(--accent-primary)] hover:bg-[var(--accent-light)] rounded-lg transition-all"
           title="저장 (Ctrl+S)"
         >

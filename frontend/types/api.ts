@@ -31,6 +31,7 @@ export interface Project {
   ply_file_size?: number;
   created_at: string;
   updated_at: string;
+  is_shared: boolean;
 }
 
 export interface ProjectDetail extends Project {

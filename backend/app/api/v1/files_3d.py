@@ -261,7 +261,7 @@ async def get_3d_file(project_id: int, current_user: User = Depends(get_current_
     if not project:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Project not found")
 
-    if project.owner_id != current_user.id:
+    if project.owner_id != current_user.id and not project.is_shared:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not authorized")
 
     if not project.has_3d_file or not project.file_path:
@@ -292,7 +292,7 @@ async def download_3d_file(
     if not project:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Project not found")
 
-    if project.owner_id != current_user.id:
+    if project.owner_id != current_user.id and not project.is_shared:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not authorized")
 
     if not project.has_3d_file or not project.file_path:

@@ -98,6 +98,11 @@ export const projectsAPI = {
   delete: async (id: number) => {
     await apiClient.delete(`/projects/${id}`);
   },
+
+  toggleShare: async (id: number, share: boolean) => {
+    const response = await apiClient.post<Project>(`/projects/${id}/share?share=${share}`);
+    return response.data;
+  },
 };
 
 export const layoutsAPI = {

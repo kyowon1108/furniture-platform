@@ -22,7 +22,7 @@ def verify_project_access(project_id: int, user_id: int, db: Session) -> Project
     if not project:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Project not found")
 
-    if project.owner_id != user_id:
+    if project.owner_id != user_id and not project.is_shared:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not authorized to access this project")
 
     return project

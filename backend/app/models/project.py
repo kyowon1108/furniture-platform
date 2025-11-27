@@ -19,6 +19,7 @@ class Project(Base):
     room_width = Column(Float, nullable=False)
     room_height = Column(Float, nullable=False)
     room_depth = Column(Float, nullable=False)
+    is_shared = Column(Boolean, default=False, nullable=False)
 
     # 3D file support (PLY or GLB)
     has_3d_file = Column(Boolean, default=False, nullable=False)

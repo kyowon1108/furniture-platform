@@ -100,7 +100,7 @@ def get_project(project_id: int, current_user: User = Depends(get_current_user),
     if not project:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Project not found")
 
-    if project.owner_id != current_user.id:
+    if project.owner_id != current_user.id and not project.is_shared:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not authorized to access this project")
 
     # Get current layout
@@ -126,6 +126,9 @@ def get_project(project_id: int, current_user: User = Depends(get_current_user),
         "ply_file_size": project.ply_file_size,
         "created_at": project.created_at,
         "updated_at": project.updated_at,
+        "created_at": project.created_at,
+        "updated_at": project.updated_at,
+        "is_shared": project.is_shared,
         "current_layout": current_layout.furniture_state if current_layout else None,
     }
 
@@ -167,6 +170,40 @@ def update_project(
     for field, value in update_data.items():
         setattr(project, field, value)
 
+    db.commit()
+    db.refresh(project)
+
+    return project
+
+
+@router.post("/{project_id}/share", response_model=ProjectResponse)
+def toggle_project_share(
+    project_id: int,
+    share: bool = True,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """
+    Toggle project sharing status.
+
+    Args:
+        project_id: Project ID
+        share: True to enable sharing, False to disable
+        current_user: Current authenticated user
+        db: Database session
+
+    Returns:
+        Updated project object
+    """
+    project = db.query(Project).filter(Project.id == project_id).first()
+
+    if not project:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Project not found")
+
+    if project.owner_id != current_user.id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not authorized to modify this project")
+
+    project.is_shared = share
     db.commit()
     db.refresh(project)
 
