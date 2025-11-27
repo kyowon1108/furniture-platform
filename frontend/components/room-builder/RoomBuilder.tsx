@@ -3,8 +3,7 @@
 import React, { useState, useRef, useCallback, useMemo, useEffect } from 'react';
 import * as THREE from 'three';
 import { useThree } from '@react-three/fiber';
-// @ts-ignore
-import { GLTFExporter } from 'three/examples/jsm/exporters/GLTFExporter';
+import { GLTFExporter } from 'three/addons/exporters/GLTFExporter.js';
 import {
   RoomTemplate,
   RoomBuilderState,

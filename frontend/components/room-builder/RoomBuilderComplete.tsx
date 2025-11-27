@@ -2,8 +2,7 @@
 
 import React, { useState, useRef, useMemo, useCallback } from 'react';
 import * as THREE from 'three';
-// @ts-ignore
-import { GLTFExporter } from 'three/examples/jsm/exporters/GLTFExporter';
+import { GLTFExporter } from 'three/addons/exporters/GLTFExporter.js';
 import { RoomTemplate, UploadedImage, ROOM_TEMPLATES } from './types';
 import RoomTemplateSelector from './RoomTemplateSelector';
 import TextureGallery from './TextureGallery';
