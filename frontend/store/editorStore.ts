@@ -42,6 +42,10 @@ interface EditorState {
   // Clipboard
   clipboard: FurnitureItem[];
 
+  // UI State
+  isSidebarCollapsed: boolean;
+  toggleSidebar: () => void;
+
   setProjectId: (id: number) => void;
   setFurnitures: (furnitures: FurnitureItem[]) => void;
   addFurniture: (furniture: FurnitureItem) => void;
@@ -100,6 +104,10 @@ export const useEditorStore = create<EditorState>((set, get) => ({
 
   // Clipboard
   clipboard: [],
+
+  // UI State
+  isSidebarCollapsed: false,
+  toggleSidebar: () => set((state) => ({ isSidebarCollapsed: !state.isSidebarCollapsed })),
 
   setProjectId: (id) => set({ projectId: id }),
 

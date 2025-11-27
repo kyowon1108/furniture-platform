@@ -27,13 +27,13 @@ export default function EditorPage() {
   const projectId = parseInt(params.projectId as string);
 
   const { user, isAuthenticated, isLoading, fetchUser } = useAuthStore();
-  const { loadLayout, saveLayout, hasUnsavedChanges } = useEditorStore();
+  const { loadLayout, saveLayout, hasUnsavedChanges, isSidebarCollapsed } = useEditorStore();
   const addToast = useToastStore((state) => state.addToast);
 
   const [isLoadingProject, setIsLoadingProject] = useState(true);
   const [projectData, setProjectData] = useState<any>(null);
   const [roomDimensions, setRoomDimensions] = useState<{ width: number; height: number; depth: number } | undefined>(undefined);
-  
+
   // Memoize the callback to prevent Scene from re-rendering
   const handleRoomDimensionsChange = useCallback((dims: { width: number; height: number; depth: number }) => {
     setRoomDimensions(dims);
@@ -74,7 +74,7 @@ export default function EditorPage() {
         ply_file_size: project.ply_file_size
       });
       setProjectData(project);
-      
+
       // Set initial room dimensions from project data
       setRoomDimensions({
         width: project.room_width,
@@ -130,8 +130,14 @@ export default function EditorPage() {
       <Sidebar />
 
       {/* Main Editor Area */}
-      <div className="flex-1 ml-80 relative">
-        <Scene 
+      <div
+        className="relative transition-all duration-300 ease-in-out h-full"
+        style={{
+          marginLeft: isSidebarCollapsed ? '60px' : '320px',
+          width: `calc(100vw - ${isSidebarCollapsed ? '60px' : '320px'})`
+        }}
+      >
+        <Scene
           projectId={projectId}
           hasPlyFile={(projectData as any)?.has_3d_file || projectData?.has_ply_file}
           plyFilePath={(projectData as any)?.file_path || projectData?.ply_file_path}
@@ -144,7 +150,7 @@ export default function EditorPage() {
         <LightingPanel />
         <CameraControls />
         <ConnectionStatus isConnected={isConnected} />
-        
+
         {/* Debug Info - 주석 처리 (추후 필요시 해제)
         <div className="lighting-panel absolute top-36 left-4 z-50 w-64">
           <h3 className="lighting-title">🔍 Debug Info</h3>
