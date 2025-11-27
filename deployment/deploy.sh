@@ -31,7 +31,7 @@ ssh -i $KEY_FILE ubuntu@$INSTANCE_IP "bash /tmp/setup-server.sh"
 echo ""
 echo "📝 2단계: 소스 코드 전송..."
 echo "Backend 전송 중..."
-rsync -avz --exclude 'venv' --exclude '__pycache__' --exclude '*.pyc' --exclude 'dev.db' \
+rsync -avz --exclude 'venv' --exclude '__pycache__' --exclude '*.pyc' --exclude 'dev.db' --exclude '.DS_Store' \
     -e "ssh -i $KEY_FILE" \
     ../backend/ ubuntu@$INSTANCE_IP:/home/ubuntu/app/backend/
 
@@ -89,6 +89,11 @@ EOF
 echo "✅ Backend .env 파일 생성 완료 (PUBLIC_IP: ${PUBLIC_IP})"
 
 # 데이터베이스 마이그레이션
+echo "🧹 Python 캐시 파일 정리 중..."
+find . -name "__pycache__" -type d -exec rm -rf {} +
+find . -name "*.pyc" -delete
+
+echo "🔄 데이터베이스 마이그레이션..."
 alembic upgrade head
 
 # uploads 디렉토리 생성
