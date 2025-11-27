@@ -12,6 +12,7 @@ export function Toolbar() {
     canRedo,
     deleteSelected,
     selectedIds,
+    clearSelection,
     saveLayout,
     lastSaved
   } = useEditorStore();
@@ -54,6 +55,20 @@ export function Toolbar() {
             ↪️
           </button>
         </div>
+
+        {/* Completion Button (Check) */}
+        {selectedIds.length > 0 && (
+          <>
+            <div className="w-px h-6 bg-white/10 mx-1" />
+            <button
+              onClick={clearSelection}
+              className="p-2 text-green-400 hover:bg-green-500/10 rounded-lg transition-all"
+              title="이동 완료 (선택 해제)"
+            >
+              ✅
+            </button>
+          </>
+        )}
 
         <div className="w-px h-6 bg-white/10 mx-1" />
 

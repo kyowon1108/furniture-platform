@@ -19,7 +19,7 @@ export function Navbar() {
         <div className="flex items-center gap-8">
           <Link href="/" className="text-xl font-bold text-white hover:text-[var(--accent-primary)] transition-colors flex items-center gap-2">
             <span>🏠</span>
-            <span>가구 배치 플랫폼</span>
+            <span>방구석 전문가</span>
           </Link>
           {user && (
             <Link
