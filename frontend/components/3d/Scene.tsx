@@ -1,7 +1,7 @@
 'use client';
 
 import { Canvas, useThree } from '@react-three/fiber';
-import { OrbitControls, Line, TransformControls } from '@react-three/drei';
+import { OrbitControls, Line, TransformControls, Html } from '@react-three/drei';
 import { Furniture } from './Furniture';
 import { Room } from './Room';
 import { PlyModel } from './PlyModel';
@@ -22,15 +22,15 @@ function getRotatedDimensions(
   // Normalize rotation to 0-360 degrees
   const degrees = ((rotationY * 180) / Math.PI) % 360;
   const normalizedDegrees = degrees < 0 ? degrees + 360 : degrees;
-  
+
   // For 90 and 270 degrees, width and depth are swapped
   // For 0 and 180 degrees, dimensions stay the same
   // For other angles, calculate bounding box
-  
+
   const is90 = Math.abs(normalizedDegrees - 90) < 1 || Math.abs(normalizedDegrees - 270) < 1;
   const is180 = Math.abs(normalizedDegrees - 180) < 1;
   const is0 = Math.abs(normalizedDegrees) < 1 || Math.abs(normalizedDegrees - 360) < 1;
-  
+
   if (is90) {
     // 90 or 270 degrees: swap width and depth
     return {
@@ -50,10 +50,10 @@ function getRotatedDimensions(
     const radians = Math.abs(rotationY);
     const sin = Math.abs(Math.sin(radians));
     const cos = Math.abs(Math.cos(radians));
-    
+
     const rotatedWidth = dimensions.width * cos + dimensions.depth * sin;
     const rotatedDepth = dimensions.width * sin + dimensions.depth * cos;
-    
+
     return {
       width: rotatedWidth,
       height: dimensions.height,
@@ -62,16 +62,16 @@ function getRotatedDimensions(
   }
 }
 
-function SceneContent({ 
-  projectId, 
-  hasPlyFile, 
+function SceneContent({
+  projectId,
+  hasPlyFile,
   plyFilePath,
   fileType,
   roomDimensions,
   onRoomDimensionsChange
-}: { 
-  projectId?: number; 
-  hasPlyFile?: boolean; 
+}: {
+  projectId?: number;
+  hasPlyFile?: boolean;
   plyFilePath?: string;
   fileType?: 'ply' | 'glb' | null;
   roomDimensions?: { width: number; height: number; depth: number };
@@ -107,9 +107,9 @@ function SceneContent({
   };
 
   // Check if we should use PLY-based boundaries (room dimensions are all 0)
-  const usePlyBoundaries = hasPlyFile && 
-    actualRoomDimensions.width === 0 && 
-    actualRoomDimensions.height === 0 && 
+  const usePlyBoundaries = hasPlyFile &&
+    actualRoomDimensions.width === 0 &&
+    actualRoomDimensions.height === 0 &&
     actualRoomDimensions.depth === 0;
 
   console.log('Scene boundaries:', {
@@ -185,7 +185,7 @@ function SceneContent({
       }
       console.log('✓ PLY boundary check passed');
     }
-    
+
     // Check collision with dummy objects (for template rooms)
     // First try to find by name
     let dummyGroup = scene.getObjectByName('collision-dummies');
@@ -273,16 +273,16 @@ function SceneContent({
 
     for (const other of furnitures) {
       if (furniture.id === other.id) continue;
-      
+
       const isWallItem = furniture.mountType === 'wall';
       const isOtherWallItem = other.mountType === 'wall';
       const isSurfaceItem = furniture.mountType === 'surface';
       const isOtherSurfaceItem = other.mountType === 'surface';
-      
+
       // Wall-mounted items and floor items are in different spaces - no collision
       if (isWallItem && !isOtherWallItem && !isOtherSurfaceItem) continue;
       if (!isWallItem && !isSurfaceItem && isOtherWallItem) continue;
-      
+
       // Calculate rotated dimensions for other furniture
       const otherRotatedDims = getRotatedDimensions(
         other.dimensions,
@@ -310,21 +310,21 @@ function SceneContent({
         minZ: other.position.z - adjustedOtherDepth,
         maxZ: other.position.z + adjustedOtherDepth,
       };
-      
+
       // Calculate actual overlap (penetration)
       const overlapX = Math.min(f1.maxX, f2.maxX) - Math.max(f1.minX, f2.minX);
       const overlapZ = Math.min(f1.maxZ, f2.maxZ) - Math.max(f1.minZ, f2.minZ);
-      
+
       // Y-axis (height) collision check
       let overlapY = false;
-      
+
       if (isWallItem && isOtherWallItem) {
         // Both are wall items: check Y-axis overlap
         const f1MinY = newPos.y - furniture.dimensions.height / 2;
         const f1MaxY = newPos.y + furniture.dimensions.height / 2;
         const f2MinY = other.position.y - other.dimensions.height / 2;
         const f2MaxY = other.position.y + other.dimensions.height / 2;
-        
+
         overlapY = !(f1MaxY < f2MinY || f1MinY > f2MaxY);
       } else if (!isWallItem && !isOtherWallItem) {
         // Both are floor items: check if their height ranges overlap
@@ -332,7 +332,7 @@ function SceneContent({
         const f1MaxY = furniture.dimensions.height;
         const f2MinY = 0;
         const f2MaxY = other.dimensions.height;
-        
+
         overlapY = !(f1MaxY < f2MinY || f1MinY > f2MaxY);
       } else if (isSurfaceItem || isOtherSurfaceItem) {
         // Surface items: check based on their actual Y position
@@ -340,10 +340,10 @@ function SceneContent({
         const f1MaxY = newPos.y + furniture.dimensions.height / 2;
         const f2MinY = other.position.y - other.dimensions.height / 2;
         const f2MaxY = other.position.y + other.dimensions.height / 2;
-        
+
         overlapY = !(f1MaxY < f2MinY || f1MinY > f2MaxY);
       }
-      
+
       // Only reject if there's significant penetration in all axes
       if (overlapX > penetrationThreshold && overlapZ > penetrationThreshold && overlapY) {
         console.log('❌ Collision detected with furniture:', other.id, {
@@ -359,35 +359,35 @@ function SceneContent({
         return false;
       }
     }
-    
+
     console.log('✓ No collisions detected');
     return true;
   };
 
   // Collision detection function - memoized to prevent unnecessary recalculations
   const checkCollisions = useRef<() => void>();
-  
+
   checkCollisions.current = () => {
     let hasChanges = false;
     const penetrationThreshold = 0.02; // Same as in isValidPosition
-    
+
     const updatedFurnitures = furnitures.map(furniture => {
       let isColliding = false;
-      
+
       // Check collision with other furniture
       // Comprehensive 3D collision detection
       for (const other of furnitures) {
         if (furniture.id === other.id) continue;
-        
+
         const isWallItem = furniture.mountType === 'wall';
         const isOtherWallItem = other.mountType === 'wall';
         const isSurfaceItem = furniture.mountType === 'surface';
         const isOtherSurfaceItem = other.mountType === 'surface';
-        
+
         // Wall-mounted items and floor items are in different spaces - no collision
         if (isWallItem && !isOtherWallItem && !isOtherSurfaceItem) continue;
         if (!isWallItem && !isSurfaceItem && isOtherWallItem) continue;
-        
+
         // Calculate rotated dimensions
         const f1RotatedDims = getRotatedDimensions(
           furniture.dimensions,
@@ -397,7 +397,7 @@ function SceneContent({
           other.dimensions,
           (other.rotation.y * Math.PI) / 180
         );
-        
+
         // XZ plane collision check
         // Apply collision factor to make collision boxes smaller
         const collisionFactor = 0.95;
@@ -414,21 +414,21 @@ function SceneContent({
           minZ: other.position.z - (f2RotatedDims.depth / 2) * collisionFactor,
           maxZ: other.position.z + (f2RotatedDims.depth / 2) * collisionFactor,
         };
-        
+
         // Calculate actual overlap (penetration)
         const overlapX = Math.min(f1.maxX, f2.maxX) - Math.max(f1.minX, f2.minX);
         const overlapZ = Math.min(f1.maxZ, f2.maxZ) - Math.max(f1.minZ, f2.minZ);
-        
+
         // Y-axis (height) collision check
         let overlapY = false;
-        
+
         if (isWallItem && isOtherWallItem) {
           // Both are wall items: check Y-axis overlap
           const f1MinY = furniture.position.y - furniture.dimensions.height / 2;
           const f1MaxY = furniture.position.y + furniture.dimensions.height / 2;
           const f2MinY = other.position.y - other.dimensions.height / 2;
           const f2MaxY = other.position.y + other.dimensions.height / 2;
-          
+
           overlapY = !(f1MaxY < f2MinY || f1MinY > f2MaxY);
         } else if (!isWallItem && !isOtherWallItem) {
           // Both are floor items: check if their height ranges overlap
@@ -436,7 +436,7 @@ function SceneContent({
           const f1MaxY = furniture.dimensions.height;
           const f2MinY = 0;
           const f2MaxY = other.dimensions.height;
-          
+
           overlapY = !(f1MaxY < f2MinY || f1MinY > f2MaxY);
         } else if (isSurfaceItem || isOtherSurfaceItem) {
           // Surface items: check based on their actual Y position
@@ -444,17 +444,17 @@ function SceneContent({
           const f1MaxY = furniture.position.y + furniture.dimensions.height / 2;
           const f2MinY = other.position.y - other.dimensions.height / 2;
           const f2MaxY = other.position.y + other.dimensions.height / 2;
-          
+
           overlapY = !(f1MaxY < f2MinY || f1MinY > f2MaxY);
         }
-        
+
         // Only mark as colliding if there's significant penetration in all axes
         if (overlapX > penetrationThreshold && overlapZ > penetrationThreshold && overlapY) {
           isColliding = true;
           break;
         }
       }
-      
+
       // Update collision state if changed
       if (furniture.isColliding !== isColliding) {
         hasChanges = true;
@@ -462,7 +462,7 @@ function SceneContent({
       }
       return furniture;
     });
-    
+
     // Only update if there are actual changes
     if (hasChanges) {
       useEditorStore.setState({ furnitures: updatedFurnitures });
@@ -495,13 +495,13 @@ function SceneContent({
     if (transformControlsRef.current && orbitControlsRef.current) {
       const controls = transformControlsRef.current;
       const orbit = orbitControlsRef.current;
-      
+
       const onDraggingChanged = (event: any) => {
         orbit.enabled = !event.value;
       };
-      
+
       controls.addEventListener('dragging-changed', onDraggingChanged);
-      
+
       return () => {
         controls.removeEventListener('dragging-changed', onDraggingChanged);
       };
@@ -515,7 +515,7 @@ function SceneContent({
       if ((e.key === 'Delete' || e.key === 'Backspace') && selectedIds.length > 0) {
         e.preventDefault();
         const deleteFurniture = useEditorStore.getState().deleteFurniture;
-        
+
         // Delete all selected furniture
         selectedIds.forEach(id => {
           deleteFurniture(id);
@@ -525,7 +525,7 @@ function SceneContent({
     };
 
     window.addEventListener('keydown', handleKeyDown);
-    
+
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
     };
@@ -766,7 +766,7 @@ function SceneContent({
         key={`ambient-${timeOfDay}`}
         intensity={lighting.ambient}
       />
-      
+
       {/* Main directional light - primary light source based on time of day */}
       <directionalLight
         key={`main-${timeOfDay}`}
@@ -777,7 +777,7 @@ function SceneContent({
         shadow-mapSize-width={2048}
         shadow-mapSize-height={2048}
       />
-      
+
       {/* Key light (main light source) - adjusted based on time of day */}
       <directionalLight
         key={`key-${timeOfDay}`}
@@ -785,7 +785,7 @@ function SceneContent({
         intensity={lighting.intensity * 0.8}
         color={lighting.color}
       />
-      
+
       {/* Fill lights from sides - adjusted based on time of day */}
       <directionalLight
         key={`fill1-${timeOfDay}`}
@@ -799,83 +799,76 @@ function SceneContent({
         intensity={lighting.intensity * 0.5}
         color={lighting.color}
       />
-      
+
       {/* Back light - adjusted based on time of day */}
       <directionalLight
         key={`back-${timeOfDay}`}
         position={[0, 5, -10]}
         intensity={lighting.intensity * 0.4}
         color={lighting.color}
-      />
-      
-      {/* Hemisphere light for natural sky/ground lighting - adjusted based on time of day */}
-      <hemisphereLight
-        key={`hemisphere-${timeOfDay}`}
-        color={lighting.color}
-        groundColor={timeOfDay === 'night' ? '#222222' : '#888888'}
-        intensity={lighting.ambient * 0.5}
+        castShadow
+        shadow-mapSize-width={2048}
+        shadow-mapSize-height={2048}
       />
 
-      {/* Show 3D model (PLY or GLB) if available, otherwise show default room */}
-      {projectId && fileType === 'glb' ? (
-        <GlbModel 
-          projectId={projectId} 
-          glbFilePath={plyFilePath}
+      {/* Background - using theme color for depth */}
+      <color attach="background" args={['#09090b']} />
+      {/* Fog for depth perception - matches background color */}
+      <fog attach="fog" args={['#09090b', 10, 50]} />
+
+      <OrbitControls
+        ref={orbitControlsRef}
+        makeDefault
+        minPolarAngle={0}
+        maxPolarAngle={Math.PI / 2.1}
+        minDistance={2}
+        maxDistance={20}
+      />
+
+      <gridHelper args={[20, 20, '#333333', '#222222']} />
+
+      {/* Room Structure - Hide if GLB is present (GLB contains the room) */
+        /* Only show default room if:
+           1. Not a GLB file
+           2. Not a PLY file (unless using PLY boundaries)
+        */
+      }
+      {fileType !== 'glb' && (!hasPlyFile || usePlyBoundaries) && (
+        <Room
           roomDimensions={actualRoomDimensions}
-          onRoomDimensionsChange={onRoomDimensionsChange}
         />
-      ) : projectId && (fileType === 'ply' || hasPlyFile) ? (
-        <PlyModel 
-          projectId={projectId} 
+      )}
+
+      {/* PLY Model */}
+      {hasPlyFile && plyFilePath && projectId && (fileType === 'ply' || !fileType) && (
+        <PlyModel
+          projectId={projectId}
           plyFilePath={plyFilePath}
           roomDimensions={actualRoomDimensions}
           onRoomDimensionsChange={onRoomDimensionsChange}
         />
-      ) : (
-        <Room roomDimensions={actualRoomDimensions} />
       )}
 
-      {furnitures.map((furniture) => (
-        <Furniture 
-          key={furniture.id} 
-          {...furniture} 
+      {/* GLB Model */}
+      {fileType === 'glb' && projectId && (
+        <GlbModel
+          projectId={projectId}
+          glbFilePath={plyFilePath}
           roomDimensions={actualRoomDimensions}
-          hasPlyFile={hasPlyFile}
-        />
-      ))}
-
-      {/* Measurement points */}
-      {measurePoints.map((point, i) => (
-        <mesh key={i} position={[point.x, 0.1, point.z]}>
-          <sphereGeometry args={[0.1]} />
-          <meshBasicMaterial color="#ff0000" />
-        </mesh>
-      ))}
-
-      {/* Distance line */}
-      {measureMode === 'distance' && measurePoints.length === 2 && (
-        <Line
-          points={[
-            [measurePoints[0].x, 0.1, measurePoints[0].z],
-            [measurePoints[1].x, 0.1, measurePoints[1].z],
-          ]}
-          color="#00ff00"
-          lineWidth={2}
+          onRoomDimensionsChange={onRoomDimensionsChange}
         />
       )}
 
-      <OrbitControls
-        ref={orbitControlsRef}
-        target={new THREE.Vector3(0, 1, 0)}
-        enableDamping
-        dampingFactor={0.05}
-        maxPolarAngle={Math.PI / 2}
-        minDistance={0.5}
-        maxDistance={50}
-      />
+      {/* Furniture Items */}
+      {furnitures.map((item) => (
+        <Furniture
+          key={item.id}
+          {...item}
+        />
+      ))}
 
-      {/* 크기 조절 기능 비활성화 - scale 모드일 때는 TransformControls를 렌더링하지 않음 */}
-      {selectedFurniture && transformMode !== 'scale' && (
+      {/* Transform Controls for selected item */}
+      {selectedFurniture && (
         <TransformControls
           ref={transformControlsRef}
           object={scene.getObjectByName(selectedFurniture.id) as any}
@@ -902,16 +895,16 @@ function SceneContent({
           onObjectChange={(e?: any) => {
             if (e && e.target && e.target.object) {
               const obj = e.target.object as THREE.Object3D;
-              
+
               // Check if rotation has changed (regardless of transform mode)
               const currentRotationDeg = (obj.rotation.y * 180) / Math.PI;
-              const previousRotationDeg = previousRotationRef.current !== null 
-                ? previousRotationRef.current 
+              const previousRotationDeg = previousRotationRef.current !== null
+                ? previousRotationRef.current
                 : selectedFurniture.rotation.y;
               const rotationChanged = Math.abs(currentRotationDeg - previousRotationDeg) > 0.1; // 0.1 degree threshold
-              
+
               const isRotateMode = transformMode === 'rotate';
-              
+
               console.log('🔄 onObjectChange:', {
                 mountType: selectedFurniture.mountType,
                 transformMode,
@@ -923,7 +916,7 @@ function SceneContent({
                 rotationChanged,
                 position: { x: obj.position.x, y: obj.position.y, z: obj.position.z }
               });
-              
+
               // Handle Y position based on mount type
               if (selectedFurniture.mountType === 'wall') {
                 // Wall-mounted items: allow Y movement, but keep within room height
@@ -947,14 +940,14 @@ function SceneContent({
                   obj.position.y = groundY;
                 }
               }
-              
+
               // CRITICAL: In rotate mode, ALWAYS check boundaries on every change
               // This prevents furniture from penetrating walls when rotating
               // Also check if rotation has changed (for translate mode with rotation)
               const storedRotation = furnitures.find(f => f.id === selectedFurniture.id)?.rotation.y || 0;
               const storedRotationDeg = storedRotation;
               const rotationDiffersFromStored = Math.abs(currentRotationDeg - storedRotationDeg) > 0.1;
-              
+
               // ============================================================
               // CRITICAL: ROTATION BOUNDARY CHECK FOR ROTATE MODE
               // ============================================================
@@ -962,27 +955,27 @@ function SceneContent({
               // This prevents furniture from penetrating walls when rotating
               // We check BEFORE saving to ensure invalid rotations are never saved
               // ============================================================
-              
+
               // ALWAYS check rotation boundaries if we're in rotate mode
               // This is the most critical check to prevent wall penetration
               if (isRotateMode) {
                 console.log('🔄 ========== ROTATE MODE DETECTED ==========');
                 console.log('🔄 Starting boundary check for rotation...');
-                
+
                 // STEP 1: Lock X and Z rotation to 0 (only Y-axis rotation allowed)
                 obj.rotation.x = 0;
                 obj.rotation.z = 0;
-                
+
                 // STEP 2: Calculate rotated dimensions based on current rotation
                 // This is critical: when a rectangular furniture rotates, its bounding box changes
                 const rotatedDims = getRotatedDimensions(
                   selectedFurniture.dimensions,
                   obj.rotation.y
                 );
-                
+
                 const halfWidth = rotatedDims.width / 2;
                 const halfDepth = rotatedDims.depth / 2;
-                
+
                 console.log('📐 Rotated dimensions calculation:', {
                   furnitureId: selectedFurniture.id,
                   currentRotation: currentRotationDeg,
@@ -994,18 +987,18 @@ function SceneContent({
                   halfDepth,
                   position: { x: obj.position.x, y: obj.position.y, z: obj.position.z }
                 });
-                
+
                 // STEP 3: Check room boundaries (for all room types)
                 let wouldExceedBounds = false;
                 let boundaryDetails: any = {};
-                
+
                 if (usePlyBoundaries) {
                   // For PLY files with 0 dimensions, use a very large boundary (50 units)
                   const maxBoundary = 50;
                   const checkX = Math.abs(obj.position.x) + halfWidth > maxBoundary;
                   const checkZ = Math.abs(obj.position.z) + halfDepth > maxBoundary;
                   wouldExceedBounds = checkX || checkZ;
-                  
+
                   boundaryDetails = {
                     type: 'PLY',
                     checkX,
@@ -1020,19 +1013,19 @@ function SceneContent({
                   // For regular rooms, check against actual room dimensions
                   const roomHalfWidth = actualRoomDimensions.width / 2;
                   const roomHalfDepth = actualRoomDimensions.depth / 2;
-                  
+
                   const minX = obj.position.x - halfWidth;
                   const maxX = obj.position.x + halfWidth;
                   const minZ = obj.position.z - halfDepth;
                   const maxZ = obj.position.z + halfDepth;
-                  
+
                   const checkMinX = minX < -roomHalfWidth;
                   const checkMaxX = maxX > roomHalfWidth;
                   const checkMinZ = minZ < -roomHalfDepth;
                   const checkMaxZ = maxZ > roomHalfDepth;
-                  
+
                   wouldExceedBounds = checkMinX || checkMaxX || checkMinZ || checkMaxZ;
-                  
+
                   boundaryDetails = {
                     type: 'ROOM',
                     roomHalfWidth,
@@ -1047,7 +1040,7 @@ function SceneContent({
                     checkMaxZ
                   };
                 }
-                
+
                 console.log('🔍 ========== Boundary Check Result ==========');
                 console.log('🔍 Would exceed bounds:', wouldExceedBounds);
                 console.log('🔍 Boundary details:', boundaryDetails);
@@ -1055,31 +1048,31 @@ function SceneContent({
                 console.log('🔍 Furniture position:', { x: obj.position.x, y: obj.position.y, z: obj.position.z });
                 console.log('🔍 Rotated half dimensions:', { halfWidth, halfDepth });
                 console.log('🔍 ============================================');
-                
+
                 // STEP 4: Check collision with other furniture using rotated dimensions
                 let hasCollision = false;
                 let collisionDetails: any = null;
                 const penetrationThreshold = 0.02;
-                
+
                 for (const other of furnitures) {
                   if (selectedFurniture.id === other.id) continue;
-                  
+
                   const isWallItem = selectedFurniture.mountType === 'wall';
                   const isOtherWallItem = other.mountType === 'wall';
                   const isSurfaceItem = selectedFurniture.mountType === 'surface';
                   const isOtherSurfaceItem = other.mountType === 'surface';
-                  
+
                   // Wall-mounted items and floor items are in different spaces - no collision
                   // Wall items are on walls, floor items are on floor
                   if (isWallItem && !isOtherWallItem && !isOtherSurfaceItem) continue;
                   if (!isWallItem && !isSurfaceItem && isOtherWallItem) continue;
-                  
+
                   // Calculate rotated dimensions for other furniture if needed
                   const otherRotatedDims = getRotatedDimensions(
                     other.dimensions,
                     (other.rotation.y * Math.PI) / 180
                   );
-                  
+
                   // XZ plane collision check
                   const f1 = {
                     minX: obj.position.x - halfWidth,
@@ -1087,29 +1080,29 @@ function SceneContent({
                     minZ: obj.position.z - halfDepth,
                     maxZ: obj.position.z + halfDepth,
                   };
-                  
+
                   const f2 = {
                     minX: other.position.x - otherRotatedDims.width / 2,
                     maxX: other.position.x + otherRotatedDims.width / 2,
                     minZ: other.position.z - otherRotatedDims.depth / 2,
                     maxZ: other.position.z + otherRotatedDims.depth / 2,
                   };
-                  
+
                   const overlapX = Math.min(f1.maxX, f2.maxX) - Math.max(f1.minX, f2.minX);
                   const overlapZ = Math.min(f1.maxZ, f2.maxZ) - Math.max(f1.minZ, f2.minZ);
-                  
+
                   // Y-axis (height) collision check
                   // For wall items: check Y-axis overlap (both must be wall items)
                   // For floor items: check if their height ranges overlap
                   let overlapY = false;
-                  
+
                   if (isWallItem && isOtherWallItem) {
                     // Both are wall items: check Y-axis overlap
                     const f1MinY = obj.position.y - selectedFurniture.dimensions.height / 2;
                     const f1MaxY = obj.position.y + selectedFurniture.dimensions.height / 2;
                     const f2MinY = other.position.y - other.dimensions.height / 2;
                     const f2MaxY = other.position.y + other.dimensions.height / 2;
-                    
+
                     overlapY = !(f1MaxY < f2MinY || f1MinY > f2MaxY);
                   } else if (!isWallItem && !isOtherWallItem) {
                     // Both are floor items: check if their height ranges overlap
@@ -1118,7 +1111,7 @@ function SceneContent({
                     const f1MaxY = selectedFurniture.dimensions.height; // Floor items extend to their height
                     const f2MinY = 0; // Other floor item starts at ground
                     const f2MaxY = other.dimensions.height; // Other floor item extends to its height
-                    
+
                     overlapY = !(f1MaxY < f2MinY || f1MinY > f2MaxY);
                   } else if (isSurfaceItem || isOtherSurfaceItem) {
                     // Surface items: check based on their actual Y position
@@ -1126,10 +1119,10 @@ function SceneContent({
                     const f1MaxY = obj.position.y + selectedFurniture.dimensions.height / 2;
                     const f2MinY = other.position.y - other.dimensions.height / 2;
                     const f2MaxY = other.position.y + other.dimensions.height / 2;
-                    
+
                     overlapY = !(f1MaxY < f2MinY || f1MinY > f2MaxY);
                   }
-                  
+
                   // Collision occurs if XZ overlap AND Y overlap
                   if (overlapX > penetrationThreshold && overlapZ > penetrationThreshold && overlapY) {
                     hasCollision = true;
@@ -1148,12 +1141,12 @@ function SceneContent({
                     break;
                   }
                 }
-                
+
                 // STEP 5: If rotation would cause boundary violation or collision, REVERT IT
                 if (wouldExceedBounds || hasCollision) {
                   // Revert rotation to previous valid value
                   let prevRotationRad: number;
-                  
+
                   if (previousRotationRef.current !== null) {
                     // Use stored previous rotation (most reliable)
                     prevRotationRad = (previousRotationRef.current * Math.PI) / 180;
@@ -1162,10 +1155,10 @@ function SceneContent({
                     const storedRot = furnitures.find(f => f.id === selectedFurniture.id)?.rotation.y || 0;
                     prevRotationRad = (storedRot * Math.PI) / 180;
                   }
-                  
+
                   // CRITICAL: Revert rotation immediately
                   obj.rotation.y = prevRotationRad;
-                  
+
                   // Show user-friendly error message (with cooldown to prevent spam)
                   const now = Date.now();
                   if (now - lastRotationToastTimeRef.current > ROTATION_TOAST_COOLDOWN) {
@@ -1173,7 +1166,7 @@ function SceneContent({
                     useToastStore.getState().addToast(`공간이 부족하여 회전할 수 없습니다 (${reason}과 충돌)`, 'error');
                     lastRotationToastTimeRef.current = now;
                   }
-                  
+
                   console.log('❌ ========== ROTATION BLOCKED - REVERTED ==========');
                   console.log('❌ Reason:', wouldExceedBounds ? '벽 충돌' : '가구 충돌');
                   console.log('❌ Would exceed bounds:', wouldExceedBounds);
@@ -1189,12 +1182,12 @@ function SceneContent({
                     console.log('❌ Collision details:', collisionDetails);
                   }
                   console.log('❌ ================================================');
-                  
+
                   // CRITICAL: Return early to prevent saving invalid rotation
                   // This ensures updateFurniture is never called with invalid rotation
                   return;
                 }
-                
+
                 // STEP 6: Rotation is valid - update previous rotation reference
                 // This ensures next rotation check uses the correct previous value
                 previousRotationRef.current = currentRotationDeg;
@@ -1215,23 +1208,23 @@ function SceneContent({
                   rotationChanged,
                   rotationDiffersFromStored
                 });
-                
+
                 // Lock X and Z rotation to 0
                 obj.rotation.x = 0;
                 obj.rotation.z = 0;
-                
+
                 // Calculate rotated dimensions
                 const rotatedDims = getRotatedDimensions(
                   selectedFurniture.dimensions,
                   obj.rotation.y
                 );
-                
+
                 const halfWidth = rotatedDims.width / 2;
                 const halfDepth = rotatedDims.depth / 2;
-                
+
                 // Check room boundaries
                 let wouldExceedBounds = false;
-                
+
                 if (usePlyBoundaries) {
                   const maxBoundary = 50;
                   const checkX = Math.abs(obj.position.x) + halfWidth > maxBoundary;
@@ -1254,30 +1247,30 @@ function SceneContent({
                     minZ < -roomHalfDepth ||
                     maxZ > roomHalfDepth;
                 }
-                
+
                 // Check collision with other furniture (translate mode - rotation changed)
                 // Comprehensive 3D collision detection
                 let hasCollision = false;
                 const penetrationThreshold = 0.02;
-                
+
                 for (const other of furnitures) {
                   if (selectedFurniture.id === other.id) continue;
-                  
+
                   const isWallItem = selectedFurniture.mountType === 'wall';
                   const isOtherWallItem = other.mountType === 'wall';
                   const isSurfaceItem = selectedFurniture.mountType === 'surface';
                   const isOtherSurfaceItem = other.mountType === 'surface';
-                  
+
                   // Wall-mounted items and floor items are in different spaces - no collision
                   if (isWallItem && !isOtherWallItem && !isOtherSurfaceItem) continue;
                   if (!isWallItem && !isSurfaceItem && isOtherWallItem) continue;
-                  
+
                   // Calculate rotated dimensions for other furniture
                   const otherRotatedDims = getRotatedDimensions(
                     other.dimensions,
                     (other.rotation.y * Math.PI) / 180
                   );
-                  
+
                   // XZ plane collision check
                   const f1 = {
                     minX: obj.position.x - halfWidth,
@@ -1285,27 +1278,27 @@ function SceneContent({
                     minZ: obj.position.z - halfDepth,
                     maxZ: obj.position.z + halfDepth,
                   };
-                  
+
                   const f2 = {
                     minX: other.position.x - otherRotatedDims.width / 2,
                     maxX: other.position.x + otherRotatedDims.width / 2,
                     minZ: other.position.z - otherRotatedDims.depth / 2,
                     maxZ: other.position.z + otherRotatedDims.depth / 2,
                   };
-                  
+
                   const overlapX = Math.min(f1.maxX, f2.maxX) - Math.max(f1.minX, f2.minX);
                   const overlapZ = Math.min(f1.maxZ, f2.maxZ) - Math.max(f1.minZ, f2.minZ);
-                  
+
                   // Y-axis (height) collision check
                   let overlapY = false;
-                  
+
                   if (isWallItem && isOtherWallItem) {
                     // Both are wall items: check Y-axis overlap
                     const f1MinY = obj.position.y - selectedFurniture.dimensions.height / 2;
                     const f1MaxY = obj.position.y + selectedFurniture.dimensions.height / 2;
                     const f2MinY = other.position.y - other.dimensions.height / 2;
                     const f2MaxY = other.position.y + other.dimensions.height / 2;
-                    
+
                     overlapY = !(f1MaxY < f2MinY || f1MinY > f2MaxY);
                   } else if (!isWallItem && !isOtherWallItem) {
                     // Both are floor items: check if their height ranges overlap
@@ -1313,7 +1306,7 @@ function SceneContent({
                     const f1MaxY = selectedFurniture.dimensions.height;
                     const f2MinY = 0;
                     const f2MaxY = other.dimensions.height;
-                    
+
                     overlapY = !(f1MaxY < f2MinY || f1MinY > f2MaxY);
                   } else if (isSurfaceItem || isOtherSurfaceItem) {
                     // Surface items: check based on their actual Y position
@@ -1321,25 +1314,25 @@ function SceneContent({
                     const f1MaxY = obj.position.y + selectedFurniture.dimensions.height / 2;
                     const f2MinY = other.position.y - other.dimensions.height / 2;
                     const f2MaxY = other.position.y + other.dimensions.height / 2;
-                    
+
                     overlapY = !(f1MaxY < f2MinY || f1MinY > f2MaxY);
                   }
-                  
+
                   // Collision occurs if XZ overlap AND Y overlap
                   if (overlapX > penetrationThreshold && overlapZ > penetrationThreshold && overlapY) {
                     hasCollision = true;
                     break;
                   }
                 }
-                
+
                 // If rotation would cause boundary violation or collision, revert it
                 if (wouldExceedBounds || hasCollision) {
-                  const prevRotationRad = previousRotationRef.current !== null 
+                  const prevRotationRad = previousRotationRef.current !== null
                     ? (previousRotationRef.current * Math.PI) / 180
                     : (furnitures.find(f => f.id === selectedFurniture.id)?.rotation.y || 0) * Math.PI / 180;
-                  
+
                   obj.rotation.y = prevRotationRad;
-                  
+
                   const reason = wouldExceedBounds ? '벽' : '다른 가구';
                   useToastStore.getState().addToast(`공간이 부족하여 회전할 수 없습니다 (${reason}과 충돌)`, 'error');
                   console.log('❌ Rotation blocked (translate mode):', {
@@ -1349,23 +1342,23 @@ function SceneContent({
                   });
                   return;
                 }
-                
+
                 // Rotation is valid
                 previousRotationRef.current = currentRotationDeg;
               }
-              
+
               // For translate mode, also check boundaries and collisions
               // ALWAYS use rotated dimensions based on current rotation (not just when rotation changed)
               if (transformMode === 'translate') {
                 let snappedPos = { x: obj.position.x, y: obj.position.y, z: obj.position.z };
-                
+
                 // ALWAYS calculate rotated dimensions based on current rotation
                 // This ensures boundary checking works correctly even if rotationChanged is false
                 const rotatedDims = getRotatedDimensions(selectedFurniture.dimensions, obj.rotation.y);
-                
+
                 const halfWidth = rotatedDims.width / 2;
                 const halfDepth = rotatedDims.depth / 2;
-                
+
                 console.log('📐 Translate mode - using dimensions:', {
                   rotationChanged,
                   originalDims: selectedFurniture.dimensions,
@@ -1375,31 +1368,31 @@ function SceneContent({
                   halfWidth,
                   halfDepth
                 });
-                
+
                 // Wall-mounted items: snap to walls (keep Y position)
                 if (selectedFurniture.mountType === 'wall' && !usePlyBoundaries) {
                   const wallSnapThreshold = 0.5; // Snap within 50cm of wall
                   const roomHalfWidth = actualRoomDimensions.width / 2;
                   const roomHalfDepth = actualRoomDimensions.depth / 2;
                   const wallOffset = 0.05; // 5cm from wall surface
-                  
+
                   console.log('🔍 Wall snap check:', {
                     currentPos: snappedPos,
                     roomHalfWidth,
                     roomHalfDepth
                   });
-                  
+
                   // Check distance to each wall
                   const distToNorth = Math.abs(snappedPos.z + roomHalfDepth);
                   const distToSouth = Math.abs(snappedPos.z - roomHalfDepth);
                   const distToWest = Math.abs(snappedPos.x + roomHalfWidth);
                   const distToEast = Math.abs(snappedPos.x - roomHalfWidth);
-                  
+
                   console.log('Wall distances:', { distToNorth, distToSouth, distToWest, distToEast });
-                  
+
                   // Snap to nearest wall
                   const minDist = Math.min(distToNorth, distToSouth, distToWest, distToEast);
-                  
+
                   if (minDist < wallSnapThreshold) {
                     const beforeY = snappedPos.y;
                     if (minDist === distToNorth) {
@@ -1419,24 +1412,24 @@ function SceneContent({
                     snappedPos.y = beforeY;
                   }
                 }
-                
+
                 // Floor items: snap to nearby furniture edges
                 const snapThreshold = 0.2; // Snap within 20cm
-                
+
                 let snappedX = false;
                 let snappedZ = false;
-                
+
                 for (const other of furnitures) {
                   if (selectedFurniture.id === other.id) continue;
-                  
+
                   const otherHalfWidth = other.dimensions.width / 2;
                   const otherHalfDepth = other.dimensions.depth / 2;
-                  
+
                   const otherLeft = other.position.x - otherHalfWidth;
                   const otherRight = other.position.x + otherHalfWidth;
                   const otherBack = other.position.z - otherHalfDepth;
                   const otherFront = other.position.z + otherHalfDepth;
-                  
+
                   // Snap X axis (left-right alignment) - only if not already snapped
                   if (!snappedX) {
                     // My right edge to other's left edge
@@ -1447,7 +1440,7 @@ function SceneContent({
                       snappedX = true;
                       console.log('📍 Snapped right edge to left edge', { distToLeft: distToLeft.toFixed(3) });
                     }
-                    
+
                     // My left edge to other's right edge
                     const myLeft = snappedPos.x - halfWidth;
                     const distToRight = Math.abs(myLeft - otherRight);
@@ -1457,7 +1450,7 @@ function SceneContent({
                       console.log('📍 Snapped left edge to right edge', { distToRight: distToRight.toFixed(3) });
                     }
                   }
-                  
+
                   // Snap Z axis (front-back alignment) - only if not already snapped
                   if (!snappedZ) {
                     // My front edge to other's back edge
@@ -1468,7 +1461,7 @@ function SceneContent({
                       snappedZ = true;
                       console.log('📍 Snapped front edge to back edge', { distToBack: distToBack.toFixed(3) });
                     }
-                    
+
                     // My back edge to other's front edge
                     const myBack = snappedPos.z - halfDepth;
                     const distToFront = Math.abs(myBack - otherFront);
@@ -1479,25 +1472,25 @@ function SceneContent({
                     }
                   }
                 }
-                
+
                 // Apply snapped position (preserve Y for wall items)
                 obj.position.x = snappedPos.x;
                 obj.position.y = snappedPos.y;
                 obj.position.z = snappedPos.z;
-                
+
                 // Push furniture inside walls if it's outside (instead of reverting)
                 // Use rotated dimensions for boundary checking
                 if (!usePlyBoundaries) {
                   const roomHalfWidth = actualRoomDimensions.width / 2;
                   const roomHalfDepth = actualRoomDimensions.depth / 2;
-                  
+
                   let correctedPos = { ...snappedPos };
                   let wasCorrected = false;
-                  
+
                   // Check and correct X position using rotated dimensions
                   const furnitureMinX = correctedPos.x - halfWidth;
                   const furnitureMaxX = correctedPos.x + halfWidth;
-                  
+
                   if (furnitureMinX < -roomHalfWidth) {
                     const penetration = -roomHalfWidth - furnitureMinX;
                     correctedPos.x += penetration;
@@ -1519,11 +1512,11 @@ function SceneContent({
                       halfWidth
                     });
                   }
-                  
+
                   // Check and correct Z position using rotated dimensions
                   const furnitureMinZ = correctedPos.z - halfDepth;
                   const furnitureMaxZ = correctedPos.z + halfDepth;
-                  
+
                   if (furnitureMinZ < -roomHalfDepth) {
                     const penetration = -roomHalfDepth - furnitureMinZ;
                     correctedPos.z += penetration;
@@ -1545,38 +1538,38 @@ function SceneContent({
                       halfDepth
                     });
                   }
-                  
+
                   if (wasCorrected) {
                     obj.position.x = correctedPos.x;
                     obj.position.z = correctedPos.z;
                     snappedPos = correctedPos;
                   }
                 }
-                
+
                 // Check collision with other furniture
                 // Comprehensive 3D collision detection considering mount types and heights
                 let hasCollision = false;
                 const penetrationThreshold = 0.02;
-                
+
                 for (const other of furnitures) {
                   if (selectedFurniture.id === other.id) continue;
-                  
+
                   const isWallItem = selectedFurniture.mountType === 'wall';
                   const isOtherWallItem = other.mountType === 'wall';
                   const isSurfaceItem = selectedFurniture.mountType === 'surface';
                   const isOtherSurfaceItem = other.mountType === 'surface';
-                  
+
                   // Wall-mounted items and floor items are in different spaces - no collision
                   // Wall items are on walls, floor items are on floor
                   if (isWallItem && !isOtherWallItem && !isOtherSurfaceItem) continue;
                   if (!isWallItem && !isSurfaceItem && isOtherWallItem) continue;
-                  
+
                   // Calculate rotated dimensions for other furniture
                   const otherRotatedDims = getRotatedDimensions(
                     other.dimensions,
                     (other.rotation.y * Math.PI) / 180
                   );
-                  
+
                   // XZ plane collision check
                   const f1 = {
                     minX: snappedPos.x - halfWidth,
@@ -1584,27 +1577,27 @@ function SceneContent({
                     minZ: snappedPos.z - halfDepth,
                     maxZ: snappedPos.z + halfDepth,
                   };
-                  
+
                   const f2 = {
                     minX: other.position.x - otherRotatedDims.width / 2,
                     maxX: other.position.x + otherRotatedDims.width / 2,
                     minZ: other.position.z - otherRotatedDims.depth / 2,
                     maxZ: other.position.z + otherRotatedDims.depth / 2,
                   };
-                  
+
                   const overlapX = Math.min(f1.maxX, f2.maxX) - Math.max(f1.minX, f2.minX);
                   const overlapZ = Math.min(f1.maxZ, f2.maxZ) - Math.max(f1.minZ, f2.minZ);
-                  
+
                   // Y-axis (height) collision check
                   let overlapY = false;
-                  
+
                   if (isWallItem && isOtherWallItem) {
                     // Both are wall items: check Y-axis overlap
                     const f1MinY = obj.position.y - selectedFurniture.dimensions.height / 2;
                     const f1MaxY = obj.position.y + selectedFurniture.dimensions.height / 2;
                     const f2MinY = other.position.y - other.dimensions.height / 2;
                     const f2MaxY = other.position.y + other.dimensions.height / 2;
-                    
+
                     overlapY = !(f1MaxY < f2MinY || f1MinY > f2MaxY);
                   } else if (!isWallItem && !isOtherWallItem) {
                     // Both are floor items: check if their height ranges overlap
@@ -1613,7 +1606,7 @@ function SceneContent({
                     const f1MaxY = selectedFurniture.dimensions.height; // Floor items extend to their height
                     const f2MinY = 0; // Other floor item starts at ground
                     const f2MaxY = other.dimensions.height; // Other floor item extends to its height
-                    
+
                     overlapY = !(f1MaxY < f2MinY || f1MinY > f2MaxY);
                   } else if (isSurfaceItem || isOtherSurfaceItem) {
                     // Surface items: check based on their actual Y position
@@ -1621,10 +1614,10 @@ function SceneContent({
                     const f1MaxY = obj.position.y + selectedFurniture.dimensions.height / 2;
                     const f2MinY = other.position.y - other.dimensions.height / 2;
                     const f2MaxY = other.position.y + other.dimensions.height / 2;
-                    
+
                     overlapY = !(f1MaxY < f2MinY || f1MinY > f2MaxY);
                   }
-                  
+
                   // Collision occurs if XZ overlap AND Y overlap
                   if (overlapX > penetrationThreshold && overlapZ > penetrationThreshold && overlapY) {
                     hasCollision = true;
@@ -1640,7 +1633,7 @@ function SceneContent({
                     break;
                   }
                 }
-                
+
                 if (hasCollision) {
                   // Revert to previous valid position only for furniture collision
                   if (previousPositionRef.current) {
@@ -1650,10 +1643,10 @@ function SceneContent({
                   }
                   return;
                 }
-                
+
                 // Update previous position to current valid position
                 previousPositionRef.current = snappedPos;
-                
+
                 // Update previous rotation if rotation changed in translate mode
                 if (rotationChanged) {
                   previousRotationRef.current = currentRotationDeg;
@@ -1663,7 +1656,7 @@ function SceneContent({
                   });
                 }
               }
-              
+
               // ALWAYS apply boundary correction before saving (for all modes)
               // This ensures furniture never goes outside the room
               const rotatedDims = getRotatedDimensions(selectedFurniture.dimensions, obj.rotation.y);
@@ -1737,12 +1730,12 @@ function SceneContent({
                 savedY,
                 position: { x: obj.position.x, y: savedY, z: obj.position.z }
               });
-              
+
               updateFurniture(selectedFurniture.id, {
-                position: { 
-                  x: obj.position.x, 
-                  y: savedY, 
-                  z: obj.position.z 
+                position: {
+                  x: obj.position.x,
+                  y: savedY,
+                  z: obj.position.z
                 },
                 rotation: {
                   x: 0, // Always 0 for X rotation
@@ -1751,7 +1744,7 @@ function SceneContent({
                 },
                 scale: { x: obj.scale.x, y: obj.scale.y, z: obj.scale.z },
               });
-              
+
               socketService.emitFurnitureMove(
                 selectedFurniture.id,
                 { x: obj.position.x, y: savedY, z: obj.position.z },
@@ -1765,12 +1758,49 @@ function SceneContent({
           }}
         />
       )}
-
+      {/* Measurement Lines and Points */}
+      {measurePoints.map((point, index) => (
+        <group key={`measure-point-${index}`}>
+          <mesh position={[point.x, point.y + 0.05, point.z]}>
+            <sphereGeometry args={[0.05, 16, 16]} />
+            <meshBasicMaterial color="#ef4444" depthTest={false} />
+          </mesh>
+          {index > 0 && (
+            <>
+              <Line
+                points={[
+                  [measurePoints[index - 1].x, measurePoints[index - 1].y + 0.05, measurePoints[index - 1].z],
+                  [point.x, point.y + 0.05, point.z]
+                ]}
+                color="#ef4444"
+                lineWidth={2}
+                dashed
+                dashScale={2}
+                gapSize={1}
+              />
+              <Html
+                position={[
+                  (measurePoints[index - 1].x + point.x) / 2,
+                  (measurePoints[index - 1].y + point.y) / 2 + 0.2,
+                  (measurePoints[index - 1].z + point.z) / 2
+                ]}
+                center
+              >
+                <div className="bg-black/80 text-white px-2 py-1 rounded text-xs whitespace-nowrap backdrop-blur-sm border border-white/20">
+                  {new THREE.Vector3(point.x, point.y, point.z).distanceTo(
+                    new THREE.Vector3(measurePoints[index - 1].x, measurePoints[index - 1].y, measurePoints[index - 1].z)
+                  ).toFixed(2)}m
+                </div>
+              </Html>
+            </>
+          )}
+        </group>
+      ))}
       <mesh
         rotation={[-Math.PI / 2, 0, 0]}
         position={[0, 0, 0]}
         onClick={handleCanvasClick}
-        visible={false}
+        visible={true}
       >
         <planeGeometry args={[100, 100]} />
         <meshBasicMaterial transparent opacity={0} />
@@ -1779,16 +1809,16 @@ function SceneContent({
   );
 }
 
-export function Scene({ 
-  projectId, 
-  hasPlyFile, 
+export function Scene({
+  projectId,
+  hasPlyFile,
   plyFilePath,
   fileType,
   roomDimensions,
   onRoomDimensionsChange
-}: { 
-  projectId?: number; 
-  hasPlyFile?: boolean; 
+}: {
+  projectId?: number;
+  hasPlyFile?: boolean;
   plyFilePath?: string;
   fileType?: 'ply' | 'glb' | null;
   roomDimensions?: { width: number; height: number; depth: number };
@@ -1803,7 +1833,7 @@ export function Scene({
 
     try {
       const catalogItem: FurnitureCatalogItem = JSON.parse(furnitureData);
-      
+
       // Set initial position based on mount type
       let initialY = 0;
       if (catalogItem.mountType === 'wall') {
@@ -1813,7 +1843,7 @@ export function Scene({
         // Surface items start slightly above ground
         initialY = 0.5;
       }
-      
+
       const newFurniture: FurnitureItem = {
         id: `${catalogItem.id}-${Date.now()}`,
         type: catalogItem.type,
@@ -1863,9 +1893,9 @@ export function Scene({
           outputColorSpace: THREE.SRGBColorSpace
         }}
       >
-        <SceneContent 
-          projectId={projectId} 
-          hasPlyFile={hasPlyFile} 
+        <SceneContent
+          projectId={projectId}
+          hasPlyFile={hasPlyFile}
           plyFilePath={plyFilePath}
           fileType={fileType}
           roomDimensions={roomDimensions}

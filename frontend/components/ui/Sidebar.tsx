@@ -37,11 +37,11 @@ export function Sidebar() {
   }, []);
 
   const { addFurniture, furnitures } = useEditorStore();
-  const { 
-    selectedMaterialId, 
-    applicationMode, 
-    setSelectedMaterial, 
-    setApplicationMode 
+  const {
+    selectedMaterialId,
+    applicationMode,
+    setSelectedMaterial,
+    setApplicationMode
   } = useMaterialStore();
 
   // 배치된 가구들의 총 예상 비용 계산
@@ -132,11 +132,10 @@ export function Sidebar() {
         <div className="flex gap-2 mb-4">
           <button
             onClick={() => setActiveTab('furniture')}
-            className={`flex-1 py-2 px-4 rounded-lg font-medium transition-colors ${
-              activeTab === 'furniture'
-                ? 'bg-blue-500 text-white'
-                : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-            }`}
+            className={`flex-1 py-2 px-4 rounded-lg font-medium transition-colors ${activeTab === 'furniture'
+                ? 'bg-[var(--accent-primary)] text-white'
+                : 'bg-white/5 text-[var(--text-secondary)] hover:bg-white/10'
+              }`}
           >
             🪑 가구
           </button>
@@ -175,11 +174,11 @@ export function Sidebar() {
                   onClick={() => setSelectedCategory(cat)}
                   className={`category-button ${selectedCategory === cat ? 'active' : ''}`}
                 >
-                  {cat === 'all' ? '전체' : 
-                   cat === 'bedroom' ? '침실' :
-                   cat === 'living' ? '거실' :
-                   cat === 'office' ? '사무실' :
-                   cat === 'kitchen' ? '주방' : '장식'}
+                  {cat === 'all' ? '전체' :
+                    cat === 'bedroom' ? '침실' :
+                      cat === 'living' ? '거실' :
+                        cat === 'office' ? '사무실' :
+                          cat === 'kitchen' ? '주방' : '장식'}
                 </button>
               ))}
             </div>
@@ -192,21 +191,19 @@ export function Sidebar() {
             <div className="flex gap-2 mb-4">
               <button
                 onClick={() => setMaterialCategory('floor')}
-                className={`flex-1 py-2 px-4 rounded-lg font-medium transition-colors ${
-                  materialCategory === 'floor'
-                    ? 'bg-green-500 text-white'
-                    : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-                }`}
+                className={`flex-1 py-2 px-4 rounded-lg font-medium transition-colors ${materialCategory === 'floor'
+                    ? 'bg-[var(--success)] text-white'
+                    : 'bg-white/5 text-[var(--text-secondary)] hover:bg-white/10'
+                  }`}
               >
                 바닥
               </button>
               <button
                 onClick={() => setMaterialCategory('wall')}
-                className={`flex-1 py-2 px-4 rounded-lg font-medium transition-colors ${
-                  materialCategory === 'wall'
-                    ? 'bg-green-500 text-white'
-                    : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-                }`}
+                className={`flex-1 py-2 px-4 rounded-lg font-medium transition-colors ${materialCategory === 'wall'
+                    ? 'bg-[var(--success)] text-white'
+                    : 'bg-white/5 text-[var(--text-secondary)] hover:bg-white/10'
+                  }`}
               >
                 벽면
               </button>
@@ -218,36 +215,34 @@ export function Sidebar() {
               <div className="flex gap-2">
                 <button
                   onClick={() => setApplicationMode('full')}
-                  className={`flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-colors ${
-                    applicationMode === 'full'
-                      ? 'bg-purple-500 text-white'
-                      : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-                  }`}
+                  className={`flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-colors ${applicationMode === 'full'
+                      ? 'bg-[var(--accent-primary)] text-white'
+                      : 'bg-white/5 text-[var(--text-secondary)] hover:bg-white/10'
+                    }`}
                 >
                   전체 적용
                 </button>
                 <button
                   onClick={() => setApplicationMode('partial')}
-                  className={`flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-colors ${
-                    applicationMode === 'partial'
-                      ? 'bg-purple-500 text-white'
-                      : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-                  }`}
+                  className={`flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-colors ${applicationMode === 'partial'
+                      ? 'bg-[var(--accent-primary)] text-white'
+                      : 'bg-white/5 text-[var(--text-secondary)] hover:bg-white/10'
+                    }`}
                 >
                   부분 적용
                 </button>
               </div>
               {applicationMode !== 'none' && selectedMaterialId && (
-                <div className="mt-2 p-2 bg-blue-50 rounded-lg border border-blue-200">
-                  <p className="text-xs text-blue-800 font-medium">
-                    {applicationMode === 'full' 
+                <div className="mt-2 p-2 bg-[var(--accent-light)] rounded-lg border border-[var(--accent-primary)]">
+                  <p className="text-xs text-[var(--accent-primary)] font-medium">
+                    {applicationMode === 'full'
                       ? `💡 ${materialCategory === 'floor' ? '바닥' : '벽면'}을 클릭하면 전체에 적용됩니다`
                       : `💡 ${materialCategory === 'floor' ? '바닥' : '벽면'}의 원하는 위치를 클릭하세요`}
                   </p>
                 </div>
               )}
               {applicationMode !== 'none' && !selectedMaterialId && (
-                <p className="text-xs text-orange-600 mt-2">
+                <p className="text-xs text-[var(--warning)] mt-2">
                   ⚠️ 먼저 재질을 선택하세요
                 </p>
               )}
@@ -294,17 +289,16 @@ export function Sidebar() {
             <div
               key={material.id}
               onClick={() => setSelectedMaterial(material.id)}
-              className={`furniture-card cursor-pointer ${
-                selectedMaterialId === material.id ? 'ring-2 ring-blue-500' : ''
-              }`}
+              className={`furniture-card cursor-pointer ${selectedMaterialId === material.id ? 'ring-2 ring-[var(--accent-primary)]' : ''
+                }`}
               style={{
                 background: material.color || '#ccc',
-                border: selectedMaterialId === material.id ? '3px solid #3b82f6' : '1px solid #ddd',
+                border: selectedMaterialId === material.id ? '2px solid var(--accent-primary)' : '1px solid var(--border-color)',
               }}
             >
               <div className="furniture-name text-center" style={{
                 color: material.color && material.color.startsWith('#') &&
-                       parseInt(material.color.slice(1), 16) > 0x888888 ? '#000' : '#fff',
+                  parseInt(material.color.slice(1), 16) > 0x888888 ? '#000' : '#fff',
                 textShadow: '0 1px 2px rgba(0,0,0,0.5)'
               }}>
                 {material.name}

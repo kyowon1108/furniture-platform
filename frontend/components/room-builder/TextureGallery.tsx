@@ -67,7 +67,7 @@ const TextureGallery: React.FC<TextureGalleryProps> = ({
         <label className="text-sm font-semibold">텍스처 라이브러리</label>
         <button
           onClick={() => fileInputRef.current?.click()}
-          className="px-3 py-1 text-xs bg-primary text-primary-foreground rounded"
+          className="px-3 py-1 text-xs bg-violet-600 text-white rounded hover:bg-violet-700"
         >
           이미지 업로드
         </button>
@@ -82,9 +82,9 @@ const TextureGallery: React.FC<TextureGalleryProps> = ({
         className="hidden"
       />
 
-      <div className="grid grid-cols-3 gap-2 max-h-60 overflow-y-auto p-2 bg-muted/50 rounded-md">
+      <div className="grid grid-cols-3 gap-2 max-h-60 overflow-y-auto p-2 bg-zinc-800/50 rounded-md">
         {uploadedImages.length === 0 ? (
-          <div className="col-span-3 text-center py-8 text-xs text-muted-foreground">
+          <div className="col-span-3 text-center py-8 text-xs text-zinc-400">
             텍스처 이미지를 업로드해주세요
           </div>
         ) : (
@@ -93,8 +93,8 @@ const TextureGallery: React.FC<TextureGalleryProps> = ({
               key={image.id}
               className={`relative group cursor-pointer rounded overflow-hidden ${
                 selectedImageId === image.id
-                  ? 'ring-2 ring-primary'
-                  : 'hover:ring-2 hover:ring-primary/50'
+                  ? 'ring-2 ring-violet-500'
+                  : 'hover:ring-2 hover:ring-violet-500/50'
               }`}
               onClick={() => handleImageClick(image.id)}
             >
@@ -113,7 +113,7 @@ const TextureGallery: React.FC<TextureGalleryProps> = ({
                 ×
               </button>
               {selectedImageId === image.id && (
-                <div className="absolute inset-0 bg-primary/20 pointer-events-none" />
+                <div className="absolute inset-0 bg-violet-500/20 pointer-events-none" />
               )}
             </div>
           ))
@@ -121,7 +121,7 @@ const TextureGallery: React.FC<TextureGalleryProps> = ({
       </div>
 
       {selectedImageId && (
-        <div className="text-xs text-muted-foreground">
+        <div className="text-xs text-zinc-400">
           선택됨: {uploadedImages.find(img => img.id === selectedImageId)?.name}
         </div>
       )}
