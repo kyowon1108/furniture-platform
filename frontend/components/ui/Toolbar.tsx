@@ -30,18 +30,35 @@ export function Toolbar() {
     if (!projectId) return;
 
     try {
-      // Toggle share status (enable if not already)
-      // For now, we assume clicking share always enables it or copies link
       const { projectsAPI } = await import('@/lib/api');
-
-      // First get current project status to check if already shared
-      // But for simplicity, we'll just enable it and copy link
       await projectsAPI.toggleShare(projectId, true);
 
       const url = `${window.location.origin}/editor/${projectId}`;
-      await navigator.clipboard.writeText(url);
 
-      addToast('🔗 링크가 복사되었습니다! 친구에게 공유하세요.', 'success');
+      // Try modern clipboard API first, fallback for HTTP
+      let copied = false;
+      if (navigator.clipboard && window.isSecureContext) {
+        await navigator.clipboard.writeText(url);
+        copied = true;
+      } else {
+        // Fallback for non-HTTPS environments
+        const textArea = document.createElement('textarea');
+        textArea.value = url;
+        textArea.style.position = 'fixed';
+        textArea.style.left = '-9999px';
+        document.body.appendChild(textArea);
+        textArea.focus();
+        textArea.select();
+        copied = document.execCommand('copy');
+        document.body.removeChild(textArea);
+      }
+
+      if (copied) {
+        addToast('링크가 복사되었습니다! 친구에게 공유하세요.', 'success');
+      } else {
+        // If copy failed, show URL in toast for manual copy
+        addToast(`공유 링크: ${url}`, 'info');
+      }
     } catch (error) {
       console.error('Failed to share project:', error);
       addToast('공유 링크 생성 실패', 'error');
