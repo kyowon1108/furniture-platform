@@ -16,27 +16,28 @@ interface GlbModelProps {
   };
 }
 
-const GlbGeometry = memo(function GlbGeometry({ url, roomDimensions, onDimensionsDetected }: { 
+const GlbGeometry = memo(function GlbGeometry({ url, roomDimensions, onDimensionsDetected }: {
   url: string;
   roomDimensions?: { width: number; height: number; depth: number };
   onDimensionsDetected?: (dims: { width: number; height: number; depth: number }) => void;
 }) {
   const groupRef = useRef<THREE.Group>(null);
   const [model, setModel] = useState<THREE.Group | null>(null);
+  const [ghostModel, setGhostModel] = useState<THREE.Group | null>(null);
   const [loadError, setLoadError] = useState<unknown>(null);
-  
+
   const { camera } = useThree();
-  
+
   // Use refs to access latest props without triggering re-renders
   const roomDimensionsRef = useRef(roomDimensions);
   const onDimensionsDetectedRef = useRef(onDimensionsDetected);
-  
+
   // Update refs when props change (doesn't trigger re-render)
   useEffect(() => {
     roomDimensionsRef.current = roomDimensions;
     onDimensionsDetectedRef.current = onDimensionsDetected;
   }, [roomDimensions, onDimensionsDetected]);
-  
+
   // Track last opacity value to avoid unnecessary updates
   const lastOpacityRef = useRef<number>(1.0);
 
@@ -77,25 +78,64 @@ const GlbGeometry = memo(function GlbGeometry({ url, roomDimensions, onDimension
     });
   }, [model]);
 
-  // Set materials to be fully opaque for clear visibility
-  // Removed wall transparency feature as it causes foggy appearance
+  // Setup models when loaded
   useEffect(() => {
-    if (materialsListRef.current.length === 0) return;
+    if (!model) return;
 
-    const fixedOpacity = 1.0; // Full opacity for clear visibility
-
-    materialsListRef.current.forEach((mat) => {
-      mat.opacity = fixedOpacity;
-      mat.transparent = false; // Disable transparency for better performance
-      mat.depthWrite = true; // Enable proper depth testing
-      mat.depthTest = true;
+    // 1. Setup Main Model (Inside View - Opaque)
+    model.traverse((child) => {
+      if ((child as THREE.Mesh).isMesh) {
+        const mesh = child as THREE.Mesh;
+        if (mesh.material) {
+          const materials = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
+          materials.forEach((mat) => {
+            mat.transparent = false;
+            mat.opacity = 1.0;
+            mat.side = THREE.FrontSide; // Only render inside faces
+            mat.depthWrite = true;
+            mat.needsUpdate = true;
+          });
+        }
+        mesh.castShadow = true;
+        mesh.receiveShadow = true;
+      }
     });
+
+    // 2. Setup Ghost Model (Outside View - Semi-transparent)
+    const ghost = model.clone(true);
+    ghost.traverse((child) => {
+      if ((child as THREE.Mesh).isMesh) {
+        const mesh = child as THREE.Mesh;
+        // Clone material to avoid affecting the main model
+        if (mesh.material) {
+          if (Array.isArray(mesh.material)) {
+            mesh.material = mesh.material.map(m => m.clone());
+          } else {
+            mesh.material = mesh.material.clone();
+          }
+
+          const materials = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
+          materials.forEach((mat) => {
+            mat.transparent = true;
+            mat.opacity = 0.3; // 30% opacity as requested
+            mat.side = THREE.BackSide; // Render outside faces
+            mat.depthWrite = false; // Prevent z-fighting
+            mat.needsUpdate = true;
+          });
+        }
+        // Ghost shouldn't cast shadows, but can receive them
+        mesh.castShadow = false;
+        mesh.receiveShadow = false;
+      }
+    });
+    setGhostModel(ghost);
+
   }, [model]);
 
   useEffect(() => {
     // Only load once when URL changes
     if (!url) return;
-    
+
     const loadGLB = async () => {
       try {
         const token = localStorage.getItem('token');
@@ -106,17 +146,17 @@ const GlbGeometry = memo(function GlbGeometry({ url, roomDimensions, onDimension
             'Authorization': `Bearer ${token}`,
           },
         });
-        
+
         if (!response.ok) {
           throw new Error(`HTTP error! status: ${response.status}`);
         }
-        
+
         const blob = await response.blob();
         const blobUrl = URL.createObjectURL(blob);
-        
+
         // Load the GLB from blob URL
         const loader = new GLTFLoader();
-        
+
         loader.load(
           blobUrl,
           (gltf) => {
@@ -209,7 +249,7 @@ const GlbGeometry = memo(function GlbGeometry({ url, roomDimensions, onDimension
                 }
               }
             });
-            
+
             setModel(gltf.scene);
           },
           undefined,
@@ -248,7 +288,7 @@ const GlbGeometry = memo(function GlbGeometry({ url, roomDimensions, onDimension
         setLoadError(error.message || 'Failed to fetch GLB file');
       }
     };
-    
+
     loadGLB();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [url]); // Only reload when URL changes
@@ -257,11 +297,11 @@ const GlbGeometry = memo(function GlbGeometry({ url, roomDimensions, onDimension
   // MUST be called before any conditional returns (React Hooks rules)
   const { scale, position } = useMemo(() => {
     if (!model) return { scale: 1, position: [0, 0, 0] as [number, number, number] };
-    
+
     const box = new THREE.Box3().setFromObject(model);
     const size = new THREE.Vector3();
     box.getSize(size);
-    
+
     // GLB files contain real-world scale information
     // We should preserve the original scale (1:1) and not distort it
     const calculatedScale = 1;
@@ -280,13 +320,13 @@ const GlbGeometry = memo(function GlbGeometry({ url, roomDimensions, onDimension
         displayError = String(loadError);
       }
     }
-    
+
     return (
       <Html center>
-        <div style={{ 
-          color: 'red', 
-          background: 'white', 
-          padding: '15px', 
+        <div style={{
+          color: 'red',
+          background: 'white',
+          padding: '15px',
           borderRadius: '5px',
           maxWidth: '500px',
           wordBreak: 'break-word',
@@ -314,11 +354,12 @@ const GlbGeometry = memo(function GlbGeometry({ url, roomDimensions, onDimension
   return (
     <group ref={groupRef} scale={[scale, scale, scale]} position={position}>
       <primitive object={model} />
+      {ghostModel && <primitive object={ghostModel} />}
     </group>
   );
 });
 
-export const GlbModel = memo(function GlbModel({ projectId, glbFilePath, roomDimensions, onRoomDimensionsChange }: GlbModelProps & { 
+export const GlbModel = memo(function GlbModel({ projectId, glbFilePath, roomDimensions, onRoomDimensionsChange }: GlbModelProps & {
   onRoomDimensionsChange?: (dims: { width: number; height: number; depth: number }) => void;
 }) {
   const [glbUrl, setGlbUrl] = useState<string | null>(null);
@@ -338,13 +379,13 @@ export const GlbModel = memo(function GlbModel({ projectId, glbFilePath, roomDim
 
     // Notify parent component about the detected dimensions
     if (onRoomDimensionsChange && roomDimensions &&
-        roomDimensions.width === 0 && roomDimensions.height === 0 && roomDimensions.depth === 0) {
+      roomDimensions.width === 0 && roomDimensions.height === 0 && roomDimensions.depth === 0) {
       onRoomDimensionsChange(dims);
     }
   };
 
   // Use detected dimensions if room dimensions are all 0
-  const effectiveRoomDimensions = roomDimensions && 
+  const effectiveRoomDimensions = roomDimensions &&
     (roomDimensions.width === 0 && roomDimensions.height === 0 && roomDimensions.depth === 0)
     ? detectedDimensions || roomDimensions
     : roomDimensions;
@@ -352,10 +393,10 @@ export const GlbModel = memo(function GlbModel({ projectId, glbFilePath, roomDim
   if (!glbUrl) {
     return (
       <Html center>
-        <div style={{ 
-          color: 'yellow', 
-          background: 'rgba(0,0,0,0.8)', 
-          padding: '15px', 
+        <div style={{
+          color: 'yellow',
+          background: 'rgba(0,0,0,0.8)',
+          padding: '15px',
           borderRadius: '8px',
           textAlign: 'center'
         }}>
@@ -377,8 +418,8 @@ export const GlbModel = memo(function GlbModel({ projectId, glbFilePath, roomDim
       </Html>
     }>
       <group>
-        <GlbGeometry 
-          url={glbUrl} 
+        <GlbGeometry
+          url={glbUrl}
           roomDimensions={effectiveRoomDimensions}
           onDimensionsDetected={handleDimensionsDetected}
         />
