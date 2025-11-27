@@ -1,31 +1,61 @@
-/* Deep Dark & Vibrant Purple Theme for Furniture Platform */
+/* Natural Dark Purple Theme for Furniture Platform */
 
 :root {
-  /* Dark Theme Colors */
-  --bg-primary: #0A0A0A;
-  --bg-secondary: #121214;
-  --bg-tertiary: #1A1A1D;
-  --bg-hover: #252528;
+  /* 
+     Backgrounds: Deep Zinc/Slate tones for a "Studio" feel.
+     Less harsh than pure black, more premium than gray.
+  */
+  --bg-primary: #09090b;
+  /* Zinc-950: Main background */
+  --bg-secondary: #18181b;
+  /* Zinc-900: Cards, Sidebar */
+  --bg-tertiary: #27272a;
+  /* Zinc-800: Inputs, Hover states */
+  --bg-hover: #3f3f46;
+  /* Zinc-700: Interactive hover */
 
-  --text-primary: #F4F4F5;
-  --text-secondary: #A1A1AA;
-  --text-tertiary: #71717A;
+  /* 
+     Text: High legibility but not stark white.
+  */
+  --text-primary: #fafafa;
+  /* Zinc-50 */
+  --text-secondary: #a1a1aa;
+  /* Zinc-400 */
+  --text-tertiary: #71717a;
+  /* Zinc-500 */
 
-  --border-color: #27272A;
-  --border-hover: #3F3F46;
+  /* 
+     Borders: Translucent for better blending.
+  */
+  --border-color: rgba(255, 255, 255, 0.08);
+  --border-hover: rgba(255, 255, 255, 0.15);
 
-  --accent-primary: #8B5CF6;
-  --accent-hover: #7C3AED;
-  --accent-light: rgba(139, 92, 246, 0.15);
+  /* 
+     Accents: Royal Violet/Purple.
+     Rich and deep, not neon.
+  */
+  --accent-primary: #7c3aed;
+  /* Violet-600 */
+  --accent-hover: #6d28d9;
+  /* Violet-700 */
+  --accent-light: rgba(124, 58, 237, 0.15);
+  /* Violet-600 with opacity */
+  --accent-glow: rgba(124, 58, 237, 0.5);
 
+  /* Status Colors */
   --success: #10b981;
+  /* Emerald-500 */
   --warning: #f59e0b;
+  /* Amber-500 */
   --error: #ef4444;
+  /* Red-500 */
 
+  /* Shadows: Smoother, more diffused */
   --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.3);
-  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.4), 0 2px 4px -1px rgba(0, 0, 0, 0.3);
-  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.4), 0 4px 6px -2px rgba(0, 0, 0, 0.3);
-  --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.5), 0 10px 10px -5px rgba(0, 0, 0, 0.4);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.4), 0 2px 4px -1px rgba(0, 0, 0, 0.2);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.4), 0 4px 6px -2px rgba(0, 0, 0, 0.2);
+  --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.5), 0 10px 10px -5px rgba(0, 0, 0, 0.3);
+  --shadow-neon: 0 0 15px rgba(124, 58, 237, 0.3);
 
   --radius-sm: 0.375rem;
   --radius-md: 0.5rem;
@@ -33,6 +63,624 @@
   --radius-xl: 1rem;
 
   --transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Global body style */
+body {
+  background: var(--bg-primary);
+  color: var(--text-primary);
+}
+
+/* Sidebar Styling */
+.sidebar-container {
+  background: var(--bg-secondary);
+  border-right: 1px solid var(--border-color);
+  box-shadow: var(--shadow-lg);
+}
+
+.sidebar-header {
+  background: linear-gradient(135deg, rgba(124, 58, 237, 0.2) 0%, rgba(109, 40, 217, 0.1) 100%);
+  color: white;
+  padding: 1.5rem;
+  border-bottom: 1px solid var(--border-color);
+  backdrop-filter: blur(10px);
+}
+
+.sidebar-title {
+  font-size: 1.5rem;
+  font-weight: 700;
+  margin-bottom: 1rem;
+  letter-spacing: -0.025em;
+  text-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+}
+
+.search-input {
+  background: rgba(0, 0, 0, 0.2);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  padding: 0.75rem 1rem;
+  color: var(--text-primary);
+  transition: var(--transition);
+  font-size: 0.875rem;
+}
+
+.search-input:focus {
+  outline: none;
+  border-color: var(--accent-primary);
+  box-shadow: 0 0 0 2px var(--accent-light);
+  background: rgba(0, 0, 0, 0.4);
+}
+
+.search-input::placeholder {
+  color: var(--text-tertiary);
+}
+
+.category-button {
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--text-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: 0.5rem 1rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  transition: var(--transition);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.category-button:hover {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: var(--border-hover);
+  color: var(--text-primary);
+  transform: translateY(-1px);
+}
+
+.category-button.active {
+  background: var(--accent-primary);
+  color: white;
+  border-color: var(--accent-primary);
+  box-shadow: var(--shadow-neon);
+}
+
+.furniture-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 1rem;
+  padding: 1rem;
+}
+
+.furniture-card {
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  padding: 1rem;
+  cursor: grab;
+  transition: var(--transition);
+  box-shadow: var(--shadow-sm);
+}
+
+.furniture-card:hover {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: var(--accent-primary);
+  box-shadow: var(--shadow-lg);
+  transform: translateY(-2px);
+}
+
+.furniture-card:active {
+  cursor: grabbing;
+  transform: scale(0.98);
+}
+
+.furniture-emoji {
+  font-size: 2.5rem;
+  margin-bottom: 0.5rem;
+  display: block;
+  text-align: center;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.3));
+}
+
+.furniture-name {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  text-align: center;
+  margin-bottom: 0.25rem;
+}
+
+.furniture-price {
+  font-size: 0.75rem;
+  color: var(--text-tertiary);
+  text-align: center;
+}
+
+/* Toolbar Styling */
+.toolbar-container {
+  background: rgba(24, 24, 27, 0.85);
+  /* Zinc-900 with opacity */
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  padding: 0.5rem;
+  box-shadow: var(--shadow-xl);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+.toolbar-button {
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--text-secondary);
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  padding: 0.375rem 0.625rem;
+  transition: var(--transition);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.25rem;
+  font-size: 0.875rem;
+  white-space: nowrap;
+}
+
+.toolbar-button:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--text-primary);
+  transform: translateY(-1px);
+}
+
+.toolbar-button.active {
+  background: var(--accent-primary);
+  color: white;
+  border-color: var(--accent-primary);
+  box-shadow: var(--shadow-neon);
+}
+
+.toolbar-divider {
+  width: 1px;
+  height: 1.5rem;
+  background: var(--border-color);
+  margin: 0 0.25rem;
+}
+
+/* Connection Status */
+.connection-status {
+  background: rgba(24, 24, 27, 0.85);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: 0.5rem 0.75rem;
+  box-shadow: var(--shadow-md);
+  backdrop-filter: blur(12px);
+  font-size: 0.875rem;
+  color: var(--text-primary);
+}
+
+.connection-dot {
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 50%;
+  transition: var(--transition);
+}
+
+.connection-dot.connected {
+  background: var(--success);
+  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.15);
+}
+
+.connection-dot.disconnected {
+  background: var(--error);
+  box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.15);
+}
+
+/* Lighting Panel */
+.lighting-panel {
+  background: rgba(24, 24, 27, 0.85);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  padding: 1rem;
+  box-shadow: var(--shadow-xl);
+  backdrop-filter: blur(12px);
+}
+
+.lighting-title {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 0.75rem;
+}
+
+.lighting-button {
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--text-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  padding: 0.5rem 0.75rem;
+  transition: var(--transition);
+  cursor: pointer;
+  text-align: left;
+  width: 100%;
+  font-size: 0.875rem;
+}
+
+.lighting-button:hover {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: var(--border-hover);
+  color: var(--text-primary);
+  transform: translateX(2px);
+}
+
+.lighting-button.active {
+  background: var(--accent-primary);
+  color: white;
+  border-color: var(--accent-primary);
+  box-shadow: var(--shadow-neon);
+}
+
+/* Toast Notifications */
+.toast {
+  background: rgba(24, 24, 27, 0.95);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  padding: 1rem 1.25rem;
+  box-shadow: var(--shadow-xl);
+  backdrop-filter: blur(12px);
+  color: var(--text-primary);
+  animation: slideIn 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.toast.success {
+  border-left: 4px solid var(--success);
+}
+
+.toast.error {
+  border-left: 4px solid var(--error);
+}
+
+.toast.warning {
+  border-left: 4px solid var(--warning);
+}
+
+@keyframes slideIn {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+/* Measure Panel */
+.measure-panel {
+  background: rgba(24, 24, 27, 0.85);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  padding: 1rem;
+  box-shadow: var(--shadow-xl);
+  backdrop-filter: blur(12px);
+}
+
+/* Scrollbar Styling */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: var(--radius-sm);
+  transition: var(--transition);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+/* Smooth transitions for all interactive elements */
+button,
+input,
+select,
+textarea {
+  transition: var(--transition);
+}
+
+/* Focus styles for accessibility */
+*:focus-visible {
+  outline: 2px solid var(--accent-primary);
+  outline-offset: 2px;
+}
+
+/* ============================================
+   FLOATING TOOLBAR STYLES
+   ============================================ */
+
+.floating-toolbar {
+  position: absolute;
+  top: 1rem;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.5rem 0.75rem;
+  background: rgba(24, 24, 27, 0.85);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-lg);
+}
+
+.floating-toolbar-nav {
+  position: absolute;
+  top: 1rem;
+  left: 1rem;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.375rem;
+  background: rgba(24, 24, 27, 0.85);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+}
+
+.floating-toolbar-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 2.25rem;
+  height: 2.25rem;
+  padding: 0 0.625rem;
+  background: transparent;
+  color: var(--text-secondary);
+  border: 1px solid transparent;
+  border-radius: var(--radius-md);
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+
+.floating-toolbar-btn:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--text-primary);
+}
+
+.floating-toolbar-btn.active {
+  background: var(--accent-primary);
+  color: white;
+  border-color: var(--accent-primary);
+  box-shadow: var(--shadow-neon);
+}
+
+.floating-toolbar-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.floating-toolbar-btn:disabled:hover {
+  background: transparent;
+  border-color: transparent;
+}
+
+.floating-toolbar-btn.danger {
+  color: var(--error);
+}
+
+.floating-toolbar-btn.danger:hover {
+  background: rgba(239, 68, 68, 0.15);
+  border-color: rgba(239, 68, 68, 0.3);
+}
+
+.floating-toolbar-btn.danger.active-danger {
+  background: var(--error);
+  color: white;
+  border-color: var(--error);
+}
+
+.floating-toolbar-btn.success {
+  color: var(--success);
+}
+
+.floating-toolbar-btn.success:hover {
+  background: rgba(16, 185, 129, 0.15);
+  border-color: rgba(16, 185, 129, 0.3);
+}
+
+.floating-toolbar-btn.success.active-success {
+  background: var(--success);
+  color: white;
+  border-color: var(--success);
+}
+
+.floating-toolbar-divider {
+  width: 1px;
+  height: 1.5rem;
+  margin: 0 0.375rem;
+  background: var(--border-color);
+}
+
+.floating-toolbar-info {
+  padding: 0 0.5rem;
+  font-size: 0.75rem;
+  color: var(--text-tertiary);
+  white-space: nowrap;
+}
+
+/* ============================================
+   CAMERA CONTROLS STYLES
+   ============================================ */
+
+.camera-controls {
+  position: absolute;
+  bottom: 1.5rem;
+  right: 1.5rem;
+  z-index: 40;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.camera-controls-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  padding: 0.375rem;
+  background: rgba(24, 24, 27, 0.85);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+}
+
+.camera-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  background: transparent;
+  color: var(--text-secondary);
+  border: 1px solid transparent;
+  border-radius: var(--radius-md);
+  font-size: 1rem;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.camera-btn:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--text-primary);
+}
+
+.camera-btn:active {
+  transform: scale(0.95);
+}
+
+.camera-btn.primary {
+  background: var(--accent-primary);
+  color: white;
+  border-color: var(--accent-primary);
+}
+
+.camera-btn.primary:hover {
+  background: var(--accent-hover);
+  border-color: var(--accent-hover);
+}
+
+/* View Cube Container */
+.view-cube-container {
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
+  z-index: 40;
+  width: 80px;
+  height: 80px;
+  background: rgba(24, 24, 27, 0.85);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  overflow: hidden;
+}
+
+/* ============================================
+   ENHANCED SIDEBAR STYLES
+   ============================================ */
+
+.sidebar-enhanced {
+  position: absolute;
+  left: 0;
+  top: 0;
+  height: 100vh;
+  width: 320px;
+  z-index: 30;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-secondary);
+  border-right: 1px solid var(--border-color);
+  box-shadow: var(--shadow-xl);
+}
+
+.sidebar-enhanced::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 1px;
+  height: 100%;
+  background: linear-gradient(to bottom,
+      transparent,
+      rgba(124, 58, 237, 0.3) 20%,
+      rgba(124, 58, 237, 0.3) 80%,
+      transparent);
+  pointer-events: none;
+}
+
+/* Canvas Info Overlay */
+.canvas-info-overlay {
+  position: absolute;
+  top: 1rem;
+  left: 1rem;
+  z-index: 35;
+  padding: 0.5rem 0.75rem;
+  background: rgba(24, 24, 27, 0.85);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  font-size: 0.875rem;
+  color: var(--text-primary);
+  box-shadow: var(--shadow-md);
+}
+
+/* Animations for Landing Page */
+@keyframes float {
+  0% {
+    transform: translateY(0px);
+  }
+
+  50% {
+    transform: translateY(-10px);
+  }
+
+  100% {
+    transform: translateY(0px);
+  }
+}
+
+.animate-float {
+  animation: float 6s ease-in-out infinite;
+}
+
+@keyframes glow {
+  0% {
+    box-shadow: 0 0 5px var(--accent-glow);
+  }
+
+  50% {
+    box-shadow: 0 0 20px var(--accent-glow);
+  }
+
+  100% {
+    box-shadow: 0 0 5px var(--accent-glow);
+  }
+}
+
+.animate-glow {
+  animation: glow 3s ease-in-out infinite;
 }
 
 /* Global body style */
@@ -307,6 +955,7 @@ body {
     transform: translateX(100%);
     opacity: 0;
   }
+
   to {
     transform: translateX(0);
     opacity: 1;
@@ -345,7 +994,10 @@ body {
 }
 
 /* Smooth transitions for all interactive elements */
-button, input, select, textarea {
+button,
+input,
+select,
+textarea {
   transition: var(--transition);
 }
 
@@ -474,12 +1126,10 @@ button, input, select, textarea {
   width: 1px;
   height: 1.5rem;
   margin: 0 0.375rem;
-  background: linear-gradient(
-    to bottom,
-    transparent,
-    rgba(139, 92, 246, 0.3),
-    transparent
-  );
+  background: linear-gradient(to bottom,
+      transparent,
+      rgba(139, 92, 246, 0.3),
+      transparent);
 }
 
 .floating-toolbar-info {
@@ -600,13 +1250,11 @@ button, input, select, textarea {
   right: 0;
   width: 2px;
   height: 100%;
-  background: linear-gradient(
-    to bottom,
-    transparent,
-    rgba(139, 92, 246, 0.3) 20%,
-    rgba(139, 92, 246, 0.3) 80%,
-    transparent
-  );
+  background: linear-gradient(to bottom,
+      transparent,
+      rgba(139, 92, 246, 0.3) 20%,
+      rgba(139, 92, 246, 0.3) 80%,
+      transparent);
   pointer-events: none;
 }
 
