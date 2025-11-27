@@ -11,7 +11,6 @@ import { projectsAPI } from '@/lib/api';
 import { Scene } from '@/components/3d/Scene';
 import { Toolbar } from '@/components/ui/Toolbar';
 import { Sidebar } from '@/components/ui/Sidebar';
-import { ConnectionStatus } from '@/components/ui/ConnectionStatus';
 import { ToastContainer } from '@/components/ui/Toast';
 import { MeasurePanel } from '@/components/ui/MeasurePanel';
 import { LightingPanel } from '@/components/ui/LightingPanel';
@@ -20,6 +19,7 @@ import { useToastStore } from '@/store/toastStore';
 // Initialize logger to capture all console logs
 import '@/lib/logger';
 import { DebugInfo } from '@/components/3d/DebugInfo';
+import { UserListPanel } from '@/components/ui/UserListPanel';
 
 export default function EditorPage() {
   const params = useParams();
@@ -27,7 +27,7 @@ export default function EditorPage() {
   const projectId = parseInt(params.projectId as string);
 
   const { user, isAuthenticated, isLoading, fetchUser } = useAuthStore();
-  const { loadLayout, saveLayout, hasUnsavedChanges, isSidebarCollapsed } = useEditorStore();
+  const { loadLayout, saveLayout, hasUnsavedChanges, isSidebarCollapsed, setProjectOwnerId } = useEditorStore();
   const addToast = useToastStore((state) => state.addToast);
 
   const [isLoadingProject, setIsLoadingProject] = useState(true);
@@ -74,6 +74,7 @@ export default function EditorPage() {
         ply_file_size: project.ply_file_size
       });
       setProjectData(project);
+      setProjectOwnerId(project.owner_id);
 
       // Set initial room dimensions from project data
       setRoomDimensions({
@@ -116,6 +117,55 @@ export default function EditorPage() {
   // Setup WebSocket connection
   const { isConnected } = useSocket(projectId || null, user?.id || null);
 
+  // Listen for locking events
+  useEffect(() => {
+    const { socketService } = require('@/lib/socket');
+    const { addLockedItem, removeLockedItem, setLockedItems, clearSelection, selectedIds } = useEditorStore.getState();
+
+    const handleObjectLocked = (data: { furniture_id: string; locked_by: string }) => {
+      addLockedItem(data.furniture_id, data.locked_by);
+    };
+
+    const handleObjectUnlocked = (data: { furniture_id: string }) => {
+      removeLockedItem(data.furniture_id);
+    };
+
+    const handleLockRejected = (data: { furniture_id: string; locked_by: string }) => {
+      addToast('다른 사용자가 편집 중인 가구입니다 🔒', 'warning');
+      addLockedItem(data.furniture_id, data.locked_by);
+
+      // Force deselect if we selected it locally
+      const currentSelected = useEditorStore.getState().selectedIds;
+      if (currentSelected.includes(data.furniture_id)) {
+        useEditorStore.getState().selectFurniture(data.furniture_id, true); // Toggle off? No, selectFurniture handles toggle.
+        // Better to just clear selection or remove specific ID
+        // But selectFurniture logic is complex.
+        // Let's just use clearSelection for now as single select is common
+        useEditorStore.getState().clearSelection();
+      }
+    };
+
+    const handleCurrentLocks = (data: { locks: Array<{ furniture_id: string; locked_by: string }> }) => {
+      const locksMap: Record<string, string> = {};
+      data.locks.forEach(lock => {
+        locksMap[lock.furniture_id] = lock.locked_by;
+      });
+      setLockedItems(locksMap);
+    };
+
+    socketService.on('object_locked', handleObjectLocked);
+    socketService.on('object_unlocked', handleObjectUnlocked);
+    socketService.on('lock_rejected', handleLockRejected);
+    socketService.on('current_locks', handleCurrentLocks);
+
+    return () => {
+      socketService.off('object_locked', handleObjectLocked);
+      socketService.off('object_unlocked', handleObjectUnlocked);
+      socketService.off('lock_rejected', handleLockRejected);
+      socketService.off('current_locks', handleCurrentLocks);
+    };
+  }, [addToast]);
+
   if (isLoading || isLoadingProject) {
     return (
       <div className="min-h-screen flex items-center justify-center" style={{ background: 'var(--bg-primary)' }}>
@@ -149,7 +199,8 @@ export default function EditorPage() {
         <MeasurePanel />
         <LightingPanel />
         <CameraControls />
-        <ConnectionStatus isConnected={isConnected} />
+        <CameraControls />
+        <UserListPanel />
 
         {/* Debug Info - 주석 처리 (추후 필요시 해제)
         <div className="lighting-panel absolute top-36 left-4 z-50 w-64">

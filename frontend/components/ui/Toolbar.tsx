@@ -18,9 +18,11 @@ export function Toolbar() {
     saveLayout,
     lastSaved,
     projectId,
+    projectOwnerId,
     hasUnsavedChanges
   } = useEditorStore();
 
+  const { user } = useAuthStore();
   const [isSharing, setIsSharing] = useState(false);
   const { addToast } = useToastStore();
 
@@ -99,16 +101,19 @@ export function Toolbar() {
           </>
         )}
 
-        <div className="w-px h-6 bg-white/10 mx-1" />
-
-        {/* Share Button */}
-        <button
-          onClick={handleShare}
-          className="p-2 text-white/70 hover:text-blue-400 hover:bg-white/5 rounded-lg transition-all"
-          title="공유하기"
-        >
-          🔗
-        </button>
+        {/* Share Button - Only visible to owner */}
+        {user?.id === projectOwnerId && (
+          <>
+            <div className="w-px h-6 bg-white/10 mx-1" />
+            <button
+              onClick={handleShare}
+              className="p-2 text-white/70 hover:text-blue-400 hover:bg-white/5 rounded-lg transition-all"
+              title="공유하기"
+            >
+              🔗
+            </button>
+          </>
+        )}
 
         <div className="w-px h-6 bg-white/10 mx-1" />
 

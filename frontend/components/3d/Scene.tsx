@@ -85,6 +85,9 @@ function SceneContent({
   const measureMode = useEditorStore((state) => state.measureMode);
   const measurePoints = useEditorStore((state) => state.measurePoints);
   const addMeasurePoint = useEditorStore((state) => state.addMeasurePoint);
+  const lockedItems = useEditorStore((state) => state.lockedItems);
+  const addLockedItem = useEditorStore((state) => state.addLockedItem);
+  const removeLockedItem = useEditorStore((state) => state.removeLockedItem);
 
 
   const { camera, raycaster, scene, gl } = useThree();
@@ -870,12 +873,23 @@ function SceneContent({
       {/* Transform Controls for selected item */}
       {selectedFurniture && (
         <TransformControls
-          ref={transformControlsRef}
-          object={scene.getObjectByName(selectedFurniture.id) as any}
+          key={`transform-${selectedFurniture.id}`}
+          object={scene.getObjectByName(selectedFurniture.id)}
           mode={transformMode}
-          showY={selectedFurniture.mountType === 'wall'}
-          showX={transformMode !== 'rotate'}
-          showZ={transformMode !== 'rotate'}
+          // @ts-ignore - onDraggingChanged exists in runtime but missing in types
+          onDraggingChanged={(event: any) => {
+            if (orbitControlsRef.current) {
+              orbitControlsRef.current.enabled = !event.value;
+            }
+
+            // When dragging stops (event.value is false), we can consider releasing lock if we wanted to
+            // But for now we keep lock until deselection
+          }}
+          size={0.8}
+          showX={!lockedItems[selectedFurniture.id] && transformMode !== 'rotate'}
+          showY={!lockedItems[selectedFurniture.id] && (selectedFurniture.mountType === 'wall' || transformMode !== 'translate')}
+          showZ={!lockedItems[selectedFurniture.id] && transformMode !== 'rotate'}
+          enabled={!lockedItems[selectedFurniture.id]}
           onMouseDown={() => {
             // Store current position and rotation before dragging starts
             if (selectedFurniture) {
@@ -1798,12 +1812,21 @@ function SceneContent({
       ))}
       <mesh
         rotation={[-Math.PI / 2, 0, 0]}
-        position={[0, 0, 0]}
-        onClick={handleCanvasClick}
-        visible={true}
+        position={[0, -0.01, 0]}
+        visible={false}
+        onClick={(e) => {
+          // Clear selection and release locks
+          if (selectedIds.length > 0) {
+            selectedIds.forEach(id => {
+              socketService.releaseLock(id);
+            });
+            useEditorStore.getState().clearSelection();
+          }
+          handleCanvasClick(e);
+        }}
       >
         <planeGeometry args={[100, 100]} />
-        <meshBasicMaterial transparent opacity={0} />
+        <meshBasicMaterial color="red" />
       </mesh>
     </>
   );

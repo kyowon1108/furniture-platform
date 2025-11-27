@@ -7,15 +7,22 @@ import { socketService } from '@/lib/socket';
 import { useEditorStore } from '@/store/editorStore';
 import { useToastStore } from '@/store/toastStore';
 
+import { useAuthStore } from '@/store/authStore';
+
 export function useSocket(projectId: number | null, userId: number | null) {
   const [isConnected, setIsConnected] = useState(false);
   const { updateFurniture, addFurniture, deleteFurniture } = useEditorStore();
+  const { user } = useAuthStore();
   const addToast = useToastStore((state) => state.addToast);
 
   useEffect(() => {
     if (!projectId || !userId) return;
 
-    const socket = socketService.connect(projectId, userId);
+    const nickname = user?.email?.split('@')[0] || `User ${userId}`;
+    // Generate a consistent color based on user ID
+    const color = '#' + Math.floor(Math.abs(Math.sin(userId) * 16777215)).toString(16).padStart(6, '0');
+
+    const socket = socketService.connect(projectId, userId, nickname, color);
 
     socket.on('connect', () => {
       setIsConnected(true);
@@ -29,7 +36,7 @@ export function useSocket(projectId: number | null, userId: number | null) {
 
     socket.on('user_joined', (data: any) => {
       console.log('User joined:', data);
-      addToast(`User ${data.user_id} joined`, 'info');
+      addToast(`${data.nickname}님이 입장하셨습니다`, 'info');
     });
 
     socket.on('user_left', (data: any) => {
@@ -75,7 +82,7 @@ export function useSocket(projectId: number | null, userId: number | null) {
       socketService.disconnect();
       setIsConnected(false);
     };
-  }, [projectId, userId, updateFurniture, addFurniture, deleteFurniture, addToast]);
+  }, [projectId, userId, user, updateFurniture, addFurniture, deleteFurniture, addToast]);
 
   return { isConnected };
 }

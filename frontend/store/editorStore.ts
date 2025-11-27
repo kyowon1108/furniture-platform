@@ -17,6 +17,7 @@ type TimeOfDay = 'morning' | 'afternoon' | 'evening' | 'night';
 
 interface EditorState {
   projectId: number | null;
+  projectOwnerId: number | null;
   furnitures: FurnitureItem[];
   selectedIds: string[];
   transformMode: TransformMode;
@@ -24,6 +25,12 @@ interface EditorState {
   isSaving: boolean;
   lastSaved: Date | null;
   hasUnsavedChanges: boolean;
+
+  // Locking
+  lockedItems: Record<string, string>; // furnitureId -> userId
+  setLockedItems: (items: Record<string, string>) => void;
+  addLockedItem: (furnitureId: string, userId: string) => void;
+  removeLockedItem: (furnitureId: string) => void;
 
   // Undo/Redo
   historyStack: LayoutState[];
@@ -47,6 +54,7 @@ interface EditorState {
   toggleSidebar: () => void;
 
   setProjectId: (id: number) => void;
+  setProjectOwnerId: (id: number) => void;
   setFurnitures: (furnitures: FurnitureItem[]) => void;
   addFurniture: (furniture: FurnitureItem) => void;
   updateFurniture: (id: string, updates: Partial<FurnitureItem>) => void;
@@ -80,6 +88,7 @@ interface EditorState {
 
 export const useEditorStore = create<EditorState>((set, get) => ({
   projectId: null,
+  projectOwnerId: null,
   furnitures: [],
   selectedIds: [],
   transformMode: 'translate' as TransformMode,
@@ -87,6 +96,18 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   isSaving: false,
   lastSaved: null,
   hasUnsavedChanges: false,
+
+  // Locking
+  lockedItems: {},
+  setLockedItems: (items) => set({ lockedItems: items }),
+  addLockedItem: (furnitureId, userId) =>
+    set((state) => ({ lockedItems: { ...state.lockedItems, [furnitureId]: userId } })),
+  removeLockedItem: (furnitureId) =>
+    set((state) => {
+      const newLockedItems = { ...state.lockedItems };
+      delete newLockedItems[furnitureId];
+      return { lockedItems: newLockedItems };
+    }),
 
   // Undo/Redo
   historyStack: [],
@@ -110,6 +131,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   toggleSidebar: () => set((state) => ({ isSidebarCollapsed: !state.isSidebarCollapsed })),
 
   setProjectId: (id) => set({ projectId: id }),
+  setProjectOwnerId: (id) => set({ projectOwnerId: id }),
 
   setFurnitures: (furnitures) => {
     set({ furnitures, hasUnsavedChanges: false });
@@ -173,6 +195,12 @@ export const useEditorStore = create<EditorState>((set, get) => ({
 
   selectFurniture: (id, multiSelect) =>
     set((state) => {
+      // Check if locked by someone else
+      if (state.lockedItems[id]) {
+        useToastStore.getState().addToast('다른 사용자가 편집 중인 가구입니다 🔒', 'warning');
+        return state;
+      }
+
       if (multiSelect) {
         const isSelected = state.selectedIds.includes(id);
         return {

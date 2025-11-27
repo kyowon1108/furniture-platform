@@ -8,10 +8,10 @@ import type { FurnitureItem, Vector3 } from '@/types/furniture';
 const SOCKET_URL = process.env.NEXT_PUBLIC_SOCKET_URL || 'http://localhost:8008';
 
 class SocketService {
-  private socket: Socket | null = null;
+  public socket: Socket | null = null;
   private projectId: number | null = null;
 
-  connect(projectId: number, userId: number): Socket {
+  connect(projectId: number, userId: number, nickname: string, color: string): Socket {
     this.projectId = projectId;
 
     this.socket = io(SOCKET_URL, {
@@ -26,6 +26,8 @@ class SocketService {
       this.socket?.emit('join_project', {
         project_id: projectId,
         user_id: userId,
+        nickname,
+        color,
       });
     });
 
@@ -80,6 +82,30 @@ class SocketService {
         furniture_state: furnitureState,
         room_dimensions: roomDimensions,
       });
+    }
+  }
+
+  requestLock(furnitureId: string) {
+    if (this.socket && this.projectId) {
+      this.socket.emit('request_lock', {
+        project_id: this.projectId,
+        furniture_id: furnitureId,
+      });
+    }
+  }
+
+  releaseLock(furnitureId: string) {
+    if (this.socket && this.projectId) {
+      this.socket.emit('release_lock', {
+        project_id: this.projectId,
+        furniture_id: furnitureId,
+      });
+    }
+  }
+
+  emit(event: string, data: any) {
+    if (this.socket) {
+      this.socket.emit(event, data);
     }
   }
 
