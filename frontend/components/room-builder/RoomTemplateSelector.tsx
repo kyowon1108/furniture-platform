@@ -23,7 +23,7 @@ const RoomTemplateSelector: React.FC<RoomTemplateSelectorProps> = ({
         <select
           value={currentTemplate}
           onChange={(e) => onTemplateChange(e.target.value as RoomTemplate)}
-          className="w-full px-3 py-2 border border-border rounded-md bg-background text-foreground"
+          className="w-full px-3 py-2 border border-zinc-700 rounded-md bg-zinc-800 text-white"
         >
           <option value="rectangular">{ROOM_TEMPLATES.rectangular.displayName} ({ROOM_TEMPLATES.rectangular.width}m × {ROOM_TEMPLATES.rectangular.depth}m)</option>
           <option value="small_studio">{ROOM_TEMPLATES.small_studio.displayName} ({ROOM_TEMPLATES.small_studio.width}m × {ROOM_TEMPLATES.small_studio.depth}m)</option>
@@ -34,11 +34,11 @@ const RoomTemplateSelector: React.FC<RoomTemplateSelectorProps> = ({
       </div>
 
       {currentTemplate === 'custom' && (
-        <div className="space-y-3 p-4 bg-muted/50 rounded-md">
+        <div className="space-y-3 p-4 bg-zinc-800/50 rounded-md">
           <h4 className="text-sm font-semibold">사용자 정의 크기</h4>
 
           <div>
-            <label className="text-xs text-muted-foreground block mb-1">
+            <label className="text-xs text-zinc-400 block mb-1">
               너비: {customDimensions.width.toFixed(1)}m
             </label>
             <input
@@ -58,7 +58,7 @@ const RoomTemplateSelector: React.FC<RoomTemplateSelectorProps> = ({
           </div>
 
           <div>
-            <label className="text-xs text-muted-foreground block mb-1">
+            <label className="text-xs text-zinc-400 block mb-1">
               깊이: {customDimensions.depth.toFixed(1)}m
             </label>
             <input
@@ -77,14 +77,14 @@ const RoomTemplateSelector: React.FC<RoomTemplateSelectorProps> = ({
             />
           </div>
 
-          <div className="text-xs text-muted-foreground">
+          <div className="text-xs text-zinc-400">
             높이: 2.5m (고정)
           </div>
         </div>
       )}
 
       {currentTemplate !== 'custom' && (
-        <div className="text-xs text-muted-foreground p-3 bg-muted/50 rounded-md">
+        <div className="text-xs text-zinc-400 p-3 bg-zinc-800/50 rounded-md">
           <div>크기: {ROOM_TEMPLATES[currentTemplate].width}m × {ROOM_TEMPLATES[currentTemplate].depth}m</div>
           <div>높이: {ROOM_TEMPLATES[currentTemplate].wallHeight}m</div>
         </div>

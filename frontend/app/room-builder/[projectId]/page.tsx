@@ -389,11 +389,11 @@ export default function RoomBuilderPage() {
     <div className="h-screen w-full overflow-hidden bg-background">
       <div className="flex h-full">
         {/* Left Panel - Controls */}
-        <div className="w-96 bg-surface border-r border-border overflow-y-auto">
+        <div className="w-96 bg-zinc-900 border-r border-zinc-700 overflow-y-auto">
           <div className="p-4">
             <div className="mb-6">
               <h1 className="text-xl font-semibold mb-2">방 구조 디자인</h1>
-              <p className="text-sm text-muted-foreground">
+              <p className="text-sm text-zinc-400">
                 프로젝트: {project?.name}
               </p>
             </div>
@@ -409,8 +409,8 @@ export default function RoomBuilderPage() {
             </div>
 
             {/* AI Generation */}
-            <div className="mb-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
-              <div className="text-sm font-semibold mb-2 text-blue-700">
+            <div className="mb-6 p-4 bg-violet-950/50 rounded-lg border border-violet-500/30">
+              <div className="text-sm font-semibold mb-2 text-violet-300">
                 🤖 AI로 타일 생성
               </div>
               <input
@@ -424,16 +424,16 @@ export default function RoomBuilderPage() {
                   }
                 }}
                 disabled={isGenerating}
-                className="w-full px-3 py-2 mb-2 border rounded"
+                className="w-full px-3 py-2 mb-2 border border-zinc-700 rounded bg-zinc-800 text-white placeholder:text-zinc-400"
               />
               <button
                 onClick={handleGenerateAI}
                 disabled={isGenerating || !aiPrompt.trim()}
-                className="w-full px-3 py-2 bg-blue-600 text-white rounded disabled:opacity-50"
+                className="w-full px-3 py-2 bg-violet-600 text-white rounded disabled:opacity-50 hover:bg-violet-700"
               >
                 {isGenerating ? '⏳ 생성 중... (30초 소요)' : '✨ AI로 생성'}
               </button>
-              <div className="text-xs text-gray-600 mt-2">
+              <div className="text-xs text-muted-foreground mt-2">
                 💡 AWS Bedrock Titan Image Generator 사용
               </div>
             </div>
@@ -451,7 +451,7 @@ export default function RoomBuilderPage() {
             {/* Tile Controls */}
             <div className="mb-4">
               <h3 className="text-sm font-semibold mb-2">타일 선택</h3>
-              <p className="text-xs text-muted-foreground mb-2">
+              <p className="text-xs text-zinc-400 mb-2">
                 선택된 타일: {selectedTiles.length}개
               </p>
               <div className="text-xs text-gray-500 mb-3">
@@ -462,14 +462,14 @@ export default function RoomBuilderPage() {
                 <button
                   onClick={handleApplyTexture}
                   disabled={selectedTiles.length === 0 || !selectedImageId}
-                  className="w-full px-3 py-2 text-sm bg-primary text-primary-foreground rounded disabled:opacity-50"
+                  className="w-full px-3 py-2 text-sm bg-violet-600 text-white rounded disabled:opacity-50 hover:bg-violet-700"
                 >
                   선택한 타일에 텍스처 적용
                 </button>
                 <button
                   onClick={handleRemoveTexture}
                   disabled={selectedTiles.length === 0}
-                  className="w-full px-3 py-2 text-sm bg-destructive text-destructive-foreground rounded disabled:opacity-50"
+                  className="w-full px-3 py-2 text-sm bg-red-600 text-white rounded disabled:opacity-50 hover:bg-red-700"
                 >
                   선택한 타일 텍스처 제거
                 </button>
@@ -484,7 +484,7 @@ export default function RoomBuilderPage() {
             </div>
 
             {/* Complete Button */}
-            <div className="mt-6 pt-6 border-t border-border">
+            <div className="mt-6 pt-6 border-t border-zinc-700">
               <button
                 onClick={handleRoomComplete}
                 disabled={isExporting}

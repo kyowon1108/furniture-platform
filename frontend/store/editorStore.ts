@@ -47,6 +47,7 @@ interface EditorState {
   addFurniture: (furniture: FurnitureItem) => void;
   updateFurniture: (id: string, updates: Partial<FurnitureItem>) => void;
   deleteFurniture: (id: string) => void;
+  deleteSelected: () => void;
   selectFurniture: (id: string, multiSelect: boolean) => void;
   clearSelection: () => void;
   setTransformMode: (mode: TransformMode) => void;
@@ -114,7 +115,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
         console.warn('⚠️ Duplicate furniture ID detected, skipping:', furniture.id);
         return state; // Don't add duplicate
       }
-      
+
       return {
         furnitures: [...state.furnitures, furniture],
         hasUnsavedChanges: true,
@@ -140,6 +141,26 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       hasUnsavedChanges: true,
     }));
     get().saveToHistory();
+  },
+
+  deleteSelected: () => {
+    const state = get();
+    const ids = state.selectedIds;
+
+    if (ids.length === 0) return;
+
+    // Emit socket events for each deleted item
+    ids.forEach(id => {
+      socketService.emitFurnitureDelete(id);
+    });
+
+    set((state) => ({
+      furnitures: state.furnitures.filter((f) => !ids.includes(f.id)),
+      selectedIds: [],
+      hasUnsavedChanges: true,
+    }));
+    get().saveToHistory();
+    useToastStore.getState().addToast(`${ids.length}개의 가구가 삭제되었습니다`, 'info');
   },
 
   selectFurniture: (id, multiSelect) =>
