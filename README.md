@@ -1,70 +1,85 @@
-# 방구석 전문가 (Room Expert)
+# 🏠 방구석 전문가 (Room Expert)
 
-## 🏠 프로젝트 개요
-**방구석 전문가**는 사용자가 직접 3D 공간에서 가구를 배치하고 인테리어를 디자인할 수 있는 웹 플랫폼입니다. 실시간 협업, 정밀한 치수 측정, 그리고 직관적인 UI를 통해 누구나 쉽게 자신만의 공간을 꾸밀 수 있습니다.
+> **"상상을 현실로, 당신만의 공간을 디자인하세요."**
 
-## 🚀 주요 기능
-
-### 1. 3D 에디터 (Editor)
-- **실시간 가구 배치**: 드래그 앤 드롭으로 가구를 자유롭게 배치하고 이동할 수 있습니다.
-- **스마트 벽 숨김 (Smart Wall Hiding)**: 
-  - **Dual-Pass Rendering** 기술을 적용하여, 방 외부에서 볼 때 벽이 시야를 가리지 않도록 자동으로 반투명(30%) 처리됩니다.
-  - 내부는 불투명하게 유지되어 몰입감을 해치지 않습니다.
-- **정밀 조작**: `TransformControls`를 통해 가구를 정밀하게 회전하고 이동할 수 있습니다.
-- **완료 버튼**: 툴바의 체크(✅) 버튼으로 가구 배치를 손쉽게 완료(선택 해제)할 수 있습니다.
-- **조명 시뮬레이션**: 아침, 오후, 저녁, 밤 시간대별 조명 변화를 시뮬레이션할 수 있습니다.
-- **거리 측정**: 가구 간의 거리나 벽과의 거리를 정밀하게 측정할 수 있습니다.
-
-### 2. UI/UX 디자인
-- **반응형 사이드바**: 가구 카탈로그 사이드바를 접고 펼 수 있어 작업 공간을 넓게 활용할 수 있습니다.
-- **다크 퍼플 테마**: 눈이 편안하고 세련된 'Natural Dark Purple' 테마와 Glassmorphism 디자인을 적용했습니다.
-- **직관적인 툴바**: 실행 취소(Undo), 다시 실행(Redo), 저장, 삭제 등의 기능을 툴바에서 바로 접근할 수 있습니다.
-
-### 3. Room Builder
-- **다양한 템플릿**: 원룸, 스튜디오, 복도형 등 다양한 방 구조 템플릿을 제공합니다.
-- **커스텀 크기**: 사용자가 원하는 크기(2m~10m)로 방을 생성할 수 있습니다.
-- **텍스처 커스터마이징**: 벽과 바닥의 재질을 개별적으로 변경할 수 있습니다.
-
-### 4. 실시간 협업
-- **WebSocket 연동**: 여러 사용자가 동시에 접속하여 가구를 배치하고 수정할 수 있습니다.
-- **공유 링크 (Share Link)**: 프로젝트 소유자는 공유 링크를 생성하여 다른 사용자를 초대할 수 있습니다. (소유자 전용 기능)
-- **객체 잠금 (Object Locking)**: 한 사용자가 가구를 선택하면 해당 가구는 잠금 상태가 되어, 다른 사용자가 동시에 수정할 수 없습니다.
-- **사용자 목록 (User Presence)**: 현재 접속 중인 사용자의 목록과 상태(CONNECTED)를 실시간으로 확인할 수 있습니다.
-- **닉네임 지원**: 접속한 사용자의 닉네임(ID)과 고유 색상이 표시되어 누가 작업 중인지 식별할 수 있습니다.
+**방구석 전문가**는 누구나 쉽고 재미있게 자신만의 인테리어를 3D로 구현할 수 있는 웹 플랫폼입니다.  
+복잡한 CAD 툴 없이도, 웹 브라우저에서 클릭 몇 번으로 가구를 배치하고, 벽지를 바꾸고, 조명을 조절하며 꿈꾸던 방을 미리 만들어보세요.
 
 ---
 
-## 🛠 기술 스택
+## ✨ 프로젝트 소개
 
-| 영역 | 기술 |
-|------|------|
-| **Frontend** | Next.js 14, React, TypeScript, Tailwind CSS |
-| **3D Graphics** | Three.js, @react-three/fiber, @react-three/drei |
-| **State Mgmt** | Zustand |
-| **Backend** | FastAPI, Python, SQLite |
-| **Real-time** | Socket.IO |
-| **Deployment** | AWS EC2 (Docker) |
+이 프로젝트는 **"누구나 쉽게 사용할 수 있는 3D 인테리어 툴"**을 목표로 시작되었습니다.  
+기존의 인테리어 프로그램들은 너무 무겁거나 배우기 어려웠습니다. 우리는 **웹 기술(Three.js, R3F)**을 활용하여 설치 없이 바로 실행 가능하고, **직관적인 UI**로 누구나 바로 시작할 수 있는 서비스를 만들었습니다.
+
+특히, **실시간 협업 기능**을 통해 친구나 가족과 함께 방을 꾸미거나, 전문가의 조언을 실시간으로 받을 수 있는 경험을 제공합니다.
 
 ---
 
-## 💻 로컬 실행 방법
+## 🚀 주요 기능 (Key Features)
 
-### Backend 실행
+### 1. 🎨 나만의 방 만들기 (Room Builder)
+- **다양한 템플릿**: 원룸, 투룸, 복도형 등 한국적인 주거 환경을 반영한 템플릿을 제공합니다.
+- **자유로운 커스터마이징**: 방의 크기(가로, 세로)를 0.5m 단위로 정밀하게 조절할 수 있습니다.
+- **마감재 변경**: 벽지와 바닥재를 클릭 한 번으로 변경하여 다양한 분위기를 연출해보세요.
+- **정확한 치수**: 3D 파일 분석 기술(`trimesh`)을 도입하여, 설계한 방의 크기가 정확하게 저장되고 구현됩니다.
+
+### 2. 🛋️ 3D 가구 배치 (Furniture Placement)
+- **드래그 앤 드롭**: 카탈로그에서 가구를 끌어다 놓기만 하면 배치가 끝납니다.
+- **스마트 충돌 방지**: 가구가 벽을 뚫거나 겹치지 않도록 정교한 충돌 감지 로직이 적용되어 있습니다.
+- **정밀 조작**: 회전, 이동 기능을 통해 가구를 원하는 위치에 정확하게 놓을 수 있습니다.
+- **다양한 가구**: 침대, 책상, 의자, 조명 등 수십 종의 고퀄리티 3D 가구 모델을 제공합니다. (AWS S3 연동)
+
+### 3. 🤝 실시간 협업 (Real-time Collaboration)
+- **함께 꾸미기**: 친구를 초대하여 같은 방을 동시에 꾸밀 수 있습니다.
+- **실시간 동기화**: 내가 가구를 옮기면 친구의 화면에서도 즉시 움직입니다. (WebSocket & Socket.IO)
+- **충돌 방지 (Locking)**: 내가 편집 중인 가구는 다른 사람이 건들지 못하도록 잠금 처리되어 혼선을 막습니다.
+- **사용자 커서**: 친구가 어디를 보고 있는지 실시간 커서와 닉네임으로 확인할 수 있습니다.
+
+### 4. 💡 생생한 시각 효과
+- **시간대별 조명**: 아침, 점심, 저녁, 밤의 조명 변화를 시뮬레이션하여 방의 분위기를 미리 확인하세요.
+- **스마트 월 하이딩**: 방 안을 볼 때 앞쪽 벽이 시야를 가리지 않도록 자동으로 투명해집니다.
+
+---
+
+## 🛠️ 기술 스택 (Tech Stack)
+
+이 프로젝트는 최신 웹 기술을 적극적으로 도입하여 개발되었습니다.
+
+| 영역 | 기술 스택 | 설명 |
+|------|-----------|------|
+| **Frontend** | ![Next.js](https://img.shields.io/badge/Next.js-black?style=flat-square&logo=next.js) ![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?style=flat-square&logo=typescript) ![Tailwind](https://img.shields.io/badge/Tailwind-06B6D4?style=flat-square&logo=tailwindcss) | 빠르고 반응성 높은 UI 구현 |
+| **3D Graphics** | ![Three.js](https://img.shields.io/badge/Three.js-black?style=flat-square&logo=three.js) ![R3F](https://img.shields.io/badge/R3F-black?style=flat-square) | 웹 기반 고성능 3D 렌더링 |
+| **Backend** | ![FastAPI](https://img.shields.io/badge/FastAPI-009688?style=flat-square&logo=fastapi) ![Python](https://img.shields.io/badge/Python-3776AB?style=flat-square&logo=python) | 고성능 비동기 API 서버 |
+| **Database** | ![SQLite](https://img.shields.io/badge/SQLite-003B57?style=flat-square&logo=sqlite) ![SQLAlchemy](https://img.shields.io/badge/SQLAlchemy-D71F00?style=flat-square) | 데이터 영속성 관리 |
+| **Storage** | ![AWS S3](https://img.shields.io/badge/AWS_S3-569A31?style=flat-square&logo=amazon-s3) | 3D 모델 및 텍스처 파일 관리 |
+| **Real-time** | ![Socket.IO](https://img.shields.io/badge/Socket.IO-010101?style=flat-square&logo=socket.io) | 실시간 양방향 통신 |
+
+---
+
+## 💻 시작하기 (Getting Started)
+
+로컬 환경에서 프로젝트를 실행하는 방법입니다.
+
+### 1. Backend 실행
 ```bash
 cd backend
 python -m venv venv
 source venv/bin/activate  # Windows: venv\Scripts\activate
 pip install -r requirements.txt
-python -m uvicorn app.main:app --reload --port 8008 --host 0.0.0.0
+
+# 서버 실행 (포트 8008)
+python -m uvicorn app.main:socket_app --reload --port 8008 --host 0.0.0.0
 ```
 
-### Frontend 실행
+### 2. Frontend 실행
 ```bash
 cd frontend
 npm install
+
+# 개발 서버 실행 (포트 3008)
 npm run dev
 ```
-브라우저에서 `http://localhost:3008`로 접속하세요.
 
 ---
 
@@ -72,28 +87,27 @@ npm run dev
 
 ```
 furniture-platform/
-├── backend/                 # FastAPI 백엔드
+├── backend/                 # FastAPI 서버
 │   ├── app/
-│   │   ├── api/            # API 엔드포인트
-│   │   ├── core/           # 핵심 로직 (보안, 설정)
-│   │   ├── models/         # DB 모델
-│   │   └── ...
+│   │   ├── api/            # REST API & WebSocket 엔드포인트
+│   │   ├── core/           # 설정 및 보안 로직
+│   │   ├── models/         # DB 스키마 (SQLAlchemy)
+│   │   └── utils/          # 유틸리티 (GLB 분석 등)
 │   └── ...
 │
-├── frontend/               # Next.js 프론트엔드
-│   ├── app/                # App Router 페이지
-│   ├── components/
-│   │   ├── 3d/             # 3D 관련 컴포넌트 (Scene, GlbModel 등)
-│   │   ├── ui/             # UI 컴포넌트 (Sidebar, Toolbar 등)
-│   │   └── ...
-│   ├── store/              # 상태 관리 (editorStore 등)
-│   └── ...
-└── ...
+└── frontend/               # Next.js 클라이언트
+    ├── app/                # 페이지 라우팅
+    ├── components/
+    │   ├── 3d/             # 3D 씬 및 모델 컴포넌트
+    │   ├── room-builder/   # 방 생성 관련 UI
+    │   └── ui/             # 공통 UI 컴포넌트
+    ├── store/              # 전역 상태 관리 (Zustand)
+    └── lib/                # API 클라이언트 및 유틸리티
 ```
 
-## 🔗 배포 정보
-- **Frontend**: `http://13.125.249.5:3008`
-- **Backend API**: `http://13.125.249.5:8008`
-
 ---
-Last Updated: 2025-11-27
+
+## 📬 문의 및 기여
+
+버그 제보나 기능 제안은 언제나 환영합니다!  
+GitHub Issues를 통해 의견을 남겨주세요.
