@@ -77,13 +77,18 @@ export function Sidebar() {
   };
 
   const handleClick = (catalogItem: FurnitureCatalogItem) => {
-    // Set initial position based on mount type
-    let initialY = catalogItem.dimensions.height / 2;
+    // Set initial position based on mount type and whether GLB exists
+    let initialY = 0;
+
     if (catalogItem.mountType === 'wall') {
       initialY = 1.5; // Eye level for wall-mounted items
     } else if (catalogItem.mountType === 'surface') {
       initialY = 0.5; // Slightly above ground for surface items
+    } else if (!catalogItem.glbUrl) {
+      // Procedural models need to be lifted by half their height
+      initialY = catalogItem.dimensions.height / 2;
     }
+    // GLB models: Y=0 (model is already aligned to ground in GlbFurnitureModel)
 
     const newFurniture: FurnitureItem = {
       id: `${catalogItem.id}-${Date.now()}`,

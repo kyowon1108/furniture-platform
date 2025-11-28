@@ -1857,15 +1857,20 @@ export function Scene({
     try {
       const catalogItem: FurnitureCatalogItem = JSON.parse(furnitureData);
 
-      // Set initial position based on mount type
+      // Set initial position based on mount type and whether GLB exists
       let initialY = 0;
+
       if (catalogItem.mountType === 'wall') {
         // Wall-mounted items start at eye level (1.5m)
         initialY = 1.5;
       } else if (catalogItem.mountType === 'surface') {
         // Surface items start slightly above ground
         initialY = 0.5;
+      } else if (!catalogItem.glbUrl) {
+        // Procedural models need to be lifted by half their height
+        initialY = catalogItem.dimensions.height / 2;
       }
+      // GLB models: Y=0 (model is already aligned to ground in GlbFurnitureModel)
 
       const newFurniture: FurnitureItem = {
         id: `${catalogItem.id}-${Date.now()}`,
@@ -1876,6 +1881,8 @@ export function Scene({
         dimensions: catalogItem.dimensions,
         color: catalogItem.color,
         mountType: catalogItem.mountType,
+        glbUrl: catalogItem.glbUrl,
+        price: catalogItem.price,
       };
 
       console.log('➕ Adding furniture:', {

@@ -19,7 +19,13 @@ export function useKeyboard(onSave?: () => void) {
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Undo/Redo
+      // Ignore shortcuts when typing in input fields
+      const target = e.target as HTMLElement;
+      const isTyping = target.tagName === 'INPUT' ||
+                       target.tagName === 'TEXTAREA' ||
+                       target.isContentEditable;
+
+      // Undo/Redo (allow even when typing)
       if ((e.ctrlKey || e.metaKey) && e.key === 'z' && !e.shiftKey) {
         e.preventDefault();
         undo();
@@ -31,6 +37,16 @@ export function useKeyboard(onSave?: () => void) {
         redo();
         return;
       }
+
+      // Save (allow even when typing)
+      if ((e.ctrlKey || e.metaKey) && (e.key === 's' || e.key === 'S')) {
+        e.preventDefault();
+        onSave?.();
+        return;
+      }
+
+      // Skip other shortcuts when typing in input fields
+      if (isTyping) return;
 
       // Copy/Paste
       if ((e.ctrlKey || e.metaKey) && e.key === 'c') {
@@ -45,19 +61,13 @@ export function useKeyboard(onSave?: () => void) {
         return;
       }
 
-      // Transform mode shortcuts
+      // Transform mode shortcuts (only when not typing)
       if (e.key === 't' || e.key === 'T') {
         setTransformMode('translate' as TransformMode);
       } else if (e.key === 'r' || e.key === 'R') {
         setTransformMode('rotate' as TransformMode);
       } else if (e.key === 's' || e.key === 'S') {
-        if (e.ctrlKey || e.metaKey) {
-          // Ctrl+S or Cmd+S for save
-          e.preventDefault();
-          onSave?.();
-        } else {
-          setTransformMode('scale' as TransformMode);
-        }
+        setTransformMode('scale' as TransformMode);
       }
 
       // Delete selected furniture
