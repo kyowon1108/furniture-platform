@@ -351,6 +351,21 @@ export default function RoomBuilderPage() {
         return;
       }
 
+      // Explicitly update project dimensions in DB first
+      // This ensures the DB has the correct dimensions even if GLB extraction fails
+      try {
+        console.log('방 크기 정보 업데이트 중...', { roomWidth, roomDepth, roomHeight });
+        await projectsAPI.update(projectId, {
+          room_width: roomWidth,
+          room_depth: roomDepth,
+          room_height: roomHeight
+        });
+        console.log('방 크기 정보 업데이트 완료');
+      } catch (updateError) {
+        console.error('Failed to update project dimensions:', updateError);
+        // Continue with GLB upload even if dimension update fails
+      }
+
       const formData = new FormData();
       formData.append('file', glbBlob, `room_${projectId}.glb`);
 

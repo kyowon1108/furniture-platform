@@ -138,66 +138,121 @@ def sync_catalog_from_s3() -> dict:
             result["deleted_items"].append(item_id)
             print(f"🗑️  Removing '{item_id}' (no longer in S3)")
 
+        # Import here to avoid circular imports if any
+        from app.utils.glb_utils import extract_glb_dimensions
+        import tempfile
+        import os
+        from pathlib import Path
+
         for item_id, glb_key in s3_items.items():
-            if item_id in existing_items:
-                # Update glb_key if changed
-                if existing_items[item_id].glb_key != glb_key:
-                    existing_items[item_id].glb_key = glb_key
-                    result["updated"] += 1
-            else:
-                # Create new item
-                name_parts = item_id.replace('_', ' ').title()
+            item = existing_items.get(item_id)
+            
+            # Determine if we need to process this item
+            # Process if:
+            # 1. New item
+            # 2. Existing item with default dimensions (1.0, 1.0, 1.0)
+            # 3. Existing item with changed GLB key
+            
+            needs_processing = False
+            is_new = False
+            
+            if not item:
+                is_new = True
+                needs_processing = True
+            elif item.glb_key != glb_key:
+                item.glb_key = glb_key
+                needs_processing = True
+                result["updated"] += 1
+            elif item.width == 1.0 and item.height == 1.0 and item.depth == 1.0:
+                # Check if it's really 1x1x1 or just default
+                # We'll re-process to be sure
+                needs_processing = True
+                
+            if needs_processing:
+                print(f"📏 Processing dimensions for {item_id}...")
+                
+                # Download to temp file
+                try:
+                    with tempfile.NamedTemporaryFile(suffix='.glb', delete=False) as tmp:
+                        s3.download_fileobj(settings.S3_BUCKET_NAME, glb_key, tmp)
+                        tmp_path = Path(tmp.name)
+                    
+                    # Extract dimensions
+                    dims = extract_glb_dimensions(tmp_path)
+                    
+                    # Clean up
+                    if tmp_path.exists():
+                        os.unlink(tmp_path)
+                        
+                    width = dims.get('width', 1.0)
+                    height = dims.get('height', 1.0)
+                    depth = dims.get('depth', 1.0)
+                    
+                    print(f"   -> Dimensions: {width}x{height}x{depth}")
+                    
+                except Exception as e:
+                    print(f"   -> Failed to extract dimensions: {e}")
+                    width, height, depth = 1.0, 1.0, 1.0
 
-                # Guess category from name
-                category = "decoration"
-                item_type = "decoration"
-                if "bed" in item_id.lower():
-                    category = "bedroom"
-                    item_type = "bed"
-                elif "chair" in item_id.lower() or "lounge" in item_id.lower():
-                    category = "living"
-                    item_type = "chair"
-                elif "table" in item_id.lower() or "desk" in item_id.lower():
-                    category = "office"
-                    item_type = "table"
-                elif "sofa" in item_id.lower():
-                    category = "living"
-                    item_type = "sofa"
-                elif "closet" in item_id.lower() or "dresser" in item_id.lower() or "wardrobe" in item_id.lower():
-                    category = "bedroom"
-                    item_type = "wardrobe"
-                elif "lamp" in item_id.lower():
+                if is_new:
+                    # Create new item
+                    name_parts = item_id.replace('_', ' ').title()
+
+                    # Guess category from name
                     category = "decoration"
-                    item_type = "desk-lamp"
-                elif "tv" in item_id.lower():
-                    category = "living"
-                    item_type = "wall-tv"
-                elif "fridge" in item_id.lower() or "kitchen" in item_id.lower():
-                    category = "kitchen"
-                    item_type = "table"
-                elif "shelf" in item_id.lower():
-                    category = "office"
-                    item_type = "shelf"
+                    item_type = "decoration"
+                    if "bed" in item_id.lower():
+                        category = "bedroom"
+                        item_type = "bed"
+                    elif "chair" in item_id.lower() or "lounge" in item_id.lower():
+                        category = "living"
+                        item_type = "chair"
+                    elif "table" in item_id.lower() or "desk" in item_id.lower():
+                        category = "office"
+                        item_type = "table"
+                    elif "sofa" in item_id.lower():
+                        category = "living"
+                        item_type = "sofa"
+                    elif "closet" in item_id.lower() or "dresser" in item_id.lower() or "wardrobe" in item_id.lower():
+                        category = "bedroom"
+                        item_type = "wardrobe"
+                    elif "lamp" in item_id.lower():
+                        category = "decoration"
+                        item_type = "desk-lamp"
+                    elif "tv" in item_id.lower():
+                        category = "living"
+                        item_type = "wall-tv"
+                    elif "fridge" in item_id.lower() or "kitchen" in item_id.lower():
+                        category = "kitchen"
+                        item_type = "table"
+                    elif "shelf" in item_id.lower():
+                        category = "office"
+                        item_type = "shelf"
 
-                new_item = CatalogItem(
-                    id=item_id,
-                    name=name_parts,
-                    type=item_type,
-                    category=category,
-                    width=1.0,
-                    height=1.0,
-                    depth=1.0,
-                    thumbnail=f"/furniture/{item_id}.png",
-                    color="#8B4513",
-                    price=100000,
-                    tags=[item_type, category],
-                    mount_type="floor",
-                    glb_key=glb_key,
-                )
-                db.add(new_item)
-                result["added"] += 1
-                result["added_items"].append(item_id)
-                print(f"➕ Adding '{item_id}' (new in S3)")
+                    new_item = CatalogItem(
+                        id=item_id,
+                        name=name_parts,
+                        type=item_type,
+                        category=category,
+                        width=width,
+                        height=height,
+                        depth=depth,
+                        thumbnail=f"/furniture/{item_id}.png",
+                        color="#8B4513",
+                        price=100000,
+                        tags=[item_type, category],
+                        mount_type="floor",
+                        glb_key=glb_key,
+                    )
+                    db.add(new_item)
+                    result["added"] += 1
+                    result["added_items"].append(item_id)
+                else:
+                    # Update existing item
+                    item.width = width
+                    item.height = height
+                    item.depth = depth
+                    result["updated"] += 1
 
         db.commit()
         print(f"✅ Catalog sync complete: {result['added']} added, {result['updated']} updated, {result['deleted']} deleted")

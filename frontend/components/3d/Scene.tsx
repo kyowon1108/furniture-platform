@@ -1211,7 +1211,7 @@ function SceneContent({
                 console.log('✅ Position:', obj.position);
                 console.log('✅ Proceeding to save...');
                 console.log('✅ ====================================');
-              } else if (rotationChanged || rotationDiffersFromStored) {
+              } else if (rotationChanged) {
                 // For translate mode, check rotation boundaries if rotation changed
                 // This handles cases where rotation happens in translate mode
                 console.log('🔄 Rotation check (TRANSLATE MODE - rotation changed):', {
