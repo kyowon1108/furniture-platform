@@ -259,6 +259,34 @@ async def sync_catalog():
     }
 
 
+@router.get("/catalog/list-glb")
+async def list_glb_files():
+    """List all GLB files in S3."""
+    try:
+        s3 = get_s3_client()
+
+        response = s3.list_objects_v2(
+            Bucket=settings.S3_BUCKET_NAME,
+            Prefix="catalog/models/"
+        )
+
+        files = []
+        for obj in response.get('Contents', []):
+            if obj['Key'].endswith('.glb'):
+                item_id = obj['Key'].split('/')[-1].replace('.glb', '')
+                files.append({
+                    "item_id": item_id,
+                    "key": obj['Key'],
+                    "size": obj['Size'],
+                    "last_modified": obj['LastModified'].isoformat()
+                })
+
+        return {"files": files, "total": len(files)}
+
+    except ClientError as e:
+        raise HTTPException(status_code=500, detail=f"S3 error: {str(e)}")
+
+
 @router.get("/catalog/{item_id}")
 async def get_catalog_item(item_id: str, db: Session = Depends(get_db)):
     """Get a single catalog item."""
@@ -397,30 +425,3 @@ async def get_glb_url(item_id: str, db: Session = Depends(get_db)):
 
     return {"item_id": item_id, "glb_url": presigned_url}
 
-
-@router.get("/catalog/list-glb")
-async def list_glb_files():
-    """List all GLB files in S3."""
-    try:
-        s3 = get_s3_client()
-
-        response = s3.list_objects_v2(
-            Bucket=settings.S3_BUCKET_NAME,
-            Prefix="catalog/models/"
-        )
-
-        files = []
-        for obj in response.get('Contents', []):
-            if obj['Key'].endswith('.glb'):
-                item_id = obj['Key'].split('/')[-1].replace('.glb', '')
-                files.append({
-                    "item_id": item_id,
-                    "key": obj['Key'],
-                    "size": obj['Size'],
-                    "last_modified": obj['LastModified'].isoformat()
-                })
-
-        return {"files": files, "total": len(files)}
-
-    except ClientError as e:
-        raise HTTPException(status_code=500, detail=f"S3 error: {str(e)}")
