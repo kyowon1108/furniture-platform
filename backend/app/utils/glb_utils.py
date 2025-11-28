@@ -26,7 +26,17 @@ def extract_glb_dimensions(file_path: Path) -> Dict[str, float]:
         Dictionary with width, height, and depth dimensions in meters
     """
     try:
-        # Try using trimesh if available (more robust)
+        # 1. First try to extract explicit dimensions from GLB extras (metadata)
+        # This is preferred because it contains the logical room dimensions set by the frontend
+        try:
+            dimensions = parse_glb_manually(file_path)
+            if dimensions and dimensions.get('width') and dimensions.get('depth'):
+                logger.info(f"Extracted dimensions from GLB metadata: {dimensions}")
+                return dimensions
+        except Exception as e:
+            logger.warning(f"Failed to parse GLB metadata: {e}")
+
+        # 2. If metadata is missing, fall back to calculating bounding box using trimesh
         try:
             import trimesh
             mesh = trimesh.load(str(file_path))
@@ -44,14 +54,17 @@ def extract_glb_dimensions(file_path: Path) -> Dict[str, float]:
                 'depth': round(depth, 2)
             }
         except ImportError:
-            logger.warning("trimesh not installed, falling back to manual parsing")
-            # Fall through to manual parsing
+            logger.warning("trimesh not installed, skipping bounding box calculation")
         except Exception as e:
-            logger.warning(f"trimesh failed to load GLB: {e}, falling back to manual parsing")
-            # Fall through to manual parsing
+            logger.warning(f"trimesh failed to load GLB: {e}")
 
-        # Manual GLB parsing as fallback
-        return parse_glb_manually(file_path)
+        # 3. If all else fails, return defaults (or maybe we should return None?)
+        logger.warning("Could not extract dimensions, using defaults")
+        return {
+            'width': 5.0,
+            'height': 3.0,
+            'depth': 4.0
+        }
 
     except Exception as e:
         logger.error(f"Failed to extract GLB dimensions: {e}")
