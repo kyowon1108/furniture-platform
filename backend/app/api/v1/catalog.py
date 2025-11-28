@@ -79,44 +79,71 @@ def generate_presigned_url(s3_client, glb_key: str) -> Optional[str]:
         return None
 
 
-def sync_catalog_from_s3():
+def sync_catalog_from_s3() -> dict:
     """
     Sync GLB files from S3 to database.
     Called on server startup.
+
+    - Adds new items found in S3 but not in DB
+    - Updates existing items if glb_key changed
+    - Removes items from DB that no longer exist in S3
+
+    Returns:
+        dict with sync results (added, updated, deleted counts and item lists)
     """
     print("🔄 Syncing catalog from S3...")
+
+    result = {
+        "added": 0,
+        "updated": 0,
+        "deleted": 0,
+        "added_items": [],
+        "deleted_items": [],
+        "s3_count": 0,
+        "db_count": 0,
+        "error": None
+    }
 
     try:
         s3 = get_s3_client()
         db = SessionLocal()
 
-        # List all GLB files in S3
-        response = s3.list_objects_v2(
+        # List all GLB files in S3 (handle pagination for large buckets)
+        s3_items = {}
+        paginator = s3.get_paginator('list_objects_v2')
+        page_iterator = paginator.paginate(
             Bucket=settings.S3_BUCKET_NAME,
             Prefix="catalog/models/"
         )
 
-        s3_items = {}
-        for obj in response.get('Contents', []):
-            if obj['Key'].endswith('.glb'):
-                item_id = obj['Key'].split('/')[-1].replace('.glb', '')
-                s3_items[item_id] = obj['Key']
+        for page in page_iterator:
+            for obj in page.get('Contents', []):
+                if obj['Key'].endswith('.glb'):
+                    item_id = obj['Key'].split('/')[-1].replace('.glb', '')
+                    s3_items[item_id] = obj['Key']
 
+        result["s3_count"] = len(s3_items)
         print(f"📦 Found {len(s3_items)} GLB files in S3")
 
         # Get existing items from DB
         existing_items = {item.id: item for item in db.query(CatalogItem).all()}
+        result["db_count"] = len(existing_items)
         print(f"📋 Found {len(existing_items)} items in DB")
 
-        added = 0
-        updated = 0
+        # Find items to delete (in DB but not in S3)
+        items_to_delete = set(existing_items.keys()) - set(s3_items.keys())
+        for item_id in items_to_delete:
+            db.delete(existing_items[item_id])
+            result["deleted"] += 1
+            result["deleted_items"].append(item_id)
+            print(f"🗑️  Removing '{item_id}' (no longer in S3)")
 
         for item_id, glb_key in s3_items.items():
             if item_id in existing_items:
                 # Update glb_key if changed
                 if existing_items[item_id].glb_key != glb_key:
                     existing_items[item_id].glb_key = glb_key
-                    updated += 1
+                    result["updated"] += 1
             else:
                 # Create new item
                 name_parts = item_id.replace('_', ' ').title()
@@ -168,17 +195,23 @@ def sync_catalog_from_s3():
                     glb_key=glb_key,
                 )
                 db.add(new_item)
-                added += 1
+                result["added"] += 1
+                result["added_items"].append(item_id)
+                print(f"➕ Adding '{item_id}' (new in S3)")
 
         db.commit()
-        print(f"✅ Catalog sync complete: {added} added, {updated} updated")
+        print(f"✅ Catalog sync complete: {result['added']} added, {result['updated']} updated, {result['deleted']} deleted")
 
     except ClientError as e:
+        result["error"] = f"S3 error: {str(e)}"
         print(f"❌ S3 error during sync: {e}")
     except Exception as e:
+        result["error"] = f"Error: {str(e)}"
         print(f"❌ Error during catalog sync: {e}")
     finally:
         db.close()
+
+    return result
 
 
 @router.get("/catalog", response_model=CatalogResponse)
@@ -219,8 +252,11 @@ async def get_catalog(db: Session = Depends(get_db)):
 @router.post("/catalog/sync")
 async def sync_catalog():
     """Manually trigger S3 to DB sync."""
-    sync_catalog_from_s3()
-    return {"message": "Catalog synced from S3"}
+    result = sync_catalog_from_s3()
+    return {
+        "message": "Catalog synced from S3",
+        "result": result
+    }
 
 
 @router.get("/catalog/{item_id}")
