@@ -28,7 +28,20 @@ export default function RegisterPage() {
       await login(email, password);
       router.push('/projects');
     } catch (err: any) {
-      setError(err.response?.data?.detail || 'Registration failed');
+      const detail = err.response?.data?.detail;
+      if (typeof detail === 'string') {
+        setError(detail);
+      } else if (Array.isArray(detail)) {
+        // Pydantic validation error
+        const msg = detail[0]?.msg || '입력 정보를 확인해주세요';
+        if (msg.includes('email')) {
+          setError('올바른 이메일 형식을 입력해주세요');
+        } else {
+          setError(msg);
+        }
+      } else {
+        setError('회원가입에 실패했습니다');
+      }
     } finally {
       setIsLoading(false);
     }
