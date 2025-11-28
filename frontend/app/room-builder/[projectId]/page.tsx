@@ -27,6 +27,7 @@ export default function RoomBuilderPage() {
   const [error, setError] = useState<string | null>(null);
 
   // Room builder state
+  const [hasSelectedTemplate, setHasSelectedTemplate] = useState(false);
   const [currentTemplate, setCurrentTemplate] = useState<RoomTemplate>('rectangular');
   const [customDimensions, setCustomDimensions] = useState({ width: 3, depth: 3 });
   const [selectedTiles, setSelectedTiles] = useState<string[]>([]);
@@ -44,6 +45,13 @@ export default function RoomBuilderPage() {
   const lastSelectedTileRef = useRef<string | null>(null);
 
   useEffect(() => {
+    if (isNaN(projectId)) {
+      console.error('Invalid project ID');
+      setError('유효하지 않은 프로젝트 ID입니다.');
+      setLoading(false);
+      return;
+    }
+
     const loadProject = async () => {
       try {
         const token = localStorage.getItem('token');
@@ -60,6 +68,10 @@ export default function RoomBuilderPage() {
 
         const projectData = await projectsAPI.get(projectId);
         setProject(projectData);
+
+        // If project already has a 3D file, we could potentially load it or skip selection.
+        // But per user request, if they are here, they likely want to (re)design.
+        // We just ensure loading finishes.
         setLoading(false);
       } catch (err) {
         console.error('Failed to load project:', err);
@@ -85,7 +97,7 @@ export default function RoomBuilderPage() {
       // Get all floor tiles
       const template = ROOM_TEMPLATES[currentTemplate];
       const dimensions = currentTemplate === 'custom' ? customDimensions :
-                        { width: template.width, depth: template.depth };
+        { width: template.width, depth: template.depth };
       const xCount = Math.floor(dimensions.width / TILE_SIZE);
       const zCount = Math.floor(dimensions.depth / TILE_SIZE);
 
@@ -100,7 +112,7 @@ export default function RoomBuilderPage() {
       const wallIdentifier = parts.slice(1).join('-'); // Get the full wall identifier
       const template = ROOM_TEMPLATES[currentTemplate];
       const dimensions = currentTemplate === 'custom' ? customDimensions :
-                        { width: template.width, depth: template.depth };
+        { width: template.width, depth: template.depth };
       const xCount = Math.floor(dimensions.width / TILE_SIZE);
       const zCount = Math.floor(dimensions.depth / TILE_SIZE);
       const yCount = Math.floor(WALL_HEIGHT / TILE_SIZE);
@@ -385,6 +397,65 @@ export default function RoomBuilderPage() {
     );
   }
 
+  if (!hasSelectedTemplate) {
+    return (
+      <div className="h-screen w-full flex items-center justify-center bg-[#09090b] text-white">
+        <div className="max-w-4xl w-full p-8">
+          <h1 className="text-3xl font-bold text-center mb-2">어떤 공간을 꾸미시겠어요?</h1>
+          <p className="text-zinc-400 text-center mb-12">시작할 방의 기본 구조를 선택해주세요.</p>
+
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-6 mb-12">
+            {(['rectangular', 'small_studio', 'square', 'corridor'] as RoomTemplate[]).map((templateKey) => {
+              const template = ROOM_TEMPLATES[templateKey];
+              return (
+                <button
+                  key={templateKey}
+                  onClick={() => {
+                    setCurrentTemplate(templateKey);
+                    setHasSelectedTemplate(true);
+                  }}
+                  className="group relative aspect-square p-6 rounded-2xl bg-zinc-900 border border-zinc-800 hover:border-violet-500 hover:bg-zinc-800 transition-all flex flex-col items-center justify-center gap-4"
+                >
+                  <div className="w-full aspect-[4/3] rounded-lg bg-zinc-800 group-hover:bg-violet-500/10 overflow-hidden mb-3 relative">
+                    <img
+                      src={`/templates/${templateKey}.png`}
+                      alt={template.displayName}
+                      className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity"
+                    />
+                  </div>
+                  <div className="text-center">
+                    <h3 className="font-semibold mb-1 group-hover:text-violet-400 transition-colors">
+                      {template.displayName}
+                    </h3>
+                    <p className="text-xs text-zinc-500">
+                      {template.width}m × {template.depth}m
+                    </p>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+
+          <div className="flex justify-center">
+            <button
+              onClick={() => {
+                setCurrentTemplate('custom');
+                setHasSelectedTemplate(true);
+              }}
+              className="px-8 py-4 rounded-xl bg-zinc-900 border border-zinc-800 hover:border-zinc-600 hover:bg-zinc-800 transition-all flex items-center gap-3"
+            >
+              <span className="text-xl">✨</span>
+              <div className="text-left">
+                <div className="font-semibold">직접 설정할게요</div>
+                <div className="text-xs text-zinc-500">가로, 세로 길이를 자유롭게 조절</div>
+              </div>
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="h-screen w-full overflow-hidden bg-background">
       <div className="flex h-full">
@@ -393,30 +464,43 @@ export default function RoomBuilderPage() {
           <div className="p-4">
             <div className="mb-6">
               <h1 className="text-xl font-semibold mb-2">방 구조 디자인</h1>
-              <p className="text-sm text-zinc-400">
-                프로젝트: {project?.name}
+              <p className="text-sm text-zinc-400 mb-4">
+                {ROOM_TEMPLATES[currentTemplate].displayName} ({currentTemplate === 'custom' ? customDimensions.width : ROOM_TEMPLATES[currentTemplate].width}m × {currentTemplate === 'custom' ? customDimensions.depth : ROOM_TEMPLATES[currentTemplate].depth}m)
               </p>
+              <button
+                onClick={() => setHasSelectedTemplate(false)}
+                className="text-xs px-3 py-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 rounded-lg flex items-center gap-2 transition-colors w-full justify-center border border-zinc-700"
+              >
+                <span>↩️</span>
+                <span>방 구조 다시 설정할래요</span>
+              </button>
             </div>
 
-            {/* Template Selector */}
-            <div className="mb-6">
-              <RoomTemplateSelector
-                currentTemplate={currentTemplate}
-                onTemplateChange={setCurrentTemplate}
-                customDimensions={customDimensions}
-                onCustomDimensionsChange={setCustomDimensions}
-              />
-            </div>
+            {/* Template Selector Removed from Sidebar */}
 
             {/* AI Generation */}
             <div className="mb-6 p-4 bg-violet-950/50 rounded-lg border border-violet-500/30">
-              <div className="text-sm font-semibold mb-2 text-violet-300">
-                🤖 AI로 타일 생성
+              <div className="flex items-center justify-between mb-2">
+                <div className="text-sm font-semibold text-violet-300">
+                  🤖 AI로 타일 생성
+                </div>
+                <div className="group relative">
+                  <button className="w-5 h-5 rounded-full bg-violet-500/20 text-violet-300 text-xs flex items-center justify-center hover:bg-violet-500/40 transition-colors">
+                    ?
+                  </button>
+                  <div className="absolute right-0 top-6 w-64 p-3 bg-zinc-900 border border-zinc-700 rounded-lg shadow-xl z-50 hidden group-hover:block">
+                    <p className="text-xs text-zinc-300 leading-relaxed">
+                      원하는 재질을 텍스트로 묘사해보세요.<br />
+                      AI가 세상에 하나뿐인 타일을 만들어줍니다.<br />
+                      <span className="text-zinc-500 mt-1 block">(예: 따뜻한 느낌의 원목 마루, 대리석 바닥)</span>
+                    </p>
+                  </div>
+                </div>
               </div>
               <input
                 type="text"
                 value={aiPrompt}
-                placeholder="예: wooden floor, marble texture, brick wall"
+                placeholder="예: wooden floor, marble texture"
                 onChange={(e) => setAiPrompt(e.target.value)}
                 onKeyPress={(e) => {
                   if (e.key === 'Enter' && !isGenerating) {
@@ -433,9 +517,6 @@ export default function RoomBuilderPage() {
               >
                 {isGenerating ? '⏳ 생성 중... (30초 소요)' : '✨ AI로 생성'}
               </button>
-              <div className="text-xs text-muted-foreground mt-2">
-                💡 AWS Bedrock Titan Image Generator 사용
-              </div>
             </div>
 
             {/* Texture Gallery */}
@@ -493,7 +574,7 @@ export default function RoomBuilderPage() {
                 {isExporting ? (
                   <span>저장 중... {uploadProgress}%</span>
                 ) : (
-                  <span>✅ 방 구조 완료</span>
+                  <span>가구 배치하러 가기 👉</span>
                 )}
               </button>
             </div>
@@ -557,8 +638,66 @@ export default function RoomBuilderPage() {
               템플릿: {currentTemplate}
             </div>
           </div>
+
+          {/* Custom Dimensions Controls (Overlay) */}
+          {currentTemplate === 'custom' && (
+            <div className="absolute bottom-6 right-6 bg-black/80 text-white p-4 rounded-xl backdrop-blur-sm border border-white/10 w-64 shadow-2xl">
+              <h4 className="text-sm font-semibold mb-3 flex items-center gap-2">
+                <span>📏</span> 사용자 정의 크기
+              </h4>
+
+              <div className="space-y-4">
+                <div>
+                  <div className="flex justify-between text-xs text-zinc-400 mb-1">
+                    <span>너비 (Width)</span>
+                    <span className="text-violet-400 font-mono">{customDimensions.width.toFixed(1)}m</span>
+                  </div>
+                  <input
+                    type="range"
+                    min="2"
+                    max="10"
+                    step="0.5"
+                    value={customDimensions.width}
+                    onChange={(e) =>
+                      setCustomDimensions({
+                        ...customDimensions,
+                        width: parseFloat(e.target.value),
+                      })
+                    }
+                    className="w-full accent-violet-500 h-1.5 bg-zinc-700 rounded-lg appearance-none cursor-pointer"
+                  />
+                </div>
+
+                <div>
+                  <div className="flex justify-between text-xs text-zinc-400 mb-1">
+                    <span>깊이 (Depth)</span>
+                    <span className="text-violet-400 font-mono">{customDimensions.depth.toFixed(1)}m</span>
+                  </div>
+                  <input
+                    type="range"
+                    min="2"
+                    max="10"
+                    step="0.5"
+                    value={customDimensions.depth}
+                    onChange={(e) =>
+                      setCustomDimensions({
+                        ...customDimensions,
+                        depth: parseFloat(e.target.value),
+                      })
+                    }
+                    className="w-full accent-violet-500 h-1.5 bg-zinc-700 rounded-lg appearance-none cursor-pointer"
+                  />
+                </div>
+
+                <div className="text-xs text-zinc-500 pt-2 border-t border-white/10 flex justify-between">
+                  <span>높이 (Height)</span>
+                  <span>2.5m (고정)</span>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       </div>
-    </div>
+    </div >
   );
 }

@@ -8,6 +8,7 @@ interface RoomTemplateSelectorProps {
   onTemplateChange: (template: RoomTemplate) => void;
   customDimensions: { width: number; depth: number };
   onCustomDimensionsChange: (dimensions: { width: number; depth: number }) => void;
+  hideDropdown?: boolean;
 }
 
 const RoomTemplateSelector: React.FC<RoomTemplateSelectorProps> = ({
@@ -15,23 +16,26 @@ const RoomTemplateSelector: React.FC<RoomTemplateSelectorProps> = ({
   onTemplateChange,
   customDimensions,
   onCustomDimensionsChange,
+  hideDropdown = false,
 }) => {
   return (
     <div className="space-y-4">
-      <div>
-        <label className="text-sm font-semibold block mb-2">방 템플릿</label>
-        <select
-          value={currentTemplate}
-          onChange={(e) => onTemplateChange(e.target.value as RoomTemplate)}
-          className="w-full px-3 py-2 border border-zinc-700 rounded-md bg-zinc-800 text-white"
-        >
-          <option value="rectangular">{ROOM_TEMPLATES.rectangular.displayName} ({ROOM_TEMPLATES.rectangular.width}m × {ROOM_TEMPLATES.rectangular.depth}m)</option>
-          <option value="small_studio">{ROOM_TEMPLATES.small_studio.displayName} ({ROOM_TEMPLATES.small_studio.width}m × {ROOM_TEMPLATES.small_studio.depth}m)</option>
-          <option value="square">{ROOM_TEMPLATES.square.displayName} ({ROOM_TEMPLATES.square.width}m × {ROOM_TEMPLATES.square.depth}m)</option>
-          <option value="corridor">{ROOM_TEMPLATES.corridor.displayName} ({ROOM_TEMPLATES.corridor.width}m × {ROOM_TEMPLATES.corridor.depth}m)</option>
-          <option value="custom">{ROOM_TEMPLATES.custom.displayName}</option>
-        </select>
-      </div>
+      {!hideDropdown && (
+        <div>
+          <label className="text-sm font-semibold block mb-2">방 템플릿</label>
+          <select
+            value={currentTemplate}
+            onChange={(e) => onTemplateChange(e.target.value as RoomTemplate)}
+            className="w-full px-3 py-2 border border-zinc-700 rounded-md bg-zinc-800 text-white"
+          >
+            <option value="rectangular">{ROOM_TEMPLATES.rectangular.displayName} ({ROOM_TEMPLATES.rectangular.width}m × {ROOM_TEMPLATES.rectangular.depth}m)</option>
+            <option value="small_studio">{ROOM_TEMPLATES.small_studio.displayName} ({ROOM_TEMPLATES.small_studio.width}m × {ROOM_TEMPLATES.small_studio.depth}m)</option>
+            <option value="square">{ROOM_TEMPLATES.square.displayName} ({ROOM_TEMPLATES.square.width}m × {ROOM_TEMPLATES.square.depth}m)</option>
+            <option value="corridor">{ROOM_TEMPLATES.corridor.displayName} ({ROOM_TEMPLATES.corridor.width}m × {ROOM_TEMPLATES.corridor.depth}m)</option>
+            <option value="custom">{ROOM_TEMPLATES.custom.displayName}</option>
+          </select>
+        </div>
+      )}
 
       {currentTemplate === 'custom' && (
         <div className="space-y-3 p-4 bg-zinc-800/50 rounded-md">

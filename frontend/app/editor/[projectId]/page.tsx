@@ -76,6 +76,14 @@ export default function EditorPage() {
       setProjectData(project);
       setProjectOwnerId(project.owner_id);
 
+      // Check if 3D file exists
+      if (!(project as any).has_3d_file && !project.has_ply_file) {
+        console.log('No 3D file found, redirecting to room builder');
+        addToast('방 구조가 설정되지 않았습니다. 구조를 먼저 설정해주세요.', 'info');
+        router.push(`/room-builder/${projectId}`);
+        return;
+      }
+
       // Set initial room dimensions from project data
       setRoomDimensions({
         width: project.room_width,
