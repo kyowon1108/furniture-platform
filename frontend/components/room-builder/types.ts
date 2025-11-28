@@ -105,7 +105,7 @@ export const ROOM_TEMPLATES: Record<RoomTemplate, RoomTemplateConfig> = {
   },
   custom: {
     name: 'custom',
-    displayName: '매개변수 조절 원룸',
+    displayName: '직접 설정할게요',
     description: '사용자 정의 크기',
     width: 3,
     depth: 3,

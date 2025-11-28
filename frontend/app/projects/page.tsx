@@ -89,9 +89,9 @@ export default function ProjectsPage() {
         <div className="max-w-7xl mx-auto p-8">
           <div className="flex justify-between items-center mb-10">
             <div>
-              <h1 className="text-3xl font-bold text-white mb-2">내 프로젝트</h1>
+              <h1 className="text-3xl font-bold text-white mb-2">나의 공간 보관함</h1>
               <p className="text-[var(--text-secondary)]">
-                진행 중인 인테리어 디자인 프로젝트를 관리하세요.
+                꿈꾸던 공간을 현실로 만들어보세요.
               </p>
             </div>
             <button
@@ -99,7 +99,7 @@ export default function ProjectsPage() {
               className="px-6 py-3 bg-[var(--accent-primary)] hover:bg-[var(--accent-hover)] text-white rounded-xl font-medium transition-all shadow-[var(--shadow-neon)] hover:-translate-y-1 flex items-center gap-2"
             >
               <span>+</span>
-              <span>새 프로젝트</span>
+              <span>새 공간 만들기</span>
             </button>
           </div>
 
@@ -111,15 +111,15 @@ export default function ProjectsPage() {
           ) : projects.length === 0 ? (
             <div className="text-center py-24 nano-glass rounded-2xl border border-dashed border-white/10">
               <div className="text-6xl mb-6">🎨</div>
-              <h3 className="text-xl font-bold text-white mb-2">아직 프로젝트가 없습니다</h3>
+              <h3 className="text-xl font-bold text-white mb-2">아직 만들어진 공간이 없습니다</h3>
               <p className="text-[var(--text-secondary)] mb-8 max-w-md mx-auto">
-                첫 번째 프로젝트를 생성하고 나만의 공간을 디자인해보세요.
+                첫 번째 공간을 생성하고 나만의 인테리어를 시작해보세요.
               </p>
               <button
                 onClick={() => setShowCreateModal(true)}
                 className="px-8 py-4 bg-white/5 hover:bg-white/10 border border-white/10 hover:border-[var(--accent-primary)] text-white rounded-xl font-medium transition-all"
               >
-                첫 프로젝트 만들기
+                첫 공간 만들기
               </button>
             </div>
           ) : (
@@ -143,26 +143,36 @@ export default function ProjectsPage() {
                     {project.name}
                   </h3>
                   <p className="text-sm text-[var(--text-secondary)] mb-6 line-clamp-2 h-10">
-                    {project.description || '설명 없음'}
+                    {project.description || '나만의 소중한 공간'}
                   </p>
 
                   <div className="flex items-center justify-between pt-4 border-t border-white/5">
                     <div className="text-xs text-[var(--text-tertiary)]">
-                      {project.room_width}m × {project.room_depth}m × {project.room_height}m
+                      가로 {project.room_width}m · 세로 {project.room_depth}m
                     </div>
                     <div className="flex gap-2">
+                      {project.has_3d_file ? (
+                        <button
+                          onClick={() => router.push(`/editor/${project.id}`)}
+                          className="flex-1 px-4 py-2 bg-white/10 hover:bg-white/20 text-white rounded-lg text-sm font-medium transition-all"
+                        >
+                          꾸미러 가기
+                        </button>
+                      ) : (
+                        <button
+                          onClick={() => router.push(`/room-builder/${project.id}`)}
+                          className="flex-1 px-4 py-2 bg-violet-600/80 hover:bg-violet-600 text-white rounded-lg text-sm font-medium transition-all flex items-center justify-center gap-2"
+                        >
+                          <span>🏗️</span>
+                          방 구조 마저 정하기
+                        </button>
+                      )}
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
-                          router.push(`/editor/${project.id}`);
+                          handleDelete(e, project.id);
                         }}
-                        className="px-3 py-1.5 bg-white/5 hover:bg-[var(--accent-primary)] text-white text-xs rounded-lg transition-colors"
-                      >
-                        열기
-                      </button>
-                      <button
-                        onClick={(e) => handleDelete(e, project.id)}
-                        className="px-3 py-1.5 bg-white/5 hover:bg-red-500/80 text-white text-xs rounded-lg transition-colors"
+                        className="px-4 py-2 bg-red-500/10 hover:bg-red-500/20 text-red-400 rounded-lg text-sm font-medium transition-all"
                       >
                         삭제
                       </button>

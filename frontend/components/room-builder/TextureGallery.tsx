@@ -64,7 +64,7 @@ const TextureGallery: React.FC<TextureGalleryProps> = ({
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between">
-        <label className="text-sm font-semibold">텍스처 라이브러리</label>
+        <label className="text-sm font-semibold">나만의 마감재 보관함</label>
         <button
           onClick={() => fileInputRef.current?.click()}
           className="px-3 py-1 text-xs bg-violet-600 text-white rounded hover:bg-violet-700"
@@ -91,11 +91,10 @@ const TextureGallery: React.FC<TextureGalleryProps> = ({
           uploadedImages.map((image) => (
             <div
               key={image.id}
-              className={`relative group cursor-pointer rounded overflow-hidden ${
-                selectedImageId === image.id
+              className={`relative group cursor-pointer rounded overflow-hidden ${selectedImageId === image.id
                   ? 'ring-2 ring-violet-500'
                   : 'hover:ring-2 hover:ring-violet-500/50'
-              }`}
+                }`}
               onClick={() => handleImageClick(image.id)}
             >
               <img
