@@ -26,7 +26,7 @@ export function Navbar() {
               href="/projects"
               className="text-[var(--text-secondary)] hover:text-white transition-colors font-medium"
             >
-              내 프로젝트
+              나의 공간 보관함
             </Link>
           )}
         </div>
@@ -45,6 +45,6 @@ export function Navbar() {
           </div>
         )}
       </div>
-    </nav>
+    </nav >
   );
 }
