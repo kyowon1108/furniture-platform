@@ -484,9 +484,29 @@ export default function RoomBuilderPage() {
         roomDepth = templateConfig.depth;
       }
 
+      // Clone scene and remove grid elements before export
+      const exportScene = scene.clone(true);
+      const objectsToRemove: THREE.Object3D[] = [];
+      exportScene.traverse((child: THREE.Object3D) => {
+        // Remove gridHelper and grid plane (transparent meshes with specific colors)
+        if (child.type === 'GridHelper') {
+          objectsToRemove.push(child);
+        }
+        // Remove invisible click planes
+        if ((child as THREE.Mesh).isMesh) {
+          const mesh = child as THREE.Mesh;
+          const material = mesh.material as THREE.MeshBasicMaterial;
+          if (material && material.opacity !== undefined && material.opacity < 0.5 && material.transparent) {
+            objectsToRemove.push(child);
+          }
+        }
+      });
+      objectsToRemove.forEach(obj => obj.removeFromParent());
+      console.log(`Removed ${objectsToRemove.length} grid/helper objects from export`);
+
       // Optimize textures before export to reduce file size
       console.log('텍스처 최적화 중...');
-      const optimizedScene = await optimizeSceneTextures(scene);
+      const optimizedScene = await optimizeSceneTextures(exportScene);
       setUploadProgress(40);
 
       // Add dimensions metadata to the optimized scene

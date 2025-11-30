@@ -83,6 +83,8 @@ const GlbGeometry = memo(function GlbGeometry({ url, roomDimensions, onDimension
     if (!model) return;
 
     // 1. Setup Main Model (Inside View - Opaque)
+    // Note: Room Builder creates tiles with normals pointing INTO the room
+    // After GLB export, BackSide renders the interior view
     model.traverse((child) => {
       if ((child as THREE.Mesh).isMesh) {
         const mesh = child as THREE.Mesh;
@@ -91,7 +93,7 @@ const GlbGeometry = memo(function GlbGeometry({ url, roomDimensions, onDimension
           materials.forEach((mat) => {
             mat.transparent = false;
             mat.opacity = 1.0;
-            mat.side = THREE.FrontSide; // Only render inside faces
+            mat.side = THREE.BackSide; // Render inside faces (normals point outward after export)
             mat.depthWrite = true;
             mat.needsUpdate = true;
           });
@@ -118,7 +120,7 @@ const GlbGeometry = memo(function GlbGeometry({ url, roomDimensions, onDimension
           materials.forEach((mat) => {
             mat.transparent = true;
             mat.opacity = 0.3; // 30% opacity as requested
-            mat.side = THREE.BackSide; // Render outside faces
+            mat.side = THREE.FrontSide; // Render outside faces (normals point outward)
             mat.depthWrite = false; // Prevent z-fighting
             mat.needsUpdate = true;
           });

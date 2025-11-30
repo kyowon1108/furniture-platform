@@ -1507,7 +1507,8 @@ function SceneContent({
 
                 // Push furniture inside walls if it's outside (instead of reverting)
                 // Use rotated dimensions for boundary checking
-                if (!usePlyBoundaries) {
+                // Only apply if we have valid room dimensions
+                if (hasValidRoomDimensions && !usePlyBoundaries) {
                   const roomHalfWidth = actualRoomDimensions.width / 2;
                   const roomHalfDepth = actualRoomDimensions.depth / 2;
 
