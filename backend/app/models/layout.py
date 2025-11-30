@@ -50,6 +50,11 @@ class Layout(Base):
     is_current = Column(Boolean, default=False, nullable=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
 
+    # Free Build Mode tile state
+    # Stores textures and depth maps applied to tiles
+    # Format: {"textures": {...}, "depthMaps": {...}, "displacementScales": {...}}
+    tile_state = Column(JSONEncodedDict, nullable=True)
+
     # Relationships
     project = relationship("Project", back_populates="layouts")
     history_entries = relationship("History", back_populates="layout", cascade="all, delete-orphan")

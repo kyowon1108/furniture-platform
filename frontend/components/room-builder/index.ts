@@ -10,6 +10,7 @@ export { default as TextureGallery } from './TextureGallery';
 export { default as FreeBuildMode } from './FreeBuildMode';
 export { default as FreeBuildScene } from './FreeBuildScene';
 export { default as BuildToolbar } from './BuildToolbar';
+export { default as DepthMapApplier } from './DepthMapApplier';
 
 // Types
 export * from './types';

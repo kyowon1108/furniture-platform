@@ -33,6 +33,7 @@ const RoomTemplateSelector: React.FC<RoomTemplateSelectorProps> = ({
             <option value="square">{ROOM_TEMPLATES.square.displayName} ({ROOM_TEMPLATES.square.width}m × {ROOM_TEMPLATES.square.depth}m)</option>
             <option value="corridor">{ROOM_TEMPLATES.corridor.displayName} ({ROOM_TEMPLATES.corridor.width}m × {ROOM_TEMPLATES.corridor.depth}m)</option>
             <option value="custom">{ROOM_TEMPLATES.custom.displayName}</option>
+            <option value="free_build">{ROOM_TEMPLATES.free_build.displayName}</option>
           </select>
         </div>
       )}
@@ -87,7 +88,18 @@ const RoomTemplateSelector: React.FC<RoomTemplateSelectorProps> = ({
         </div>
       )}
 
-      {currentTemplate !== 'custom' && (
+      {currentTemplate === 'free_build' && (
+        <div className="p-4 bg-blue-900/30 border border-blue-500/30 rounded-md">
+          <div className="text-sm font-semibold text-blue-300 mb-2">🏗️ 자유 건축 모드</div>
+          <div className="text-xs text-zinc-400 space-y-1">
+            <div>• 그리드 위에 자유롭게 바닥 타일을 배치하세요</div>
+            <div>• 벽은 바닥 경계에 자동으로 생성됩니다</div>
+            <div>• L자형, ㄷ자형 등 다양한 모양의 방을 만들 수 있습니다</div>
+          </div>
+        </div>
+      )}
+
+      {currentTemplate !== 'custom' && currentTemplate !== 'free_build' && (
         <div className="text-xs text-zinc-400 p-3 bg-zinc-800/50 rounded-md">
           <div>크기: {ROOM_TEMPLATES[currentTemplate].width}m × {ROOM_TEMPLATES[currentTemplate].depth}m</div>
           <div>높이: {ROOM_TEMPLATES[currentTemplate].wallHeight}m</div>
