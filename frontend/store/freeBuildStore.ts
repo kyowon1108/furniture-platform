@@ -255,7 +255,7 @@ export const useFreeBuildStore = create<FreeBuildStore>((set, get) => ({
       .map((t) => t.id);
 
     set((state) => ({
-      selectedTileIds: [...new Set([...state.selectedTileIds, ...selectedIds])],
+      selectedTileIds: Array.from(new Set([...state.selectedTileIds, ...selectedIds])),
     }));
   },
 

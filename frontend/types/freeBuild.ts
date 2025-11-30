@@ -61,19 +61,22 @@ export const DEFAULT_FREE_BUILD_CONFIG: FreeBuildConfig = {
 };
 
 // 벽 방향별 회전값 (라디안)
+// PlaneGeometry는 기본적으로 XY 평면 (Z를 바라봄)
+// 벽은 수직으로 서있어야 함
 export const WALL_ROTATIONS: Record<WallDirection, [number, number, number]> = {
-  north: [0, 0, 0],           // Z- 방향
-  south: [0, Math.PI, 0],     // Z+ 방향
-  west: [0, Math.PI / 2, 0],  // X- 방향
-  east: [0, -Math.PI / 2, 0], // X+ 방향
+  north: [0, Math.PI, 0],      // Z- 방향을 바라봄 (바깥쪽)
+  south: [0, 0, 0],            // Z+ 방향을 바라봄 (바깥쪽)
+  west: [0, -Math.PI / 2, 0],  // X- 방향을 바라봄 (바깥쪽)
+  east: [0, Math.PI / 2, 0],   // X+ 방향을 바라봄 (바깥쪽)
 };
 
 // 벽 방향별 위치 오프셋 (타일 크기 기준)
+// 벽은 바닥 타일의 가장자리에 위치해야 함
 export const WALL_POSITION_OFFSETS: Record<WallDirection, { dx: number; dz: number }> = {
-  north: { dx: 0, dz: 0 },
-  south: { dx: 0, dz: 1 },
-  west: { dx: 0, dz: 0 },
-  east: { dx: 1, dz: 0 },
+  north: { dx: 0.5, dz: 0 },    // 바닥 타일의 북쪽 가장자리 (중앙)
+  south: { dx: 0.5, dz: 1 },    // 바닥 타일의 남쪽 가장자리 (중앙)
+  west: { dx: 0, dz: 0.5 },     // 바닥 타일의 서쪽 가장자리 (중앙)
+  east: { dx: 1, dz: 0.5 },     // 바닥 타일의 동쪽 가장자리 (중앙)
 };
 
 // 이웃 타일 확인용 오프셋
@@ -144,14 +147,15 @@ export const calculateTilePosition = (
     ];
   }
 
-  // 벽 타일
+  // 벽 타일 - 바닥 타일 가장자리에 수직으로 배치
   const offset = WALL_POSITION_OFFSETS[tile.wallDirection || 'north'];
   const y = (tile.gridY || 0) * tileSize + halfTile;
 
+  // 벽의 위치: 그리드 위치 + 오프셋 (halfTile 제거 - 오프셋에 이미 포함)
   return [
-    tile.gridX * tileSize + offset.dx * tileSize + halfTile,
+    tile.gridX * tileSize + offset.dx * tileSize,
     y,
-    tile.gridZ * tileSize + offset.dz * tileSize + halfTile,
+    tile.gridZ * tileSize + offset.dz * tileSize,
   ];
 };
 

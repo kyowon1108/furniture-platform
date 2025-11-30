@@ -43,6 +43,9 @@ def create_project(
         room_width=project_data.room_width,
         room_height=project_data.room_height,
         room_depth=project_data.room_depth,
+        # Free Build Mode support
+        build_mode=project_data.build_mode or "template",
+        room_structure=project_data.room_structure,
     )
 
     db.add(new_project)
@@ -124,8 +127,9 @@ def get_project(project_id: int, current_user: User = Depends(get_current_user),
         "has_ply_file": project.has_ply_file,
         "ply_file_path": project.ply_file_path,
         "ply_file_size": project.ply_file_size,
-        "created_at": project.created_at,
-        "updated_at": project.updated_at,
+        # Free Build Mode support
+        "build_mode": project.build_mode or "template",
+        "room_structure": project.room_structure,
         "created_at": project.created_at,
         "updated_at": project.updated_at,
         "is_shared": project.is_shared,

@@ -10,6 +10,7 @@ import { projectsAPI } from '@/lib/api';
 import RoomTemplateSelector from '@/components/room-builder/RoomTemplateSelector';
 import TextureGallery from '@/components/room-builder/TextureGallery';
 import RoomScene from '@/components/room-builder/RoomScene';
+import FreeBuildMode from '@/components/room-builder/FreeBuildMode';
 import { RoomTemplate, UploadedImage, ROOM_TEMPLATES } from '@/components/room-builder/types';
 // import { optimizeSceneTextures } from '@/utils/textureOptimizer';
 import { optimizeSceneTextures } from '@/utils/optimizedTextureAtlas';
@@ -451,7 +452,7 @@ export default function RoomBuilderPage() {
             })}
           </div>
 
-          <div className="flex justify-center">
+          <div className="flex justify-center gap-4">
             <button
               onClick={() => {
                 setCurrentTemplate('custom');
@@ -465,9 +466,84 @@ export default function RoomBuilderPage() {
                 <div className="text-xs text-zinc-500">가로, 세로 길이를 자유롭게 조절</div>
               </div>
             </button>
+            <button
+              onClick={() => {
+                setCurrentTemplate('free_build');
+                setHasSelectedTemplate(true);
+              }}
+              className="px-8 py-4 rounded-xl bg-blue-900/50 border border-blue-500/30 hover:border-blue-500 hover:bg-blue-900/70 transition-all flex items-center gap-3"
+            >
+              <span className="text-xl">🏗️</span>
+              <div className="text-left">
+                <div className="font-semibold text-blue-300">자유 건축 모드</div>
+                <div className="text-xs text-zinc-400">L자, ㄷ자 등 자유로운 형태</div>
+              </div>
+            </button>
           </div>
         </div>
       </div>
+    );
+  }
+
+  // Free Build Mode - 별도 컴포넌트로 렌더링
+  if (currentTemplate === 'free_build') {
+    const handleFreeBuildComplete = async (glbBlob: Blob) => {
+      setIsExporting(true);
+      setUploadProgress(50);
+
+      try {
+        const token = localStorage.getItem('token');
+        if (!token) {
+          alert('데모 모드: 방 구조가 저장되었습니다.');
+          router.push(`/editor/${projectId}`);
+          return;
+        }
+
+        const formData = new FormData();
+        formData.append('file', glbBlob, `room_${projectId}.glb`);
+
+        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8008/api/v1';
+
+        // Update project to free_build mode
+        await projectsAPI.update(projectId, {
+          build_mode: 'free_build'
+        });
+
+        setUploadProgress(70);
+
+        const response = await fetch(`${apiUrl}/files-3d/upload-3d/${projectId}`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+          },
+          body: formData,
+        });
+
+        setUploadProgress(90);
+
+        if (!response.ok) {
+          console.error('GLB upload failed');
+          alert('서버 연결 실패. 데모 모드로 계속합니다.');
+        }
+
+        setUploadProgress(100);
+        router.push(`/editor/${projectId}`);
+      } catch (error) {
+        console.error('Failed to save free build room:', error);
+        alert('방 구조 저장에 실패했습니다.');
+      } finally {
+        setIsExporting(false);
+        setUploadProgress(0);
+      }
+    };
+
+    return (
+      <FreeBuildMode
+        projectId={projectId}
+        projectName={project?.name || `Project ${projectId}`}
+        onComplete={handleFreeBuildComplete}
+        onCancel={() => setHasSelectedTemplate(false)}
+      />
     );
   }
 

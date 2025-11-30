@@ -29,6 +29,9 @@ export interface Project {
   has_ply_file?: boolean;
   ply_file_path?: string;
   ply_file_size?: number;
+  // Free Build Mode support
+  build_mode?: 'template' | 'free_build';
+  room_structure?: Record<string, unknown>;
   created_at: string;
   updated_at: string;
   is_shared: boolean;
