@@ -377,9 +377,13 @@ export const GlbModel = memo(function GlbModel({ projectId, glbFilePath, roomDim
   const handleDimensionsDetected = (dims: { width: number; height: number; depth: number }) => {
     setDetectedDimensions(dims);
 
-    // Notify parent component about the detected dimensions
-    if (onRoomDimensionsChange && roomDimensions &&
-      roomDimensions.width === 0 && roomDimensions.height === 0 && roomDimensions.depth === 0) {
+    // Always notify parent about detected dimensions if they're not already set
+    // This ensures the Scene has accurate room boundaries for furniture placement
+    const needsUpdate = !roomDimensions ||
+      (roomDimensions.width === 0 && roomDimensions.height === 0 && roomDimensions.depth === 0);
+
+    if (onRoomDimensionsChange && needsUpdate && dims.width > 0 && dims.depth > 0) {
+      console.log('GlbModel: Updating room dimensions from GLB:', dims);
       onRoomDimensionsChange(dims);
     }
   };

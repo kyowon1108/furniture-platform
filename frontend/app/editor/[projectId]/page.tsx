@@ -85,11 +85,19 @@ export default function EditorPage() {
       }
 
       // Set initial room dimensions from project data
-      setRoomDimensions({
-        width: project.room_width,
-        height: project.room_height,
-        depth: project.room_depth
-      });
+      // Only set if dimensions are valid (non-zero)
+      // If DB has 0 values, wait for GLB dimension detection
+      if (project.room_width > 0 && project.room_depth > 0) {
+        setRoomDimensions({
+          width: project.room_width,
+          height: project.room_height || 2.5, // Default height if not set
+          depth: project.room_depth
+        });
+        console.log('Room dimensions from DB:', { width: project.room_width, height: project.room_height, depth: project.room_depth });
+      } else {
+        console.log('Room dimensions from DB are 0, waiting for GLB dimension detection');
+        // Keep roomDimensions as undefined - GLB will detect and update via onRoomDimensionsChange
+      }
 
       // Load layout using store method
       await loadLayout(projectId);
