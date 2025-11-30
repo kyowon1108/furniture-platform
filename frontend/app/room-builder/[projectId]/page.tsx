@@ -457,9 +457,32 @@ export default function RoomBuilderPage() {
 
       // Get actual room dimensions
       const templateConfig = ROOM_TEMPLATES[currentTemplate];
-      const roomWidth = currentTemplate === 'custom' ? customDimensions.width : templateConfig.width;
-      const roomDepth = currentTemplate === 'custom' ? customDimensions.depth : templateConfig.depth;
+      let roomWidth: number;
+      let roomDepth: number;
       const roomHeight = templateConfig.wallHeight;
+
+      if (currentTemplate === 'custom' && customTiles.length > 0) {
+        // Calculate dimensions from actual floor tile positions
+        const floorTiles = customTiles.filter(t => t.type === 'floor');
+        if (floorTiles.length > 0) {
+          const maxGridX = Math.max(...floorTiles.map(t => t.gridX));
+          const maxGridZ = Math.max(...floorTiles.map(t => t.gridZ));
+          // Add 1 to include the tile itself, multiply by tile size
+          roomWidth = (maxGridX + 1) * TILE_SIZE;
+          roomDepth = (maxGridZ + 1) * TILE_SIZE;
+          console.log('Custom mode: Calculated room size from floor tiles:', { roomWidth, roomDepth, floorCount: floorTiles.length });
+        } else {
+          // Fallback to slider dimensions if no floor tiles
+          roomWidth = customDimensions.width;
+          roomDepth = customDimensions.depth;
+        }
+      } else if (currentTemplate === 'custom') {
+        roomWidth = customDimensions.width;
+        roomDepth = customDimensions.depth;
+      } else {
+        roomWidth = templateConfig.width;
+        roomDepth = templateConfig.depth;
+      }
 
       // Optimize textures before export to reduce file size
       console.log('텍스처 최적화 중...');

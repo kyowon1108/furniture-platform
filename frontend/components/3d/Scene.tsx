@@ -101,22 +101,26 @@ function SceneContent({
   const lastRotationToastTimeRef = useRef<number>(0);
   const ROTATION_TOAST_COOLDOWN = 2000; // 2초 동안 중복 메시지 방지
 
-  // Use provided room dimensions or default values
-  // If PLY file exists and room dimensions are 0, we'll use a large boundary
-  const actualRoomDimensions = roomDimensions || {
-    width: 10,
-    depth: 8,
-    height: 3,
-  };
+  // Use provided room dimensions
+  // IMPORTANT: Don't use default values here - wait for GLB to detect dimensions
+  // If room dimensions are undefined or all 0, we need to wait for GLB detection
+  const hasValidRoomDimensions = roomDimensions &&
+    (roomDimensions.width > 0 || roomDimensions.depth > 0 || roomDimensions.height > 0);
 
-  // Check if we should use PLY-based boundaries (room dimensions are all 0)
-  const usePlyBoundaries = hasPlyFile &&
-    actualRoomDimensions.width === 0 &&
-    actualRoomDimensions.height === 0 &&
-    actualRoomDimensions.depth === 0;
+  const actualRoomDimensions = hasValidRoomDimensions
+    ? roomDimensions
+    : { width: 0, depth: 0, height: 0 };
+
+  // Check if we should use PLY-based boundaries (room dimensions are not available)
+  // This happens when:
+  // 1. roomDimensions is undefined
+  // 2. All room dimensions are 0 (waiting for GLB detection)
+  const usePlyBoundaries = hasPlyFile && !hasValidRoomDimensions;
 
   console.log('Scene boundaries:', {
-    roomDimensions: actualRoomDimensions,
+    roomDimensions,
+    actualRoomDimensions,
+    hasValidRoomDimensions,
     hasPlyFile,
     usePlyBoundaries
   });
@@ -143,9 +147,9 @@ function SceneContent({
       actualRoomDimensions
     });
 
-    // Only check room boundaries if we have valid room dimensions
-    // For PLY files with 0 dimensions, use a very large boundary
-    if (!usePlyBoundaries) {
+    // Check room boundaries based on available dimension information
+    if (hasValidRoomDimensions) {
+      // Use room dimensions for boundary checking
       const roomHalfWidth = actualRoomDimensions.width / 2;
       const roomHalfDepth = actualRoomDimensions.depth / 2;
 
@@ -179,7 +183,7 @@ function SceneContent({
       }
 
       console.log('✓ Boundary check passed');
-    } else {
+    } else if (usePlyBoundaries) {
       // For PLY with 0 dimensions, use a very large boundary (50 units)
       const maxBoundary = 50;
       if (Math.abs(newPos.x) > maxBoundary || Math.abs(newPos.z) > maxBoundary) {
@@ -187,6 +191,15 @@ function SceneContent({
         return false;
       }
       console.log('✓ PLY boundary check passed');
+    } else {
+      // Room dimensions not yet loaded (GLB loading in progress)
+      // Use a generous temporary boundary while waiting for GLB dimension detection
+      const temporaryBoundary = 20; // 20m boundary while waiting
+      if (Math.abs(newPos.x) > temporaryBoundary || Math.abs(newPos.z) > temporaryBoundary) {
+        console.log('❌ Temporary boundary check failed (waiting for GLB):', { newPos, temporaryBoundary });
+        return false;
+      }
+      console.log('✓ Temporary boundary check passed (waiting for GLB dimension detection)');
     }
 
     // Check collision with dummy objects (for template rooms)
