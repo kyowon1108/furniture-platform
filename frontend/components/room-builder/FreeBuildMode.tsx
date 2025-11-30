@@ -10,7 +10,6 @@ import { useFreeBuildStore } from '@/store/freeBuildStore';
 import FreeBuildScene, { FreeBuildSceneRef } from './FreeBuildScene';
 import BuildToolbar from './BuildToolbar';
 import TextureGallery from './TextureGallery';
-import DepthMapApplier from './DepthMapApplier';
 import { UploadedImage } from './types';
 import { useToastStore } from '@/store/toastStore';
 
@@ -338,9 +337,6 @@ const FreeBuildMode: React.FC<FreeBuildModeProps> = ({
             텍스처 제거
           </button>
         </div>
-
-        {/* AI Depth Map */}
-        <DepthMapApplier className="mb-6" />
 
         {/* 완료/취소 버튼 */}
         <div className="space-y-2 pt-4 border-t border-border">

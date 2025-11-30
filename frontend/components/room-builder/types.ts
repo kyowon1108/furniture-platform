@@ -1,7 +1,4 @@
-export type RoomTemplate = 'small_studio' | 'rectangular' | 'square' | 'corridor' | 'custom' | 'free_build';
-
-// 방 생성 모드
-export type RoomBuildMode = 'template' | 'free_build';
+export type RoomTemplate = 'small_studio' | 'rectangular' | 'square' | 'corridor' | 'custom';
 
 export interface RoomDimensions {
   width: number;
@@ -112,17 +109,6 @@ export const ROOM_TEMPLATES: Record<RoomTemplate, RoomTemplateConfig> = {
     description: '사용자 정의 크기',
     width: 3,
     depth: 3,
-    wallHeight: WALL_HEIGHT,
-    tileSize: TILE_SIZE,
-    floorColor: '#d4a574',
-    wallColor: '#F5F5F5',
-  },
-  free_build: {
-    name: 'free_build',
-    displayName: '🏗️ 자유 건축',
-    description: '타일을 직접 배치하여 자유로운 모양의 방을 만들어보세요',
-    width: 10,
-    depth: 10,
     wallHeight: WALL_HEIGHT,
     tileSize: TILE_SIZE,
     floorColor: '#d4a574',

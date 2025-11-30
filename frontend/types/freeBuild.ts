@@ -15,8 +15,6 @@ export interface FreeBuildTile {
   gridY?: number;  // 벽의 경우 높이 인덱스 (0부터 시작)
   wallDirection?: WallDirection;
   textureUrl?: string;
-  depthMapUrl?: string;
-  displacementScale?: number;
 }
 
 export interface FreeBuildConfig {
