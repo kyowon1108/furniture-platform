@@ -1,10 +1,11 @@
 """Project model for room configurations."""
 
-from sqlalchemy import Boolean, Column, DateTime, Float, ForeignKey, Integer, String
+from sqlalchemy import Boolean, Column, DateTime, Float, ForeignKey, Integer, String, TEXT
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 
 from app.database import Base
+from app.models.layout import JSONEncodedDict
 
 
 class Project(Base):
@@ -31,6 +32,12 @@ class Project(Base):
     has_ply_file = Column(Boolean, default=False, nullable=False)
     ply_file_path = Column(String, nullable=True)
     ply_file_size = Column(Integer, nullable=True)  # bytes
+
+    # Free Build Mode support
+    # Stores tile configuration for custom room shapes
+    # Format: {"mode": "free_build", "tiles": [...], "config": {...}}
+    room_structure = Column(JSONEncodedDict, nullable=True)
+    build_mode = Column(String, default="template", nullable=False)  # 'template' or 'free_build'
 
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
