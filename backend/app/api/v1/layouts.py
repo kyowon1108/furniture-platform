@@ -58,7 +58,11 @@ def create_layout(
 
     # Create new layout
     new_layout = Layout(
-        project_id=project_id, version=max_version + 1, furniture_state=layout_data.furniture_state, is_current=True
+        project_id=project_id,
+        version=max_version + 1,
+        furniture_state=layout_data.furniture_state,
+        tile_state=layout_data.tile_state,  # Free Build Mode support
+        is_current=True
     )
 
     db.add(new_layout)
