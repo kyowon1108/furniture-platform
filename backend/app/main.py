@@ -5,7 +5,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api.v1 import auth, catalog, depth_estimation, files, files_3d, layouts, logs, projects, room_builder, websocket
+from app.api.v1 import auth, catalog, files, files_3d, layouts, logs, projects, room_builder, websocket
 from app.api.v1.catalog import sync_catalog_from_s3
 from app.config import settings
 from app.database import engine, Base
@@ -59,7 +59,6 @@ app.include_router(layouts.router, prefix="/api/v1", tags=["layouts"])
 app.include_router(files.router, prefix="/api/v1/files", tags=["files"])  # Legacy PLY support
 app.include_router(files_3d.router, prefix="/api/v1/files-3d", tags=["3d-files"])  # New 3D file support
 app.include_router(room_builder.router, prefix="/api/v1/room-builder", tags=["room-builder"])  # Room builder support
-app.include_router(depth_estimation.router, prefix="/api/v1/depth", tags=["depth-estimation"])  # AI Depth Map support
 app.include_router(logs.router, prefix="/api/v1/logs", tags=["logs"])
 app.include_router(catalog.router, prefix="/api/v1", tags=["catalog"])
 

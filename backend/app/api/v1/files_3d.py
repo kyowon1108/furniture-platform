@@ -216,22 +216,42 @@ async def _process_glb_file(temp_path: Path, final_path: Path, project: Project,
 
         print(f"✅ Valid GLB file: version {version}, length {length} bytes")
 
-        # Extract dimensions from GLB file
+        # Extract dimensions from GLB file (only if project doesn't have valid dimensions already)
+        # Room-builder sets dimensions BEFORE uploading GLB, so we should respect those
         from app.utils.glb_utils import extract_glb_dimensions
-        dimensions = extract_glb_dimensions(temp_path)
 
-        # Update project dimensions if extraction was successful
-        if dimensions and dimensions.get('width') and dimensions.get('height') and dimensions.get('depth'):
-            # Only update if we got valid dimensions (not the defaults)
-            if not (dimensions['width'] == 5.0 and dimensions['height'] == 3.0 and dimensions['depth'] == 4.0):
-                project.room_width = dimensions['width']
-                project.room_height = dimensions['height']
-                project.room_depth = dimensions['depth']
-                print(f"📐 Updated room dimensions from GLB: {dimensions['width']}x{dimensions['height']}x{dimensions['depth']}")
-            else:
-                print(f"⚠️ Got default dimensions, keeping existing: {project.room_width}x{project.room_height}x{project.room_depth}")
+        has_valid_dimensions = (
+            project.room_width is not None and
+            project.room_height is not None and
+            project.room_depth is not None and
+            project.room_width > 0 and
+            project.room_height > 0 and
+            project.room_depth > 0
+        )
+
+        dimensions = None
+        if has_valid_dimensions:
+            # Project already has valid dimensions (set by room-builder), keep them
+            dimensions = {
+                'width': project.room_width,
+                'height': project.room_height,
+                'depth': project.room_depth
+            }
+            print(f"✅ Keeping existing room dimensions: {dimensions['width']}x{dimensions['height']}x{dimensions['depth']}")
         else:
-            print(f"⚠️ Could not extract dimensions from GLB, keeping existing: {project.room_width}x{project.room_height}x{project.room_depth}")
+            # No valid dimensions yet, try to extract from GLB
+            dimensions = extract_glb_dimensions(temp_path)
+            if dimensions and dimensions.get('width') and dimensions.get('height') and dimensions.get('depth'):
+                # Only update if we got valid dimensions (not the defaults)
+                if not (dimensions['width'] == 5.0 and dimensions['height'] == 3.0 and dimensions['depth'] == 4.0):
+                    project.room_width = dimensions['width']
+                    project.room_height = dimensions['height']
+                    project.room_depth = dimensions['depth']
+                    print(f"📐 Updated room dimensions from GLB: {dimensions['width']}x{dimensions['height']}x{dimensions['depth']}")
+                else:
+                    print(f"⚠️ Got default dimensions from GLB, using defaults")
+            else:
+                print(f"⚠️ Could not extract dimensions from GLB")
 
         # Remove old file if exists
         if project.file_path and os.path.exists(project.file_path):

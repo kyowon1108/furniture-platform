@@ -10,7 +10,6 @@ import { projectsAPI } from '@/lib/api';
 import RoomTemplateSelector from '@/components/room-builder/RoomTemplateSelector';
 import TextureGallery from '@/components/room-builder/TextureGallery';
 import RoomScene from '@/components/room-builder/RoomScene';
-import FreeBuildMode from '@/components/room-builder/FreeBuildMode';
 import { RoomTemplate, UploadedImage, ROOM_TEMPLATES } from '@/components/room-builder/types';
 // import { optimizeSceneTextures } from '@/utils/textureOptimizer';
 import { optimizeSceneTextures } from '@/utils/optimizedTextureAtlas';
@@ -452,31 +451,18 @@ export default function RoomBuilderPage() {
             })}
           </div>
 
-          <div className="flex justify-center gap-4">
+          <div className="flex justify-center">
             <button
               onClick={() => {
                 setCurrentTemplate('custom');
                 setHasSelectedTemplate(true);
               }}
-              className="px-8 py-4 rounded-xl bg-zinc-900 border border-zinc-800 hover:border-zinc-600 hover:bg-zinc-800 transition-all flex items-center gap-3"
+              className="px-8 py-4 rounded-xl bg-zinc-900 border border-zinc-800 hover:border-violet-500 hover:bg-zinc-800 transition-all flex items-center gap-3"
             >
               <span className="text-xl">✨</span>
               <div className="text-left">
                 <div className="font-semibold">직접 설정할게요</div>
                 <div className="text-xs text-zinc-500">가로, 세로 길이를 자유롭게 조절</div>
-              </div>
-            </button>
-            <button
-              onClick={() => {
-                setCurrentTemplate('free_build');
-                setHasSelectedTemplate(true);
-              }}
-              className="px-8 py-4 rounded-xl bg-blue-900/50 border border-blue-500/30 hover:border-blue-500 hover:bg-blue-900/70 transition-all flex items-center gap-3"
-            >
-              <span className="text-xl">🏗️</span>
-              <div className="text-left">
-                <div className="font-semibold text-blue-300">자유 건축 모드</div>
-                <div className="text-xs text-zinc-400">L자, ㄷ자 등 자유로운 형태</div>
               </div>
             </button>
           </div>
@@ -485,67 +471,6 @@ export default function RoomBuilderPage() {
     );
   }
 
-  // Free Build Mode - 별도 컴포넌트로 렌더링
-  if (currentTemplate === 'free_build') {
-    const handleFreeBuildComplete = async (glbBlob: Blob) => {
-      setIsExporting(true);
-      setUploadProgress(50);
-
-      try {
-        const token = localStorage.getItem('token');
-        if (!token) {
-          alert('데모 모드: 방 구조가 저장되었습니다.');
-          router.push(`/editor/${projectId}`);
-          return;
-        }
-
-        const formData = new FormData();
-        formData.append('file', glbBlob, `room_${projectId}.glb`);
-
-        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8008/api/v1';
-
-        // Update project to free_build mode
-        await projectsAPI.update(projectId, {
-          build_mode: 'free_build'
-        });
-
-        setUploadProgress(70);
-
-        const response = await fetch(`${apiUrl}/files-3d/upload-3d/${projectId}`, {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${token}`,
-          },
-          body: formData,
-        });
-
-        setUploadProgress(90);
-
-        if (!response.ok) {
-          console.error('GLB upload failed');
-          alert('서버 연결 실패. 데모 모드로 계속합니다.');
-        }
-
-        setUploadProgress(100);
-        router.push(`/editor/${projectId}`);
-      } catch (error) {
-        console.error('Failed to save free build room:', error);
-        alert('방 구조 저장에 실패했습니다.');
-      } finally {
-        setIsExporting(false);
-        setUploadProgress(0);
-      }
-    };
-
-    return (
-      <FreeBuildMode
-        projectId={projectId}
-        projectName={project?.name || `Project ${projectId}`}
-        onComplete={handleFreeBuildComplete}
-        onCancel={() => setHasSelectedTemplate(false)}
-      />
-    );
-  }
 
   return (
     <div className="h-screen w-full overflow-hidden bg-background">
@@ -732,7 +657,7 @@ export default function RoomBuilderPage() {
 
           {/* Custom Dimensions Controls (Overlay) */}
           {currentTemplate === 'custom' && (
-            <div className="absolute bottom-6 right-6 bg-black/80 text-white p-4 rounded-xl backdrop-blur-sm border border-white/10 w-64 shadow-2xl">
+            <div className="absolute bottom-6 right-6 bg-black/80 text-white p-4 rounded-xl backdrop-blur-sm border border-white/10 w-72 shadow-2xl">
               <h4 className="text-sm font-semibold mb-3 flex items-center gap-2">
                 <span>📏</span> 사용자 정의 크기
               </h4>
@@ -783,6 +708,21 @@ export default function RoomBuilderPage() {
                 <div className="text-xs text-zinc-500 pt-2 border-t border-white/10 flex justify-between">
                   <span>높이 (Height)</span>
                   <span>2.5m (고정)</span>
+                </div>
+
+                {/* 단축키 안내 */}
+                <div className="pt-3 mt-1 border-t border-white/10">
+                  <h5 className="text-xs font-semibold text-zinc-400 mb-2">⌨️ 단축키</h5>
+                  <div className="text-xs text-zinc-500 space-y-1">
+                    <div className="flex justify-between">
+                      <span>타일 클릭</span>
+                      <span className="text-zinc-400">선택/해제</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span><kbd className="px-1 py-0.5 bg-zinc-700 rounded text-zinc-300">Shift</kbd> + 클릭</span>
+                      <span className="text-zinc-400">면 전체 선택</span>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
