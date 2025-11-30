@@ -13,9 +13,19 @@ import RoomScene from '@/components/room-builder/RoomScene';
 import { RoomTemplate, UploadedImage, ROOM_TEMPLATES } from '@/components/room-builder/types';
 // import { optimizeSceneTextures } from '@/utils/textureOptimizer';
 import { optimizeSceneTextures } from '@/utils/optimizedTextureAtlas';
+import {
+  FreeBuildTile,
+  WallDirection,
+  generateTileId,
+  NEIGHBOR_OFFSETS,
+  DEFAULT_FREE_BUILD_CONFIG,
+} from '@/types/freeBuild';
 
 const TILE_SIZE = 0.5;
 const WALL_HEIGHT = 2.5;
+
+// Build tool type
+type BuildTool = 'select' | 'floor' | 'eraser';
 
 export default function RoomBuilderPage() {
   const params = useParams();
@@ -40,6 +50,12 @@ export default function RoomBuilderPage() {
   // AI generation state
   const [aiPrompt, setAiPrompt] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
+
+  // Custom mode - Free Build state
+  const [currentTool, setCurrentTool] = useState<BuildTool>('floor');
+  const [customTiles, setCustomTiles] = useState<FreeBuildTile[]>([]);
+  const [showGrid, setShowGrid] = useState(true);
+  const [isAutoWallEnabled, setIsAutoWallEnabled] = useState(true);
 
   const roomSceneRef = useRef<any>(null);
   const lastSelectedTileRef = useRef<string | null>(null);
@@ -86,6 +102,158 @@ export default function RoomBuilderPage() {
 
     loadProject();
   }, [projectId]);
+
+  // Keyboard shortcuts for custom mode (F/E/V keys)
+  useEffect(() => {
+    if (currentTemplate !== 'custom') return;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Don't handle shortcuts when typing in input fields
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) {
+        return;
+      }
+
+      switch (e.key.toLowerCase()) {
+        case 'f':
+          setCurrentTool('floor');
+          break;
+        case 'e':
+          setCurrentTool('eraser');
+          break;
+        case 'v':
+          setCurrentTool('select');
+          break;
+        case 'g':
+          setShowGrid(prev => !prev);
+          break;
+        case 'escape':
+          setSelectedTiles([]);
+          break;
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [currentTemplate]);
+
+  // Generate walls from floor tiles (auto-wall feature)
+  const generateWallsFromFloor = useCallback((floorTiles: FreeBuildTile[]): FreeBuildTile[] => {
+    const floorSet = new Set(floorTiles.map(t => `${t.gridX},${t.gridZ}`));
+    const newWalls: FreeBuildTile[] = [];
+    const tilesPerWallHeight = Math.floor(WALL_HEIGHT / TILE_SIZE);
+
+    floorTiles.forEach((floor) => {
+      const { gridX, gridZ } = floor;
+
+      NEIGHBOR_OFFSETS.forEach(({ dx, dz, wallDir }) => {
+        const neighborKey = `${gridX + dx},${gridZ + dz}`;
+
+        // If no floor tile at neighbor position, generate wall
+        if (!floorSet.has(neighborKey)) {
+          for (let y = 0; y < tilesPerWallHeight; y++) {
+            const wallId = generateTileId('wall', gridX, gridZ, y, wallDir);
+
+            // Avoid duplicates
+            if (!newWalls.some(w => w.id === wallId)) {
+              newWalls.push({
+                id: wallId,
+                type: 'wall',
+                gridX,
+                gridZ,
+                gridY: y,
+                wallDirection: wallDir,
+              });
+            }
+          }
+        }
+      });
+    });
+
+    return newWalls;
+  }, []);
+
+  // Handle grid click for placing/removing tiles in custom mode
+  const handleGridClick = useCallback((gridX: number, gridZ: number) => {
+    if (currentTemplate !== 'custom') return;
+
+    if (currentTool === 'floor') {
+      const tileId = generateTileId('floor', gridX, gridZ);
+
+      // Check if tile already exists
+      if (customTiles.some(t => t.id === tileId)) {
+        return; // Tile already exists
+      }
+
+      const newFloorTile: FreeBuildTile = {
+        id: tileId,
+        type: 'floor',
+        gridX,
+        gridZ,
+      };
+
+      setCustomTiles(prev => {
+        const newFloorTiles = [...prev.filter(t => t.type === 'floor'), newFloorTile];
+
+        if (isAutoWallEnabled) {
+          // Regenerate walls based on new floor layout
+          const walls = generateWallsFromFloor(newFloorTiles);
+          return [...newFloorTiles, ...walls];
+        }
+
+        return [...prev, newFloorTile];
+      });
+    }
+  }, [currentTemplate, currentTool, customTiles, isAutoWallEnabled, generateWallsFromFloor]);
+
+  // Handle tile click in custom mode with dynamic tiles
+  const handleCustomTileClick = useCallback((tileId: string, event?: any) => {
+    // Only handle custom mode with dynamic tiles here
+    if (currentTemplate !== 'custom' || !customTiles.length) {
+      return; // Will be handled by handleTileClick for non-custom modes
+    }
+
+    if (currentTool === 'eraser') {
+      // Remove tile(s) at this position
+      const tile = customTiles.find(t => t.id === tileId);
+      if (tile) {
+        setCustomTiles(prev => {
+          // Remove all tiles at this grid position (floor + walls)
+          const remainingTiles = prev.filter(t =>
+            !(t.gridX === tile.gridX && t.gridZ === tile.gridZ)
+          );
+
+          if (isAutoWallEnabled) {
+            // Regenerate walls based on remaining floor tiles
+            const floorTiles = remainingTiles.filter(t => t.type === 'floor');
+            const walls = generateWallsFromFloor(floorTiles);
+            return [...floorTiles, ...walls];
+          }
+
+          return remainingTiles;
+        });
+      }
+    } else if (currentTool === 'select') {
+      // Toggle tile selection
+      const shiftKey = event?.shiftKey || (event?.nativeEvent && event?.nativeEvent.shiftKey);
+
+      if (shiftKey) {
+        // Select all tiles of same type
+        const tile = customTiles.find(t => t.id === tileId);
+        if (tile) {
+          const sameTileIds = customTiles
+            .filter(t => t.type === tile.type)
+            .map(t => t.id);
+          setSelectedTiles(sameTileIds);
+        }
+      } else {
+        setSelectedTiles(prev =>
+          prev.includes(tileId)
+            ? prev.filter(t => t !== tileId)
+            : [...prev, tileId]
+        );
+      }
+    }
+  }, [currentTemplate, currentTool, customTiles, isAutoWallEnabled, generateWallsFromFloor]);
 
   // Get all tiles for a surface
   const getAllTilesForSurface = useCallback((tileKey: string) => {
@@ -632,7 +800,11 @@ export default function RoomBuilderPage() {
               customDimensions={customDimensions}
               selectedTiles={selectedTiles}
               tileTextures={tileTextures}
-              onTileClick={handleTileClick}
+              onTileClick={currentTemplate === 'custom' && customTiles.length > 0 ? handleCustomTileClick : handleTileClick}
+              customTiles={currentTemplate === 'custom' ? customTiles : undefined}
+              currentTool={currentTool}
+              onGridClick={handleGridClick}
+              showGrid={showGrid}
             />
           </Canvas>
 
@@ -657,12 +829,84 @@ export default function RoomBuilderPage() {
 
           {/* Custom Dimensions Controls (Overlay) */}
           {currentTemplate === 'custom' && (
-            <div className="absolute bottom-6 right-6 bg-black/80 text-white p-4 rounded-xl backdrop-blur-sm border border-white/10 w-72 shadow-2xl">
+            <div className="absolute bottom-6 right-6 bg-black/80 text-white p-4 rounded-xl backdrop-blur-sm border border-white/10 w-80 shadow-2xl">
               <h4 className="text-sm font-semibold mb-3 flex items-center gap-2">
-                <span>📏</span> 사용자 정의 크기
+                <span>🏗️</span> 자유 건축 모드
               </h4>
 
-              <div className="space-y-4">
+              {/* Build Tools */}
+              <div className="mb-4">
+                <h5 className="text-xs font-semibold text-zinc-400 mb-2">🔧 도구 선택</h5>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setCurrentTool('floor')}
+                    className={`flex-1 px-3 py-2 rounded-lg text-sm font-medium transition-all ${
+                      currentTool === 'floor'
+                        ? 'bg-violet-600 text-white'
+                        : 'bg-zinc-700 text-zinc-300 hover:bg-zinc-600'
+                    }`}
+                  >
+                    <span className="block">🟫 바닥</span>
+                    <kbd className="text-xs opacity-60">F</kbd>
+                  </button>
+                  <button
+                    onClick={() => setCurrentTool('eraser')}
+                    className={`flex-1 px-3 py-2 rounded-lg text-sm font-medium transition-all ${
+                      currentTool === 'eraser'
+                        ? 'bg-red-600 text-white'
+                        : 'bg-zinc-700 text-zinc-300 hover:bg-zinc-600'
+                    }`}
+                  >
+                    <span className="block">🧹 지우개</span>
+                    <kbd className="text-xs opacity-60">E</kbd>
+                  </button>
+                  <button
+                    onClick={() => setCurrentTool('select')}
+                    className={`flex-1 px-3 py-2 rounded-lg text-sm font-medium transition-all ${
+                      currentTool === 'select'
+                        ? 'bg-blue-600 text-white'
+                        : 'bg-zinc-700 text-zinc-300 hover:bg-zinc-600'
+                    }`}
+                  >
+                    <span className="block">👆 선택</span>
+                    <kbd className="text-xs opacity-60">V</kbd>
+                  </button>
+                </div>
+              </div>
+
+              {/* Auto Wall Toggle */}
+              <div className="mb-4 flex items-center justify-between">
+                <span className="text-xs text-zinc-400">🧱 자동 벽 생성</span>
+                <button
+                  onClick={() => setIsAutoWallEnabled(!isAutoWallEnabled)}
+                  className={`px-3 py-1 rounded text-xs font-medium transition-all ${
+                    isAutoWallEnabled
+                      ? 'bg-green-600 text-white'
+                      : 'bg-zinc-700 text-zinc-400'
+                  }`}
+                >
+                  {isAutoWallEnabled ? 'ON' : 'OFF'}
+                </button>
+              </div>
+
+              {/* Grid Toggle */}
+              <div className="mb-4 flex items-center justify-between">
+                <span className="text-xs text-zinc-400">📐 그리드 표시</span>
+                <button
+                  onClick={() => setShowGrid(!showGrid)}
+                  className={`px-3 py-1 rounded text-xs font-medium transition-all ${
+                    showGrid
+                      ? 'bg-blue-600 text-white'
+                      : 'bg-zinc-700 text-zinc-400'
+                  }`}
+                >
+                  {showGrid ? 'ON' : 'OFF'} <kbd className="opacity-60">G</kbd>
+                </button>
+              </div>
+
+              {/* Room Size */}
+              <div className="space-y-3 pt-3 border-t border-white/10">
+                <h5 className="text-xs font-semibold text-zinc-400">📏 방 크기</h5>
                 <div>
                   <div className="flex justify-between text-xs text-zinc-400 mb-1">
                     <span>너비 (Width)</span>
@@ -705,23 +949,66 @@ export default function RoomBuilderPage() {
                   />
                 </div>
 
-                <div className="text-xs text-zinc-500 pt-2 border-t border-white/10 flex justify-between">
+                <div className="text-xs text-zinc-500 flex justify-between">
                   <span>높이 (Height)</span>
                   <span>2.5m (고정)</span>
                 </div>
+              </div>
 
-                {/* 단축키 안내 */}
-                <div className="pt-3 mt-1 border-t border-white/10">
-                  <h5 className="text-xs font-semibold text-zinc-400 mb-2">⌨️ 단축키</h5>
-                  <div className="text-xs text-zinc-500 space-y-1">
-                    <div className="flex justify-between">
-                      <span>타일 클릭</span>
-                      <span className="text-zinc-400">선택/해제</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span><kbd className="px-1 py-0.5 bg-zinc-700 rounded text-zinc-300">Shift</kbd> + 클릭</span>
-                      <span className="text-zinc-400">면 전체 선택</span>
-                    </div>
+              {/* Tile Stats */}
+              <div className="mt-3 pt-3 border-t border-white/10">
+                <div className="text-xs text-zinc-400 flex justify-between">
+                  <span>배치된 바닥 타일</span>
+                  <span className="text-violet-400 font-mono">
+                    {customTiles.filter(t => t.type === 'floor').length}개
+                  </span>
+                </div>
+                <div className="text-xs text-zinc-400 flex justify-between mt-1">
+                  <span>자동 생성된 벽</span>
+                  <span className="text-violet-400 font-mono">
+                    {customTiles.filter(t => t.type === 'wall').length}개
+                  </span>
+                </div>
+              </div>
+
+              {/* Clear All Button */}
+              {customTiles.length > 0 && (
+                <button
+                  onClick={() => {
+                    if (confirm('모든 타일을 삭제하시겠습니까?')) {
+                      setCustomTiles([]);
+                      setSelectedTiles([]);
+                    }
+                  }}
+                  className="w-full mt-3 px-3 py-2 bg-red-600/20 text-red-400 rounded text-xs hover:bg-red-600/30 transition-colors"
+                >
+                  🗑️ 모든 타일 삭제
+                </button>
+              )}
+
+              {/* Shortcut Hints */}
+              <div className="pt-3 mt-3 border-t border-white/10">
+                <h5 className="text-xs font-semibold text-zinc-400 mb-2">⌨️ 단축키</h5>
+                <div className="text-xs text-zinc-500 space-y-1">
+                  <div className="flex justify-between">
+                    <span><kbd className="px-1 py-0.5 bg-zinc-700 rounded text-zinc-300">F</kbd></span>
+                    <span className="text-zinc-400">바닥 배치</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span><kbd className="px-1 py-0.5 bg-zinc-700 rounded text-zinc-300">E</kbd></span>
+                    <span className="text-zinc-400">지우개</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span><kbd className="px-1 py-0.5 bg-zinc-700 rounded text-zinc-300">V</kbd></span>
+                    <span className="text-zinc-400">선택</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span><kbd className="px-1 py-0.5 bg-zinc-700 rounded text-zinc-300">G</kbd></span>
+                    <span className="text-zinc-400">그리드 토글</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span><kbd className="px-1 py-0.5 bg-zinc-700 rounded text-zinc-300">Esc</kbd></span>
+                    <span className="text-zinc-400">선택 해제</span>
                   </div>
                 </div>
               </div>

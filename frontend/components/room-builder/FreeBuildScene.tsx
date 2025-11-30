@@ -20,7 +20,6 @@ const FreeBuildTileMesh: React.FC<{
   onClick: (e: ThreeEvent<MouseEvent>) => void;
 }> = ({ tile, tileSize, isSelected, onClick }) => {
   const [texture, setTexture] = useState<THREE.Texture | null>(null);
-  const [depthTexture, setDepthTexture] = useState<THREE.Texture | null>(null);
 
   // 텍스처 로딩
   useEffect(() => {
@@ -36,16 +35,6 @@ const FreeBuildTileMesh: React.FC<{
       setTexture(null);
     }
   }, [tile.textureUrl]);
-
-  // Depth Map 로딩
-  useEffect(() => {
-    if (tile.depthMapUrl) {
-      const loader = new THREE.TextureLoader();
-      loader.load(tile.depthMapUrl, setDepthTexture);
-    } else {
-      setDepthTexture(null);
-    }
-  }, [tile.depthMapUrl]);
 
   // 위치 계산
   const position = useMemo(() => {
@@ -68,25 +57,17 @@ const FreeBuildTileMesh: React.FC<{
     return tile.type === 'floor' ? '#d4a574' : '#f5f5f5';
   }, [isSelected, texture, tile.type]);
 
-  // Displacement가 있으면 정점 수 증가
-  const geometry = useMemo(() => {
-    const segments = depthTexture ? 32 : 1;
-    return new THREE.PlaneGeometry(tileSize, tileSize, segments, segments);
-  }, [tileSize, depthTexture]);
-
   return (
     <mesh
       position={position}
       rotation={rotation}
       onClick={onClick}
       userData={{ tileId: tile.id, tileType: tile.type }}
-      geometry={geometry}
     >
+      <planeGeometry args={[tileSize, tileSize]} />
       <meshStandardMaterial
         color={color}
         map={texture}
-        displacementMap={depthTexture}
-        displacementScale={tile.displacementScale || 0}
         side={THREE.DoubleSide}
         transparent={isSelected}
         opacity={isSelected ? 0.8 : 1}
