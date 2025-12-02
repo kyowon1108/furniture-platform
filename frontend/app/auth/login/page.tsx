@@ -1,10 +1,36 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useAuthStore } from '@/store/authStore';
+
+// 에러 메시지 한국어 변환
+const getErrorMessage = (error: any): string => {
+  const detail = error?.response?.data?.detail;
+
+  if (typeof detail === 'string') {
+    // 일반적인 에러 메시지 매핑
+    if (detail.toLowerCase().includes('incorrect') || detail.toLowerCase().includes('invalid')) {
+      return '이메일 또는 비밀번호가 올바르지 않습니다.';
+    }
+    if (detail.toLowerCase().includes('not found') || detail.toLowerCase().includes('no user')) {
+      return '등록되지 않은 이메일입니다.';
+    }
+    if (detail.toLowerCase().includes('password')) {
+      return '비밀번호가 올바르지 않습니다.';
+    }
+    return detail;
+  }
+
+  // 네트워크 에러
+  if (error?.code === 'ERR_NETWORK' || error?.message?.includes('Network')) {
+    return '서버에 연결할 수 없습니다. 잠시 후 다시 시도해주세요.';
+  }
+
+  return '로그인에 실패했습니다. 다시 시도해주세요.';
+};
 
 export default function LoginPage() {
   const router = useRouter();
@@ -14,6 +40,16 @@ export default function LoginPage() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [shake, setShake] = useState(false);
+
+  // 에러 발생 시 흔들림 효과
+  useEffect(() => {
+    if (error) {
+      setShake(true);
+      const timer = setTimeout(() => setShake(false), 500);
+      return () => clearTimeout(timer);
+    }
+  }, [error]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -24,7 +60,8 @@ export default function LoginPage() {
       await login(email, password);
       router.push('/projects');
     } catch (err: any) {
-      setError(err.response?.data?.detail || 'Login failed');
+      console.error('Login error:', err);
+      setError(getErrorMessage(err));
     } finally {
       setIsLoading(false);
     }
@@ -60,13 +97,23 @@ export default function LoginPage() {
           </div>
 
           {error && (
-            <div className="mb-6 p-4 bg-red-500/10 border border-red-500/20 rounded-xl text-red-400 text-sm flex items-center gap-2">
-              <span>⚠️</span>
-              {error}
+            <div className="mb-6 p-4 bg-red-500/15 border border-red-500/30 rounded-xl text-red-300 text-sm animate-fadeIn">
+              <div className="flex items-start gap-3">
+                <span className="text-lg flex-shrink-0">⚠️</span>
+                <div className="flex-1 font-medium">{error}</div>
+                <button
+                  type="button"
+                  onClick={() => setError('')}
+                  className="text-red-400/60 hover:text-red-300 transition-colors flex-shrink-0"
+                  aria-label="에러 메시지 닫기"
+                >
+                  ✕
+                </button>
+              </div>
             </div>
           )}
 
-          <form onSubmit={handleSubmit} className="space-y-6">
+          <form onSubmit={handleSubmit} className={`space-y-6 ${shake ? 'animate-shake' : ''}`}>
             <div className="space-y-2">
               <label className="text-sm font-medium text-[var(--text-secondary)] ml-1">
                 이메일
