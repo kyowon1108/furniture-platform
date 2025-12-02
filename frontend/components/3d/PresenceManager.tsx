@@ -26,6 +26,10 @@ export function PresenceManager() {
   // Generate a random color for this user
   const myColor = useRef<string>(`#${Math.floor(Math.random() * 16777215).toString(16)}`);
 
+  // Reuse Three.js objects to avoid creating new objects every frame (performance)
+  const planeRef = useRef(new THREE.Plane(new THREE.Vector3(0, 1, 0), 0));
+  const intersectPointRef = useRef(new THREE.Vector3());
+
   useEffect(() => {
     if (!projectId || !user) return;
 
@@ -60,11 +64,9 @@ export function PresenceManager() {
     const now = Date.now();
     if (now - lastUpdateRef.current < UPDATE_INTERVAL) return;
 
-    // Raycast to find ground position
-    const plane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
-    const intersectPoint = new THREE.Vector3();
+    // Raycast to find ground position (reuse objects for performance)
     raycaster.setFromCamera(state.pointer, camera);
-    const point = raycaster.ray.intersectPlane(plane, intersectPoint);
+    const point = raycaster.ray.intersectPlane(planeRef.current, intersectPointRef.current);
 
     if (point) {
       // Send update

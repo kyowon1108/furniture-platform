@@ -1,3 +1,4 @@
+import { memo } from 'react';
 import { Html } from '@react-three/drei';
 import { Vector3 } from 'three';
 
@@ -7,7 +8,8 @@ interface CollaboratorCursorProps {
   userId: string;
 }
 
-export function CollaboratorCursor({ position, color, userId }: CollaboratorCursorProps) {
+// Memoize to prevent unnecessary re-renders when collaborator list updates
+export const CollaboratorCursor = memo(function CollaboratorCursor({ position, color, userId }: CollaboratorCursorProps) {
   return (
     <group position={position}>
       {/* Cursor Sphere */}
@@ -35,4 +37,4 @@ export function CollaboratorCursor({ position, color, userId }: CollaboratorCurs
       </Html>
     </group>
   );
-}
+});

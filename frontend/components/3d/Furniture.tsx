@@ -179,8 +179,19 @@ function GlbFurnitureModel({ glbUrl, dimensions, onClick, onActualDimensionsLoad
   );
 }
 
+// TypeScript interface for FurnitureModel props
+interface FurnitureModelProps {
+  type: string;
+  dimensions: { width: number; height: number; depth: number };
+  color: string;
+  onClick: (e: THREE.Event) => void;
+  glbUrl?: string;
+  furnitureId: string;
+  onDimensionsUpdate?: (dims: { width: number; height: number; depth: number }) => void;
+}
+
 // Render different furniture types with realistic shapes
-function FurnitureModel({ type, dimensions, color, onClick, glbUrl, furnitureId, onDimensionsUpdate }: any) {
+function FurnitureModel({ type, dimensions, color, onClick, glbUrl, furnitureId, onDimensionsUpdate }: FurnitureModelProps) {
   const { width, height, depth } = dimensions;
 
   // If glbUrl is provided, render the actual GLB model
