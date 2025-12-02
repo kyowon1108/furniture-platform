@@ -229,78 +229,7 @@ export default function EditorPage() {
         <MeasurePanel />
         <LightingPanel />
         <CameraControls />
-        <CameraControls />
         <UserListPanel />
-
-        {/* Debug Info - 주석 처리 (추후 필요시 해제)
-        <div className="lighting-panel absolute top-36 left-4 z-50 w-64">
-          <h3 className="lighting-title">🔍 Debug Info</h3>
-          <div className="space-y-1" style={{ fontSize: '0.75rem' }}>
-            <div style={{ color: 'var(--text-secondary)' }}>
-              Project ID: <span style={{ color: 'var(--success)', fontWeight: '600' }}>{projectId}</span>
-            </div>
-            <div style={{ color: 'var(--text-secondary)' }}>
-              Project Data: <span style={{ color: projectData ? 'var(--success)' : 'var(--error)', fontWeight: '600' }}>{projectData ? 'Loaded' : 'Not Loaded'}</span>
-            </div>
-            {projectData && (
-              <>
-                <div style={{ color: 'var(--text-secondary)' }}>
-                  Has PLY: <span style={{ color: projectData.has_ply_file ? 'var(--success)' : 'var(--error)', fontWeight: '600' }}>{String(projectData.has_ply_file)}</span>
-                </div>
-                <div style={{ color: 'var(--text-secondary)' }}>
-                  PLY Path: <span style={{ color: 'var(--accent-primary)', fontWeight: '500' }}>{projectData.ply_file_path || 'null'}</span>
-                </div>
-                <div style={{ color: 'var(--text-secondary)' }}>
-                  PLY Size: <span style={{ color: 'var(--accent-primary)', fontWeight: '500' }}>{projectData.ply_file_size ? `${(projectData.ply_file_size / 1024 / 1024).toFixed(2)} MB` : 'null'}</span>
-                </div>
-                <div className="mt-2 pt-2" style={{ borderTop: '1px solid var(--border-color)' }}>
-                  <div style={{ color: 'var(--text-primary)', fontWeight: '600', marginBottom: '0.25rem' }}>Room Size:</div>
-                  <div style={{ color: 'var(--text-secondary)' }}>
-                    W: <span style={{ color: 'var(--accent-primary)', fontWeight: '500' }}>{projectData.room_width || 0}</span> ×
-                    H: <span style={{ color: 'var(--accent-primary)', fontWeight: '500' }}>{projectData.room_height || 0}</span> ×
-                    D: <span style={{ color: 'var(--accent-primary)', fontWeight: '500' }}>{projectData.room_depth || 0}</span>
-                  </div>
-                </div>
-                <div className="mt-2 pt-2" style={{ borderTop: '1px solid var(--border-color)' }}>
-                  <button
-                    onClick={async () => {
-                      if (!projectData.has_ply_file) {
-                        alert('이 프로젝트에는 PLY 파일이 없습니다.');
-                        return;
-                      }
-                      try {
-                        const { filesAPI } = await import('@/lib/api');
-                        const info = await filesAPI.getPlyInfo(projectId);
-                        console.log('========================================');
-                        console.log('🎨 PLY FILE INFO FROM BACKEND');
-                        console.log('========================================');
-                        console.log('Has Colors:', info.has_colors);
-                        console.log('Color Properties:', info.color_properties);
-                        console.log('All Properties:', info.all_properties);
-                        console.log('Color Samples:', info.color_samples);
-                        console.log('========================================');
-                        alert(`PLY Info:\nHas Colors: ${info.has_colors}\nColor Properties: ${info.color_properties.join(', ')}\nAll Properties: ${info.all_properties.join(', ')}\n\nCheck console for details!`);
-                      } catch (error: any) {
-                        console.error('Error getting PLY info:', error);
-                        alert(`Error: ${error.response?.data?.detail || error.message || 'Unknown error'}\n\nCheck console for details.`);
-                      }
-                    }}
-                    className="lighting-button text-xs w-full"
-                    style={{ padding: '0.5rem', marginTop: '0.5rem' }}
-                    disabled={!projectData.has_ply_file}
-                  >
-                    🔍 Check PLY Color Info
-                  </button>
-                </div>
-              </>
-            )}
-          </div>
-          <div className="mt-2 pt-2" style={{ borderTop: '1px solid var(--border-color)', fontSize: '0.7rem', color: 'var(--text-tertiary)' }}>
-            브라우저 콘솔(F12)을 확인하세요
-          </div>
-        </div>
-        */}
-
         <ToastContainer />
         <DebugInfo roomDimensions={roomDimensions} />
 
