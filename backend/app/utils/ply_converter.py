@@ -38,7 +38,7 @@ def has_faces(ply: PlyData) -> bool:
     """Check if PLY file has face data (is a mesh)."""
     try:
         return "face" in [el.name for el in ply.elements] and len(ply["face"].data) > 0
-    except:
+    except (KeyError, IndexError, AttributeError, TypeError):
         return False
 
 

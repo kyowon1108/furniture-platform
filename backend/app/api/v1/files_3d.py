@@ -2,6 +2,7 @@
 
 import os
 import shutil
+import uuid
 from pathlib import Path
 from typing import Literal
 
@@ -85,9 +86,10 @@ async def upload_3d_file(
             detail=f"File too large. Maximum size is {max_size_mb}MB"
         )
 
-    # Prepare paths
-    temp_path = upload_dir / f"temp_{project_id}_{file.filename}"
-    final_filename = f"project_{project_id}_{file.filename}"
+    # Prepare paths with UUID to prevent path traversal attacks
+    safe_extension = ".ply" if file_type == "ply" else ".glb"
+    temp_path = upload_dir / f"temp_{project_id}_{uuid.uuid4().hex}{safe_extension}"
+    final_filename = f"project_{project_id}_{uuid.uuid4().hex}{safe_extension}"
     final_path = upload_dir / final_filename
 
     try:

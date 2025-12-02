@@ -2,6 +2,7 @@
 
 import os
 import shutil
+import uuid
 from pathlib import Path
 
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
@@ -102,9 +103,10 @@ async def upload_ply_file(
 
         needs_conversion = is_gaussian_splatting_ply(ply_data) and not has_standard_colors(ply_data)
 
-        # Prepare final path
-        final_filename = f"project_{project_id}_{file.filename}"
-        final_path = PLY_DIR / final_filename
+        # Prepare final path with UUID to prevent path traversal attacks
+        safe_extension = ".ply"
+        safe_filename = f"project_{project_id}_{uuid.uuid4().hex}{safe_extension}"
+        final_path = PLY_DIR / safe_filename
 
         # Remove old PLY file if exists
         if project.ply_file_path and os.path.exists(project.ply_file_path):
@@ -148,7 +150,7 @@ async def upload_ply_file(
 
         return {
             "message": "PLY file uploaded successfully",
-            "filename": final_filename,
+            "filename": safe_filename,
             "file_size": len(file_content),
             "vertex_count": vertex_count,
             "has_colors": has_colors,
