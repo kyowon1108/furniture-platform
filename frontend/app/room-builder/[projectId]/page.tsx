@@ -10,6 +10,7 @@ import { projectsAPI } from '@/lib/api';
 import RoomTemplateSelector from '@/components/room-builder/RoomTemplateSelector';
 import TextureGallery from '@/components/room-builder/TextureGallery';
 import RoomScene from '@/components/room-builder/RoomScene';
+import { ConfirmModal } from '@/components/ui/ConfirmModal';
 import { RoomTemplate, UploadedImage, ROOM_TEMPLATES } from '@/components/room-builder/types';
 // import { optimizeSceneTextures } from '@/utils/textureOptimizer';
 import { optimizeSceneTextures } from '@/utils/optimizedTextureAtlas';
@@ -56,6 +57,7 @@ export default function RoomBuilderPage() {
   const [customTiles, setCustomTiles] = useState<FreeBuildTile[]>([]);
   const [showGrid, setShowGrid] = useState(true);
   const [isAutoWallEnabled, setIsAutoWallEnabled] = useState(true);
+  const [showClearAllConfirm, setShowClearAllConfirm] = useState(false);
 
   const roomSceneRef = useRef<any>(null);
   const lastSelectedTileRef = useRef<string | null>(null);
@@ -1063,13 +1065,9 @@ export default function RoomBuilderPage() {
               {/* Clear All Button */}
               {customTiles.length > 0 && (
                 <button
-                  onClick={() => {
-                    if (confirm('모든 타일을 삭제하시겠습니까?')) {
-                      setCustomTiles([]);
-                      setSelectedTiles([]);
-                    }
-                  }}
+                  onClick={() => setShowClearAllConfirm(true)}
                   className="w-full mt-3 px-3 py-2 bg-red-600/20 text-red-400 rounded text-xs hover:bg-red-600/30 transition-colors"
+                  aria-label="모든 타일 삭제"
                 >
                   🗑️ 모든 타일 삭제
                 </button>
@@ -1105,6 +1103,22 @@ export default function RoomBuilderPage() {
           )}
         </div>
       </div>
+
+      {/* Clear All Confirm Modal */}
+      <ConfirmModal
+        isOpen={showClearAllConfirm}
+        title="모든 타일 삭제"
+        message="모든 타일을 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다."
+        confirmText="삭제"
+        cancelText="취소"
+        variant="warning"
+        onConfirm={() => {
+          setCustomTiles([]);
+          setSelectedTiles([]);
+          setShowClearAllConfirm(false);
+        }}
+        onCancel={() => setShowClearAllConfirm(false)}
+      />
     </div >
   );
 }

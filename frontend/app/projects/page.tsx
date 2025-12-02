@@ -1,11 +1,12 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import { useAuthStore } from '@/store/authStore';
 import { projectsAPI } from '@/lib/api';
 import { CreateProjectModal } from '@/components/ui/CreateProjectModal';
+import { ConfirmModal } from '@/components/ui/ConfirmModal';
 import { Navbar } from '@/components/ui/Navbar';
 import type { Project } from '@/types/api';
 
@@ -15,6 +16,7 @@ export default function ProjectsPage() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [loadingProjects, setLoadingProjects] = useState(true);
+  const [deleteTarget, setDeleteTarget] = useState<number | null>(null);
 
   useEffect(() => {
     fetchUser();
@@ -44,18 +46,27 @@ export default function ProjectsPage() {
     }
   };
 
-  const handleDelete = async (e: React.MouseEvent, id: number) => {
+  const handleDeleteClick = (e: React.MouseEvent, id: number) => {
     e.stopPropagation();
-    if (!confirm('이 프로젝트를 삭제하시겠습니까?')) return;
+    setDeleteTarget(id);
+  };
+
+  const handleDeleteConfirm = useCallback(async () => {
+    if (deleteTarget === null) return;
 
     try {
-      await projectsAPI.delete(id);
+      await projectsAPI.delete(deleteTarget);
       loadProjects();
     } catch (error) {
       console.error('Failed to delete project:', error);
-      alert('프로젝트 삭제에 실패했습니다');
+    } finally {
+      setDeleteTarget(null);
     }
-  };
+  }, [deleteTarget]);
+
+  const handleDeleteCancel = useCallback(() => {
+    setDeleteTarget(null);
+  }, []);
 
   if (isLoading) {
     return (
@@ -168,11 +179,9 @@ export default function ProjectsPage() {
                         </button>
                       )}
                       <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleDelete(e, project.id);
-                        }}
+                        onClick={(e) => handleDeleteClick(e, project.id)}
                         className="px-4 py-2 bg-red-500/10 hover:bg-red-500/20 text-red-400 rounded-lg text-sm font-medium transition-all"
+                        aria-label={`${project.name} 프로젝트 삭제`}
                       >
                         삭제
                       </button>
@@ -190,6 +199,17 @@ export default function ProjectsPage() {
             onSuccess={loadProjects}
           />
         )}
+
+        <ConfirmModal
+          isOpen={deleteTarget !== null}
+          title="프로젝트 삭제"
+          message="이 프로젝트를 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다."
+          confirmText="삭제"
+          cancelText="취소"
+          variant="danger"
+          onConfirm={handleDeleteConfirm}
+          onCancel={handleDeleteCancel}
+        />
       </div>
     </div>
   );
