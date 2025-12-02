@@ -27,12 +27,14 @@ export const useToastStore = create<ToastState>((set) => ({
       toasts: [...state.toasts, { id, message, type }],
     }));
 
-    // Auto-remove after 3 seconds
+    // Duration based on type: errors/warnings stay longer
+    const duration = type === 'error' || type === 'warning' ? 5000 : 3000;
+
     setTimeout(() => {
       set((state) => ({
         toasts: state.toasts.filter((t) => t.id !== id),
       }));
-    }, 3000);
+    }, duration);
   },
 
   removeToast: (id) =>

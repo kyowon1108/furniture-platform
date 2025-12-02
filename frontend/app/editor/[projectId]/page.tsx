@@ -118,7 +118,8 @@ export default function EditorPage() {
     } catch (error) {
       console.error('Failed to load project:', error);
       addToast('프로젝트를 불러오는데 실패했습니다', 'error');
-      router.push('/projects');
+      // 에러 메시지를 볼 수 있도록 2초 후 리다이렉트
+      setTimeout(() => router.push('/projects'), 2000);
     } finally {
       setIsLoadingProject(false);
     }

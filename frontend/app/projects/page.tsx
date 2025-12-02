@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import { useAuthStore } from '@/store/authStore';
+import { useToastStore } from '@/store/toastStore';
 import { projectsAPI } from '@/lib/api';
 import { CreateProjectModal } from '@/components/ui/CreateProjectModal';
 import { ConfirmModal } from '@/components/ui/ConfirmModal';
@@ -13,6 +14,7 @@ import type { Project } from '@/types/api';
 export default function ProjectsPage() {
   const router = useRouter();
   const { isAuthenticated, isLoading, fetchUser } = useAuthStore();
+  const addToast = useToastStore((state) => state.addToast);
   const [projects, setProjects] = useState<Project[]>([]);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [loadingProjects, setLoadingProjects] = useState(true);
@@ -41,6 +43,7 @@ export default function ProjectsPage() {
       setProjects(data);
     } catch (error) {
       console.error('Failed to load projects:', error);
+      addToast('프로젝트 목록을 불러오는데 실패했습니다', 'error');
     } finally {
       setLoadingProjects(false);
     }
@@ -56,13 +59,15 @@ export default function ProjectsPage() {
 
     try {
       await projectsAPI.delete(deleteTarget);
+      addToast('프로젝트가 삭제되었습니다', 'success');
       loadProjects();
     } catch (error) {
       console.error('Failed to delete project:', error);
+      addToast('프로젝트 삭제에 실패했습니다', 'error');
     } finally {
       setDeleteTarget(null);
     }
-  }, [deleteTarget]);
+  }, [deleteTarget, addToast]);
 
   const handleDeleteCancel = useCallback(() => {
     setDeleteTarget(null);

@@ -7,10 +7,12 @@ import { OrbitControls } from '@react-three/drei';
 import * as THREE from 'three';
 import { GLTFExporter } from 'three/addons/exporters/GLTFExporter.js';
 import { projectsAPI } from '@/lib/api';
+import { useToastStore } from '@/store/toastStore';
 import RoomTemplateSelector from '@/components/room-builder/RoomTemplateSelector';
 import TextureGallery from '@/components/room-builder/TextureGallery';
 import RoomScene from '@/components/room-builder/RoomScene';
 import { ConfirmModal } from '@/components/ui/ConfirmModal';
+import { ToastContainer } from '@/components/ui/Toast';
 import { RoomTemplate, UploadedImage, ROOM_TEMPLATES } from '@/components/room-builder/types';
 // import { optimizeSceneTextures } from '@/utils/textureOptimizer';
 import { optimizeSceneTextures } from '@/utils/optimizedTextureAtlas';
@@ -32,6 +34,7 @@ export default function RoomBuilderPage() {
   const params = useParams();
   const router = useRouter();
   const projectId = Number(params.projectId);
+  const addToast = useToastStore((state) => state.addToast);
 
   const [project, setProject] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -75,6 +78,7 @@ export default function RoomBuilderPage() {
         const token = localStorage.getItem('token');
         if (!token) {
           console.warn('No token found, using demo mode');
+          addToast('로그인이 필요합니다. 데모 모드로 진행합니다.', 'warning');
           setProject({
             id: projectId,
             name: 'Demo Project',
@@ -93,6 +97,7 @@ export default function RoomBuilderPage() {
         setLoading(false);
       } catch (err) {
         console.error('Failed to load project:', err);
+        addToast('프로젝트를 불러올 수 없어 데모 모드로 진행합니다.', 'warning');
         setProject({
           id: projectId,
           name: `Project ${projectId}`,
@@ -1119,6 +1124,7 @@ export default function RoomBuilderPage() {
         }}
         onCancel={() => setShowClearAllConfirm(false)}
       />
+      <ToastContainer />
     </div >
   );
 }
