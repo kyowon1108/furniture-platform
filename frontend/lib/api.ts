@@ -31,8 +31,12 @@ apiClient.interceptors.response.use(
   (error) => {
     if (error.response?.status === 401) {
       if (typeof window !== 'undefined') {
-        localStorage.removeItem('token');
-        window.location.href = '/auth/login';
+        // 로그인/회원가입 페이지에서는 리다이렉트하지 않음
+        const isAuthPage = window.location.pathname.startsWith('/auth/');
+        if (!isAuthPage) {
+          localStorage.removeItem('token');
+          window.location.href = '/auth/login';
+        }
       }
     }
     return Promise.reject(error);
