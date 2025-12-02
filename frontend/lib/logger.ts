@@ -17,6 +17,7 @@ class Logger {
   private autoSaveInterval: number | null = null;
   private autoSaveDelay = 5000; // Auto-save every 5 seconds
   private isSaving = false;
+  private isDevelopment = process.env.NODE_ENV === 'development';
 
   constructor() {
     // Only initialize in browser environment
@@ -38,33 +39,39 @@ class Logger {
       debug: console.debug.bind(console),
     };
 
-    // Override console.log
+    // Override console.log - only output in development
     console.log = (...args: any[]) => {
-      originalConsole.log(...args);
+      if (this.isDevelopment) {
+        originalConsole.log(...args);
+      }
       this.addLog('log', this.formatMessage(args), args.length > 1 ? args.slice(1) : undefined);
     };
 
-    // Override console.info
+    // Override console.info - only output in development
     console.info = (...args: any[]) => {
-      originalConsole.info(...args);
+      if (this.isDevelopment) {
+        originalConsole.info(...args);
+      }
       this.addLog('info', this.formatMessage(args), args.length > 1 ? args.slice(1) : undefined);
     };
 
-    // Override console.warn
+    // Override console.warn - always output (warnings are important)
     console.warn = (...args: any[]) => {
       originalConsole.warn(...args);
       this.addLog('warn', this.formatMessage(args), args.length > 1 ? args.slice(1) : undefined);
     };
 
-    // Override console.error
+    // Override console.error - always output (errors are critical)
     console.error = (...args: any[]) => {
       originalConsole.error(...args);
       this.addLog('error', this.formatMessage(args), args.length > 1 ? args.slice(1) : undefined);
     };
 
-    // Override console.debug
+    // Override console.debug - only output in development
     console.debug = (...args: any[]) => {
-      originalConsole.debug(...args);
+      if (this.isDevelopment) {
+        originalConsole.debug(...args);
+      }
       this.addLog('debug', this.formatMessage(args), args.length > 1 ? args.slice(1) : undefined);
     };
   }

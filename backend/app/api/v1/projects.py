@@ -16,6 +16,9 @@ from app.schemas.project import (
     ProjectResponse,
     ProjectUpdate,
 )
+from app.core.logging import get_logger
+
+logger = get_logger("projects")
 
 router = APIRouter()
 
@@ -250,12 +253,12 @@ def delete_project(project_id: int, current_user: User = Depends(get_current_use
             try:
                 os.remove(ply_path)
                 files_deleted.append(str(ply_path))
-                print(f"✅ Deleted PLY file: {ply_path}")
+                logger.info(f"Deleted PLY file: {ply_path}")
             except Exception as e:
-                print(f"⚠️ Failed to delete PLY file {ply_path}: {e}")
+                logger.info(f"Failed to delete PLY file {ply_path}: {e}")
         else:
             files_not_found.append(f"PLY: {ply_path}")
-            print(f"ℹ️ PLY file not found (already deleted or moved): {ply_path}")
+            logger.info(f"ℹ️ PLY file not found (already deleted or moved): {ply_path}")
 
     # Delete 3D file (PLY or GLB) if exists
     if project.file_path:
@@ -266,31 +269,31 @@ def delete_project(project_id: int, current_user: User = Depends(get_current_use
             try:
                 os.remove(file_path)
                 files_deleted.append(str(file_path))
-                print(f"✅ Deleted {file_type_name} file: {file_path}")
+                logger.info(f"Deleted {file_type_name} file: {file_path}")
             except Exception as e:
-                print(f"⚠️ Failed to delete {file_type_name} file {file_path}: {e}")
+                logger.info(f"Failed to delete {file_type_name} file {file_path}: {e}")
         else:
             files_not_found.append(f"{file_type_name}: {file_path}")
-            print(f"ℹ️ {file_type_name} file not found (already deleted or moved): {file_path}")
+            logger.info(f"ℹ️ {file_type_name} file not found (already deleted or moved): {file_path}")
 
     # Delete project from database (cascades to layouts and history)
     try:
         db.delete(project)
         db.commit()
-        print(f"✅ Project {project_id} deleted from database")
+        logger.info(f"Project {project_id} deleted from database")
     except Exception as e:
         db.rollback()
-        print(f"❌ Failed to delete project {project_id} from database: {e}")
+        logger.info(f"Failed to delete project {project_id} from database: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Failed to delete project: {str(e)}"
         )
 
     # Summary log
     if files_deleted:
-        print(f"🗑️ Project {project_id} deletion complete: {len(files_deleted)} file(s) deleted")
+        logger.info(f"Project {project_id} deletion complete: {len(files_deleted)} file(s) deleted")
     elif files_not_found:
-        print(f"🗑️ Project {project_id} deletion complete: {len(files_not_found)} file(s) not found (already deleted)")
+        logger.info(f"Project {project_id} deletion complete: {len(files_not_found)} file(s) not found (already deleted)")
     else:
-        print(f"🗑️ Project {project_id} deletion complete: no files to remove")
+        logger.info(f"Project {project_id} deletion complete: no files to remove")
 
     return None

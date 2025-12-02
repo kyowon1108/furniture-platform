@@ -18,6 +18,9 @@ from sqlalchemy.orm import Session
 from app.config import settings
 from app.database import get_db, SessionLocal
 from app.models.catalog_item import CatalogItem
+from app.core.logging import get_logger
+
+logger = get_logger("catalog")
 
 
 router = APIRouter()
@@ -91,7 +94,7 @@ def sync_catalog_from_s3() -> dict:
     Returns:
         dict with sync results (added, updated, deleted counts and item lists)
     """
-    print("🔄 Syncing catalog from S3...")
+    logger.info("Syncing catalog from S3...")
 
     result = {
         "added": 0,
@@ -123,12 +126,12 @@ def sync_catalog_from_s3() -> dict:
                     s3_items[item_id] = obj['Key']
 
         result["s3_count"] = len(s3_items)
-        print(f"📦 Found {len(s3_items)} GLB files in S3")
+        logger.info(f"Found {len(s3_items)} GLB files in S3")
 
         # Get existing items from DB
         existing_items = {item.id: item for item in db.query(CatalogItem).all()}
         result["db_count"] = len(existing_items)
-        print(f"📋 Found {len(existing_items)} items in DB")
+        logger.info(f"Found {len(existing_items)} items in DB")
 
         # Find items to delete (in DB but not in S3)
         items_to_delete = set(existing_items.keys()) - set(s3_items.keys())
@@ -136,7 +139,7 @@ def sync_catalog_from_s3() -> dict:
             db.delete(existing_items[item_id])
             result["deleted"] += 1
             result["deleted_items"].append(item_id)
-            print(f"🗑️  Removing '{item_id}' (no longer in S3)")
+            logger.info(f"Removing '{item_id}' (no longer in S3)")
 
         # Import here to avoid circular imports if any
         from app.utils.glb_utils import extract_glb_dimensions
@@ -169,7 +172,7 @@ def sync_catalog_from_s3() -> dict:
                 needs_processing = True
                 
             if needs_processing:
-                print(f"📏 Processing dimensions for {item_id}...")
+                logger.info(f"Processing dimensions for {item_id}...")
                 
                 # Download to temp file
                 try:
@@ -188,10 +191,10 @@ def sync_catalog_from_s3() -> dict:
                     height = dims.get('height', 1.0)
                     depth = dims.get('depth', 1.0)
                     
-                    print(f"   -> Dimensions: {width}x{height}x{depth}")
+                    logger.info(f"   -> Dimensions: {width}x{height}x{depth}")
                     
                 except Exception as e:
-                    print(f"   -> Failed to extract dimensions: {e}")
+                    logger.info(f"   -> Failed to extract dimensions: {e}")
                     width, height, depth = 1.0, 1.0, 1.0
 
                 if is_new:
@@ -255,14 +258,14 @@ def sync_catalog_from_s3() -> dict:
                     result["updated"] += 1
 
         db.commit()
-        print(f"✅ Catalog sync complete: {result['added']} added, {result['updated']} updated, {result['deleted']} deleted")
+        logger.info(f"Catalog sync complete: {result['added']} added, {result['updated']} updated, {result['deleted']} deleted")
 
     except ClientError as e:
         result["error"] = f"S3 error: {str(e)}"
-        print(f"❌ S3 error during sync: {e}")
+        logger.info(f"S3 error during sync: {e}")
     except Exception as e:
         result["error"] = f"Error: {str(e)}"
-        print(f"❌ Error during catalog sync: {e}")
+        logger.info(f"Error during catalog sync: {e}")
     finally:
         db.close()
 

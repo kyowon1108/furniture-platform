@@ -12,6 +12,9 @@ from app.api.deps import get_current_user
 from app.database import get_db
 from app.models.project import Project
 from app.models.user import User
+from app.core.logging import get_logger
+
+logger = get_logger("files")
 
 router = APIRouter()
 
@@ -19,6 +22,9 @@ router = APIRouter()
 UPLOADS_DIR = Path("uploads")
 PLY_DIR = UPLOADS_DIR / "ply_files"
 PLY_DIR.mkdir(parents=True, exist_ok=True)
+
+# File size limit (in bytes)
+MAX_PLY_FILE_SIZE = 100 * 1024 * 1024  # 100MB for PLY files
 
 
 @router.post("/upload-ply/{project_id}")
@@ -52,8 +58,16 @@ async def upload_ply_file(
     if not file.filename or not file.filename.lower().endswith(".ply"):
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="File must be a PLY file")
 
-    # Read file content (no size limit for development/demo)
+    # Read file content with size limit
     file_content = await file.read()
+    file_size = len(file_content)
+
+    if file_size > MAX_PLY_FILE_SIZE:
+        max_size_mb = MAX_PLY_FILE_SIZE // (1024 * 1024)
+        raise HTTPException(
+            status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+            detail=f"File too large. Maximum size is {max_size_mb}MB"
+        )
 
     # Validate PLY file format
     temp_path = None
@@ -97,7 +111,7 @@ async def upload_ply_file(
             os.remove(project.ply_file_path)
 
         if needs_conversion:
-            print(f"🔄 Converting Gaussian Splatting PLY to RGB for project {project_id}")
+            logger.info(f"Converting Gaussian Splatting PLY to RGB for project {project_id}")
             conversion_result = convert_gaussian_to_rgb(str(temp_path), str(final_path))
 
             if not conversion_result["success"]:
@@ -106,7 +120,7 @@ async def upload_ply_file(
                     detail=f"Failed to convert PLY: {conversion_result['message']}",
                 )
 
-            print(f"✅ Conversion successful: {conversion_result['message']}")
+            logger.info(f"Conversion successful: {conversion_result['message']}")
 
             # Clean up temp file
             if temp_path.exists():

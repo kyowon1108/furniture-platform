@@ -5,6 +5,9 @@ from typing import Dict, Set
 import socketio
 from app.config import settings
 from app.core.collision import validate_layout
+from app.core.logging import get_logger
+
+logger = get_logger("websocket")
 
 # Create Socket.IO server with restricted CORS origins
 sio = socketio.AsyncServer(
@@ -25,13 +28,13 @@ locked_objects: Dict[int, Dict[str, str]] = {}
 @sio.event
 async def connect(sid, environ, auth):
     """Handle client connection."""
-    print(f"Client {sid} connected")
+    logger.debug(f"Client {sid} connected")
 
 
 @sio.event
 async def disconnect(sid):
     """Handle client disconnection."""
-    print(f"Client {sid} disconnected")
+    logger.debug(f"Client {sid} disconnected")
 
     # Remove from all rooms
     # Remove from all rooms
@@ -52,7 +55,7 @@ async def disconnect(sid):
             del locks[furniture_id]
             room = f"project_{project_id}"
             await sio.emit("object_unlocked", {"furniture_id": furniture_id}, room=room)
-            print(f"Auto-released lock on {furniture_id} for disconnected user {sid}")
+            logger.debug(f"Auto-released lock on {furniture_id} for disconnected user {sid}")
 
 
 @sio.event
@@ -86,7 +89,7 @@ async def join_project(sid, data):
         "sid": sid
     }
 
-    print(f"User {nickname} ({user_id}) joined project {project_id}")
+    logger.info(f"User {nickname} ({user_id}) joined project {project_id}")
 
     # Notify others
     await sio.emit("user_joined", {
@@ -242,7 +245,7 @@ async def request_lock(sid, data):
     
     # Notify everyone (including requester) that object is locked
     await sio.emit("object_locked", {"furniture_id": furniture_id, "locked_by": sid}, room=room)
-    print(f"Lock granted on {furniture_id} to {sid}")
+    logger.info(f"Lock granted on {furniture_id} to {sid}")
 
 
 @sio.event
@@ -266,7 +269,7 @@ async def release_lock(sid, data):
             del locked_objects[project_id][furniture_id]
             room = f"project_{project_id}"
             await sio.emit("object_unlocked", {"furniture_id": furniture_id}, room=room)
-            print(f"Lock released on {furniture_id} by {sid}")
+            logger.info(f"Lock released on {furniture_id} by {sid}")
 
 
 

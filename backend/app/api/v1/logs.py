@@ -14,6 +14,9 @@ from sqlalchemy.orm import Session
 from app.api.deps import get_current_user
 from app.database import get_db
 from app.models.user import User
+from app.core.logging import get_logger
+
+logger = get_logger("logs")
 
 router = APIRouter()
 
@@ -42,7 +45,7 @@ def initialize_log_file():
             f.write(f"Server started at: {_server_start_time.isoformat()}\n")
             f.write("=" * 80 + "\n\n")
         
-        print(f"📝 Log file initialized: {_current_log_file}")
+        logger.info(f"Log file initialized: {_current_log_file}")
     
     return _current_log_file
 
@@ -61,7 +64,7 @@ def finalize_log_file():
                 f.write(f"Server ran for: {duration}\n")
             f.write("=== End of Log File ===\n")
         
-        print(f"📝 Log file finalized: {_current_log_file}")
+        logger.info(f"Log file finalized: {_current_log_file}")
 
 
 def get_current_log_file() -> Path:
@@ -110,21 +113,21 @@ async def save_logs(
     try:
         # Parse request body manually to handle validation errors
         body = await request.json()
-        print(f"📥 Received request body: {type(body)}, keys: {body.keys() if isinstance(body, dict) else 'N/A'}")
+        logger.info(f"📥 Received request body: {type(body)}, keys: {body.keys() if isinstance(body, dict) else 'N/A'}")
         
         # Validate request
         try:
             log_request = LogRequest(**body)
         except ValidationError as e:
-            print(f"❌ Validation error: {e}")
-            print(f"❌ Error details: {e.errors()}")
+            logger.info(f"Validation error: {e}")
+            logger.info(f"Error details: {e.errors()}")
             raise HTTPException(
                 status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
                 detail={"validation_errors": e.errors(), "received_body": body}
             )
         
         # Debug: Log received data
-        print(f"📥 Received {len(log_request.logs)} log entries from user {current_user.id}")
+        logger.info(f"📥 Received {len(log_request.logs)} log entries from user {current_user.id}")
         
         # Get current log file (create if not exists)
         filepath = get_current_log_file()
@@ -178,8 +181,8 @@ async def save_logs(
     except Exception as e:
         import traceback
         error_details = traceback.format_exc()
-        print(f"❌ Error saving logs: {str(e)}")
-        print(f"Traceback: {error_details}")
+        logger.info(f"Error saving logs: {str(e)}")
+        logger.info(f"Traceback: {error_details}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to save logs: {str(e)}",

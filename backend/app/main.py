@@ -8,21 +8,24 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.api.v1 import auth, catalog, files, files_3d, layouts, logs, projects, room_builder, websocket
 from app.api.v1.catalog import sync_catalog_from_s3
 from app.config import settings
+from app.core.logging import get_logger
 from app.database import engine, Base
+
+logger = get_logger("main")
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Lifespan context manager for startup and shutdown events."""
     # Startup
-    print("🚀 Server starting up...")
+    logger.info("Server starting up...")
 
     # Create database tables (including new CatalogItem table)
     Base.metadata.create_all(bind=engine)
-    print("✅ Database tables created")
+    logger.info("Database tables created")
 
     logs.initialize_log_file()
-    print("✅ Log file initialized")
+    logger.info("Log file initialized")
 
     # Sync catalog from S3 to DB
     sync_catalog_from_s3()
@@ -30,9 +33,9 @@ async def lifespan(app: FastAPI):
     yield
 
     # Shutdown
-    print("🛑 Server shutting down...")
+    logger.info("Server shutting down...")
     logs.finalize_log_file()
-    print("✅ Log file finalized")
+    logger.info("Log file finalized")
 
 
 # Create FastAPI app with lifespan

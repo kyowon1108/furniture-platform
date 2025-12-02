@@ -14,6 +14,9 @@ from app.api.deps import get_current_user
 from app.database import get_db
 from app.models.project import Project
 from app.models.user import User
+from app.core.logging import get_logger
+
+logger = get_logger("files_3d")
 
 router = APIRouter()
 
@@ -23,6 +26,10 @@ PLY_DIR = UPLOADS_DIR / "ply_files"
 GLB_DIR = UPLOADS_DIR / "glb_files"
 PLY_DIR.mkdir(parents=True, exist_ok=True)
 GLB_DIR.mkdir(parents=True, exist_ok=True)
+
+# File size limits (in bytes)
+MAX_PLY_FILE_SIZE = 100 * 1024 * 1024  # 100MB for PLY files
+MAX_GLB_FILE_SIZE = 50 * 1024 * 1024   # 50MB for GLB files
 
 
 @router.post("/upload-3d/{project_id}")
@@ -66,9 +73,17 @@ async def upload_3d_file(
     else:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="File must be a PLY or GLB file")
 
-    # Read file content
+    # Check file size before reading
     file_content = await file.read()
     file_size = len(file_content)
+
+    max_size = MAX_PLY_FILE_SIZE if file_type == "ply" else MAX_GLB_FILE_SIZE
+    if file_size > max_size:
+        max_size_mb = max_size // (1024 * 1024)
+        raise HTTPException(
+            status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+            detail=f"File too large. Maximum size is {max_size_mb}MB"
+        )
 
     # Prepare paths
     temp_path = upload_dir / f"temp_{project_id}_{file.filename}"
@@ -154,7 +169,7 @@ async def _process_ply_file(temp_path: Path, final_path: Path, project: Project,
             os.remove(project.file_path)
 
         if needs_conversion:
-            print(f"🔄 Converting Gaussian Splatting PLY to RGB for project {project.id}")
+            logger.info(f"Converting Gaussian Splatting PLY to RGB for project {project.id}")
             conversion_result = convert_gaussian_to_rgb(
                 str(temp_path),
                 str(final_path),
@@ -167,7 +182,7 @@ async def _process_ply_file(temp_path: Path, final_path: Path, project: Project,
                     detail=f"Failed to convert PLY: {conversion_result['message']}",
                 )
 
-            print(f"✅ Conversion successful: {conversion_result['message']}")
+            logger.info(f"Conversion successful: {conversion_result['message']}")
 
             # Clean up temp file
             if temp_path.exists():
@@ -214,7 +229,7 @@ async def _process_glb_file(temp_path: Path, final_path: Path, project: Project,
         version = int.from_bytes(header[4:8], byteorder="little")
         length = int.from_bytes(header[8:12], byteorder="little")
 
-        print(f"✅ Valid GLB file: version {version}, length {length} bytes")
+        logger.info(f"Valid GLB file: version {version}, length {length} bytes")
 
         # Extract dimensions from GLB file (only if project doesn't have valid dimensions already)
         # Room-builder sets dimensions BEFORE uploading GLB, so we should respect those
@@ -237,7 +252,7 @@ async def _process_glb_file(temp_path: Path, final_path: Path, project: Project,
                 'height': project.room_height,
                 'depth': project.room_depth
             }
-            print(f"✅ Keeping existing room dimensions: {dimensions['width']}x{dimensions['height']}x{dimensions['depth']}")
+            logger.info(f"Keeping existing room dimensions: {dimensions['width']}x{dimensions['height']}x{dimensions['depth']}")
         else:
             # No valid dimensions yet, try to extract from GLB
             dimensions = extract_glb_dimensions(temp_path)
@@ -247,11 +262,11 @@ async def _process_glb_file(temp_path: Path, final_path: Path, project: Project,
                     project.room_width = dimensions['width']
                     project.room_height = dimensions['height']
                     project.room_depth = dimensions['depth']
-                    print(f"📐 Updated room dimensions from GLB: {dimensions['width']}x{dimensions['height']}x{dimensions['depth']}")
+                    logger.info(f"Updated room dimensions from GLB: {dimensions['width']}x{dimensions['height']}x{dimensions['depth']}")
                 else:
-                    print(f"⚠️ Got default dimensions from GLB, using defaults")
+                    logger.info(f"Got default dimensions from GLB, using defaults")
             else:
-                print(f"⚠️ Could not extract dimensions from GLB")
+                logger.info(f"Could not extract dimensions from GLB")
 
         # Remove old file if exists
         if project.file_path and os.path.exists(project.file_path):
