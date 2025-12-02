@@ -34,6 +34,11 @@ export function useSocket(projectId: number | null, userId: number | null) {
       addToast('Disconnected from server', 'warning');
     });
 
+    socket.on('connect_error', (error: Error) => {
+      console.error('Socket connection error:', error);
+      addToast('실시간 협업 서버에 연결할 수 없습니다', 'error');
+    });
+
     socket.on('user_joined', (data: any) => {
       console.log('User joined:', data);
       addToast(`${data.nickname}님이 입장하셨습니다`, 'info');
