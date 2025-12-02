@@ -66,15 +66,33 @@ function GlbFurnitureModel({ glbUrl, dimensions, onClick, onActualDimensionsLoad
   const [model, setModel] = useState<THREE.Group | null>(null);
   const [error, setError] = useState<string | null>(null);
   const dimensionsUpdatedRef = useRef(false);
+  const modelRef = useRef<THREE.Group | null>(null);
 
   useEffect(() => {
     if (!glbUrl) return;
 
+    let isMounted = true;
     const loader = new GLTFLoader();
 
     loader.load(
       glbUrl,
       (gltf) => {
+        // Check if component is still mounted
+        if (!isMounted) {
+          // Dispose loaded resources since we're unmounted
+          gltf.scene.traverse((child) => {
+            if ((child as THREE.Mesh).isMesh) {
+              const mesh = child as THREE.Mesh;
+              mesh.geometry?.dispose();
+              if (mesh.material) {
+                const materials = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
+                materials.forEach((mat) => mat.dispose());
+              }
+            }
+          });
+          return;
+        }
+
         // Calculate bounding box to scale model correctly
         const box = new THREE.Box3().setFromObject(gltf.scene);
         const size = new THREE.Vector3();
@@ -113,14 +131,35 @@ function GlbFurnitureModel({ glbUrl, dimensions, onClick, onActualDimensionsLoad
           }
         });
 
+        modelRef.current = gltf.scene;
         setModel(gltf.scene);
       },
       undefined,
       (err) => {
+        if (!isMounted) return;
         console.error('Failed to load GLB:', glbUrl, err);
         setError('GLB 로드 실패');
       }
     );
+
+    // Cleanup function
+    return () => {
+      isMounted = false;
+      // Dispose model resources on unmount
+      if (modelRef.current) {
+        modelRef.current.traverse((child) => {
+          if ((child as THREE.Mesh).isMesh) {
+            const mesh = child as THREE.Mesh;
+            mesh.geometry?.dispose();
+            if (mesh.material) {
+              const materials = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
+              materials.forEach((mat) => mat.dispose());
+            }
+          }
+        });
+        modelRef.current = null;
+      }
+    };
   }, [glbUrl, dimensions, onActualDimensionsLoaded]);
 
   if (error || !model) {

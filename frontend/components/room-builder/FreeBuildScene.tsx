@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useRef, useMemo, useCallback, useEffect, useState, forwardRef, useImperativeHandle } from 'react';
+import React, { useRef, useMemo, useCallback, useEffect, useState, forwardRef, useImperativeHandle, memo } from 'react';
 import * as THREE from 'three';
 import { useThree, ThreeEvent } from '@react-three/fiber';
 import { useFreeBuildStore } from '@/store/freeBuildStore';
@@ -20,20 +20,57 @@ const FreeBuildTileMesh: React.FC<{
   onClick: (e: ThreeEvent<MouseEvent>) => void;
 }> = ({ tile, tileSize, isSelected, onClick }) => {
   const [texture, setTexture] = useState<THREE.Texture | null>(null);
+  const textureRef = useRef<THREE.Texture | null>(null);
 
-  // 텍스처 로딩
+  // 텍스처 로딩 with proper cleanup
   useEffect(() => {
-    if (tile.textureUrl) {
-      const loader = new THREE.TextureLoader();
-      loader.load(tile.textureUrl, (tex) => {
+    if (!tile.textureUrl) {
+      // Dispose old texture if exists
+      if (textureRef.current) {
+        textureRef.current.dispose();
+        textureRef.current = null;
+      }
+      setTexture(null);
+      return;
+    }
+
+    let isMounted = true;
+    const loader = new THREE.TextureLoader();
+
+    loader.load(
+      tile.textureUrl,
+      (tex) => {
+        if (!isMounted) {
+          // Component unmounted during load - dispose texture
+          tex.dispose();
+          return;
+        }
+        // Dispose old texture before setting new one
+        if (textureRef.current) {
+          textureRef.current.dispose();
+        }
         tex.colorSpace = THREE.SRGBColorSpace;
         tex.wrapS = THREE.RepeatWrapping;
         tex.wrapT = THREE.RepeatWrapping;
+        textureRef.current = tex;
         setTexture(tex);
-      });
-    } else {
-      setTexture(null);
-    }
+      },
+      undefined,
+      (error) => {
+        console.error('Texture load failed:', error);
+        if (!isMounted) return;
+        setTexture(null);
+      }
+    );
+
+    return () => {
+      isMounted = false;
+      // Dispose texture on cleanup
+      if (textureRef.current) {
+        textureRef.current.dispose();
+        textureRef.current = null;
+      }
+    };
   }, [tile.textureUrl]);
 
   // 위치 계산

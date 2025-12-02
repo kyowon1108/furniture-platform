@@ -80,6 +80,28 @@ const GlbGeometry = memo(function GlbGeometry({ url, roomDimensions, onDimension
     });
   }, [model]);
 
+  // Cleanup function for disposing materials
+  useEffect(() => {
+    return () => {
+      // Dispose ghost model materials on unmount
+      if (ghostModel) {
+        ghostModel.traverse((child) => {
+          if ((child as THREE.Mesh).isMesh) {
+            const mesh = child as THREE.Mesh;
+            if (mesh.material) {
+              const materials = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
+              materials.forEach((mat) => mat.dispose());
+            }
+            mesh.geometry?.dispose();
+          }
+        });
+      }
+      // Dispose cached materials list
+      materialsListRef.current.forEach((mat) => mat.dispose());
+      materialsListRef.current = [];
+    };
+  }, [ghostModel]);
+
   // Setup models when loaded
   useEffect(() => {
     if (!model) return;
