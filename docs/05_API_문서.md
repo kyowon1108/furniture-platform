@@ -13,13 +13,17 @@
 
 ## 기본 정보
 
-**Base URL**: `http://localhost:8000/api/v1`
+**Base URL**: `http://localhost:8008/api/v1`
 
 **인증 방식**: JWT Bearer Token
 
 **Content-Type**: `application/json`
 
-**Swagger UI**: `http://localhost:8000/docs`
+**Swagger UI**: `http://localhost:8008/docs`
+
+**파일 업로드 제한**:
+- PLY 파일: 최대 100MB
+- GLB 파일: 최대 50MB
 
 ---
 
@@ -478,10 +482,11 @@ file: <PLY 파일>
 
 **제한사항**:
 - 파일 형식: `.ply`만 허용
-- 파일 크기 제한: 없음 (개발/시연용)
+- 파일 크기 제한: 100MB
 - PLY 파일은 vertex 데이터를 포함해야 함
 
-**참고**: 프로덕션 환경에서는 서버 인프라에 맞게 파일 크기 제한을 추가하는 것을 권장합니다.
+**에러 코드**:
+- `413`: 파일 크기 초과 (100MB 이상)
 
 ---
 
@@ -534,9 +539,97 @@ Authorization: Bearer {access_token}
 
 ---
 
+## 카탈로그 API
+
+S3에 저장된 가구 GLB 파일 카탈로그를 관리합니다.
+
+### 1. 카탈로그 전체 조회
+
+**Endpoint**: `GET /catalog`
+
+**Response** (200 OK):
+```json
+{
+  "items": [
+    {
+      "id": "bed_single",
+      "name": "Bed Single",
+      "type": "bed",
+      "category": "bedroom",
+      "dimensions": {"width": 1.0, "height": 0.5, "depth": 2.0},
+      "thumbnail": "/furniture/bed_single.png",
+      "color": "#8B4513",
+      "price": 100000,
+      "tags": ["bed", "bedroom"],
+      "mountType": "floor",
+      "glbUrl": "https://s3.amazonaws.com/...",
+      "glbKey": "catalog/models/bed_single.glb"
+    }
+  ],
+  "total": 45
+}
+```
+
+**참고**: `glbUrl`은 1시간 유효한 presigned URL입니다.
+
+---
+
+### 2. S3 동기화
+
+**Endpoint**: `POST /catalog/sync`
+
+**Response** (200 OK):
+```json
+{
+  "message": "Catalog synced from S3",
+  "result": {
+    "added": 5,
+    "updated": 2,
+    "deleted": 1,
+    "s3_count": 45,
+    "db_count": 45
+  }
+}
+```
+
+**참고**: 서버 시작 시 자동으로 동기화됩니다.
+
+---
+
+### 3. GLB 파일 업로드
+
+**Endpoint**: `POST /catalog/glb/{item_id}`
+
+**Headers**:
+```
+Content-Type: multipart/form-data
+```
+
+**Request Body** (Form Data):
+```
+file: <GLB 파일>
+```
+
+**Response** (200 OK):
+```json
+{
+  "message": "GLB file uploaded successfully",
+  "item_id": "custom_chair",
+  "glb_key": "catalog/models/custom_chair.glb",
+  "glb_url": "https://s3.amazonaws.com/..."
+}
+```
+
+**제한사항**:
+- 파일 형식: `.glb`만 허용
+- 파일 크기 제한: 50MB
+- `413`: 파일 크기 초과
+
+---
+
 ## WebSocket 이벤트
 
-**연결 URL**: `ws://localhost:8000/socket.io`
+**연결 URL**: `ws://localhost:8008/socket.io`
 
 **Transport**: `websocket`
 
@@ -662,6 +755,7 @@ Authorization: Bearer {access_token}
 | 401 | 인증 실패 |
 | 403 | 권한 없음 |
 | 404 | 리소스를 찾을 수 없음 |
+| 413 | 파일 크기 초과 (PLY: 100MB, GLB: 50MB) |
 | 500 | 서버 오류 |
 
 ---
