@@ -12,7 +12,7 @@ import { socketService } from '@/lib/socket';
 import type { FurnitureCatalogItem } from '@/types/catalog';
 import type { FurnitureItem } from '@/types/furniture';
 import * as THREE from 'three';
-import { useRef, useEffect, useMemo } from 'react';
+import { useRef, useEffect, useMemo, useCallback } from 'react';
 
 // Helper function to calculate rotated dimensions (bounding box after rotation)
 function getRotatedDimensions(
@@ -62,13 +62,34 @@ function getRotatedDimensions(
   }
 }
 
+// Type for room structure from free build mode
+interface RoomStructure {
+  mode: 'free_build';
+  tileSize: number;
+  floorTiles: Array<{ gridX: number; gridZ: number }>;
+  bounds: {
+    minX: number;
+    maxX: number;
+    minZ: number;
+    maxZ: number;
+  };
+  // GLB geometry center for accurate coordinate transformation
+  // This matches how GlbModel.tsx centers the model
+  glbCenter?: {
+    x: number;
+    z: number;
+  };
+}
+
 function SceneContent({
   projectId,
   hasPlyFile,
   plyFilePath,
   fileType,
   roomDimensions,
-  onRoomDimensionsChange
+  onRoomDimensionsChange,
+  buildMode,
+  roomStructure
 }: {
   projectId?: number;
   hasPlyFile?: boolean;
@@ -76,6 +97,8 @@ function SceneContent({
   fileType?: 'ply' | 'glb' | null;
   roomDimensions?: { width: number; height: number; depth: number };
   onRoomDimensionsChange?: (dims: { width: number; height: number; depth: number }) => void;
+  buildMode?: 'template' | 'free_build';
+  roomStructure?: RoomStructure;
 }) {
   const furnitures = useEditorStore((state) => state.furnitures);
   const selectedIds = useEditorStore((state) => state.selectedIds);
@@ -117,13 +140,214 @@ function SceneContent({
   // 2. All room dimensions are 0 (waiting for GLB detection)
   const usePlyBoundaries = hasPlyFile && !hasValidRoomDimensions;
 
-  console.log('Scene boundaries:', {
-    roomDimensions,
-    actualRoomDimensions,
-    hasValidRoomDimensions,
-    hasPlyFile,
-    usePlyBoundaries
-  });
+  // Check if we're in free build mode with floor tiles available
+  const isFreeBuildWithTiles = buildMode === 'free_build' && roomStructure?.floorTiles && roomStructure.floorTiles.length > 0;
+
+  // Pre-compute tile lookup data for O(1) access instead of O(n) array search
+  const tileData = useMemo(() => {
+    if (!roomStructure?.floorTiles || roomStructure.floorTiles.length === 0) {
+      return null;
+    }
+
+    const tileSize = roomStructure.tileSize || 0.5;
+    const bounds = roomStructure.bounds;
+
+    // Calculate GLB center
+    let glbCenterX: number;
+    let glbCenterZ: number;
+
+    if (roomStructure.glbCenter) {
+      glbCenterX = roomStructure.glbCenter.x;
+      glbCenterZ = roomStructure.glbCenter.z;
+    } else {
+      glbCenterX = ((bounds.minX + bounds.maxX + 1) / 2) * tileSize;
+      glbCenterZ = ((bounds.minZ + bounds.maxZ + 1) / 2) * tileSize;
+    }
+
+    // Create Set for O(1) tile lookup
+    const tileSet = new Set<string>();
+    for (const tile of roomStructure.floorTiles) {
+      tileSet.add(`${tile.gridX},${tile.gridZ}`);
+    }
+
+    // PRE-COMPUTE: X range for each gridZ (O(1) lookup instead of O(n) loop)
+    const xRangeByGridZ = new Map<number, { minGridX: number; maxGridX: number }>();
+    for (let z = bounds.minZ; z <= bounds.maxZ; z++) {
+      let minX = Infinity;
+      let maxX = -Infinity;
+      for (let x = bounds.minX; x <= bounds.maxX; x++) {
+        if (tileSet.has(`${x},${z}`)) {
+          minX = Math.min(minX, x);
+          maxX = Math.max(maxX, x);
+        }
+      }
+      if (minX !== Infinity) {
+        xRangeByGridZ.set(z, { minGridX: minX, maxGridX: maxX });
+      }
+    }
+
+    // PRE-COMPUTE: Z range for each gridX (O(1) lookup instead of O(n) loop)
+    const zRangeByGridX = new Map<number, { minGridZ: number; maxGridZ: number }>();
+    for (let x = bounds.minX; x <= bounds.maxX; x++) {
+      let minZ = Infinity;
+      let maxZ = -Infinity;
+      for (let z = bounds.minZ; z <= bounds.maxZ; z++) {
+        if (tileSet.has(`${x},${z}`)) {
+          minZ = Math.min(minZ, z);
+          maxZ = Math.max(maxZ, z);
+        }
+      }
+      if (minZ !== Infinity) {
+        zRangeByGridX.set(x, { minGridZ: minZ, maxGridZ: maxZ });
+      }
+    }
+
+    // Calculate world bounds for quick rejection
+    const worldMinX = bounds.minX * tileSize - glbCenterX;
+    const worldMaxX = (bounds.maxX + 1) * tileSize - glbCenterX;
+    const worldMinZ = bounds.minZ * tileSize - glbCenterZ;
+    const worldMaxZ = (bounds.maxZ + 1) * tileSize - glbCenterZ;
+
+    console.log('🏠 Tile data computed:', {
+      tileCount: tileSet.size,
+      xRanges: xRangeByGridZ.size,
+      zRanges: zRangeByGridX.size,
+    });
+
+    return {
+      tileSize,
+      glbCenterX,
+      glbCenterZ,
+      tileSet,
+      xRangeByGridZ,
+      zRangeByGridX,
+      worldMinX,
+      worldMaxX,
+      worldMinZ,
+      worldMaxZ,
+      bounds,
+    };
+  }, [roomStructure]);
+
+  // Fast tile check using Set - O(1) lookup
+  const isPositionOnFloorTile = useCallback((worldX: number, worldZ: number): boolean => {
+    if (!tileData) return true; // No tile data, allow all
+
+    const { tileSize, glbCenterX, glbCenterZ, tileSet } = tileData;
+
+    // Convert world position to grid coordinates
+    const gridPosX = worldX + glbCenterX;
+    const gridPosZ = worldZ + glbCenterZ;
+    const gridX = Math.floor(gridPosX / tileSize);
+    const gridZ = Math.floor(gridPosZ / tileSize);
+
+    return tileSet.has(`${gridX},${gridZ}`);
+  }, [tileData]);
+
+  // Get the valid X range for a given Z position - O(1) lookup from pre-computed map
+  const getValidXRange = useCallback((worldZ: number, halfWidth: number): { min: number; max: number } | null => {
+    if (!tileData) return null;
+
+    const { tileSize, glbCenterX, glbCenterZ, xRangeByGridZ } = tileData;
+
+    // Convert world Z to grid Z
+    const gridZ = Math.floor((worldZ + glbCenterZ) / tileSize);
+
+    // O(1) lookup from pre-computed map
+    const range = xRangeByGridZ.get(gridZ);
+    if (!range) return null;
+
+    // Convert back to world coordinates, accounting for furniture half-width
+    const worldMinX = range.minGridX * tileSize - glbCenterX + halfWidth;
+    const worldMaxX = (range.maxGridX + 1) * tileSize - glbCenterX - halfWidth;
+
+    return { min: worldMinX, max: worldMaxX };
+  }, [tileData]);
+
+  // Get the valid Z range for a given X position - O(1) lookup from pre-computed map
+  const getValidZRange = useCallback((worldX: number, halfDepth: number): { min: number; max: number } | null => {
+    if (!tileData) return null;
+
+    const { tileSize, glbCenterX, glbCenterZ, zRangeByGridX } = tileData;
+
+    // Convert world X to grid X
+    const gridX = Math.floor((worldX + glbCenterX) / tileSize);
+
+    // O(1) lookup from pre-computed map
+    const range = zRangeByGridX.get(gridX);
+    if (!range) return null;
+
+    // Convert back to world coordinates, accounting for furniture half-depth
+    const worldMinZ = range.minGridZ * tileSize - glbCenterZ + halfDepth;
+    const worldMaxZ = (range.maxGridZ + 1) * tileSize - glbCenterZ - halfDepth;
+
+    return { min: worldMinZ, max: worldMaxZ };
+  }, [tileData]);
+
+  // Clamp furniture position to valid tile area with X/Z independent handling
+  const clampToValidTileArea = useCallback((
+    pos: { x: number; z: number },
+    halfWidth: number,
+    halfDepth: number
+  ): { x: number; z: number; wasAdjusted: boolean } => {
+    if (!tileData) return { ...pos, wasAdjusted: false };
+
+    let { x, z } = pos;
+    let wasAdjusted = false;
+
+    // Check all four corners
+    const corners = [
+      { x: x - halfWidth, z: z - halfDepth },
+      { x: x + halfWidth, z: z - halfDepth },
+      { x: x - halfWidth, z: z + halfDepth },
+      { x: x + halfWidth, z: z + halfDepth },
+    ];
+
+    // Check if any corner is outside valid tiles
+    const invalidCorners = corners.filter(c => !isPositionOnFloorTile(c.x, c.z));
+
+    if (invalidCorners.length === 0) {
+      return { x, z, wasAdjusted: false }; // All corners valid
+    }
+
+    // Try X-axis clamping first
+    const xRange = getValidXRange(z, halfWidth);
+    if (xRange) {
+      const clampedX = Math.max(xRange.min, Math.min(xRange.max, x));
+      if (clampedX !== x) {
+        x = clampedX;
+        wasAdjusted = true;
+      }
+    }
+
+    // Try Z-axis clamping
+    const zRange = getValidZRange(x, halfDepth);
+    if (zRange) {
+      const clampedZ = Math.max(zRange.min, Math.min(zRange.max, z));
+      if (clampedZ !== z) {
+        z = clampedZ;
+        wasAdjusted = true;
+      }
+    }
+
+    // Verify final position - check center and all corners
+    const finalCorners = [
+      { x: x, z: z }, // center
+      { x: x - halfWidth, z: z - halfDepth },
+      { x: x + halfWidth, z: z - halfDepth },
+      { x: x - halfWidth, z: z + halfDepth },
+      { x: x + halfWidth, z: z + halfDepth },
+    ];
+
+    const allValid = finalCorners.every(c => isPositionOnFloorTile(c.x, c.z));
+
+    if (!allValid) {
+      // Clamping failed, return original position (will trigger revert in caller)
+      return { x: pos.x, z: pos.z, wasAdjusted: false };
+    }
+
+    return { x, z, wasAdjusted };
+  }, [tileData, isPositionOnFloorTile, getValidXRange, getValidZRange]);
 
   // Check if position is valid (no collision and within bounds)
   const isValidPosition = (furniture: FurnitureItem, newPos: { x: number; y: number; z: number }) => {
@@ -144,10 +368,32 @@ function SceneContent({
       halfWidth,
       halfDepth,
       usePlyBoundaries,
-      actualRoomDimensions
+      actualRoomDimensions,
+      isFreeBuildWithTiles
     });
 
-    // Check room boundaries based on available dimension information
+    // For Free Build mode with tile data, check if furniture is on valid floor tiles
+    if (isFreeBuildWithTiles) {
+      // Check all four corners of the furniture footprint
+      const corners = [
+        { x: newPos.x - halfWidth, z: newPos.z - halfDepth }, // bottom-left
+        { x: newPos.x + halfWidth, z: newPos.z - halfDepth }, // bottom-right
+        { x: newPos.x - halfWidth, z: newPos.z + halfDepth }, // top-left
+        { x: newPos.x + halfWidth, z: newPos.z + halfDepth }, // top-right
+        { x: newPos.x, z: newPos.z }, // center
+      ];
+
+      for (const corner of corners) {
+        if (!isPositionOnFloorTile(corner.x, corner.z)) {
+          console.log('❌ Free Build tile check failed: corner not on floor tile', corner);
+          return false;
+        }
+      }
+      console.log('✓ Free Build tile check passed: all corners on floor tiles');
+      return true;
+    }
+
+    // Check room boundaries based on available dimension information (for template mode)
     if (hasValidRoomDimensions) {
       // Use room dimensions for boundary checking
       const roomHalfWidth = actualRoomDimensions.width / 2;
@@ -514,6 +760,10 @@ function SceneContent({
 
       const onDraggingChanged = (event: any) => {
         orbit.enabled = !event.value;
+        // When drag ends, flush any pending socket move event
+        if (!event.value) {
+          socketService.flushPendingMove();
+        }
       };
 
       controls.addEventListener('dragging-changed', onDraggingChanged);
@@ -872,6 +1122,7 @@ function SceneContent({
           glbFilePath={plyFilePath}
           roomDimensions={actualRoomDimensions}
           onRoomDimensionsChange={onRoomDimensionsChange}
+          buildMode={buildMode}
         />
       )}
 
@@ -931,18 +1182,6 @@ function SceneContent({
               const rotationChanged = Math.abs(currentRotationDeg - previousRotationDeg) > 0.1; // 0.1 degree threshold
 
               const isRotateMode = transformMode === 'rotate';
-
-              console.log('🔄 onObjectChange:', {
-                mountType: selectedFurniture.mountType,
-                transformMode,
-                isRotateMode,
-                currentY: obj.position.y,
-                furnitureId: selectedFurniture.id,
-                currentRotation: currentRotationDeg,
-                previousRotation: previousRotationDeg,
-                rotationChanged,
-                position: { x: obj.position.x, y: obj.position.y, z: obj.position.z }
-              });
 
               // Handle Y position based on mount type
               if (selectedFurniture.mountType === 'wall') {
@@ -1386,28 +1625,12 @@ function SceneContent({
                 const halfWidth = rotatedDims.width / 2;
                 const halfDepth = rotatedDims.depth / 2;
 
-                console.log('📐 Translate mode - using dimensions:', {
-                  rotationChanged,
-                  originalDims: selectedFurniture.dimensions,
-                  rotatedDims,
-                  currentRotation: currentRotationDeg,
-                  previousRotation: previousRotationDeg,
-                  halfWidth,
-                  halfDepth
-                });
-
                 // Wall-mounted items: snap to walls (keep Y position)
                 if (selectedFurniture.mountType === 'wall' && !usePlyBoundaries) {
                   const wallSnapThreshold = 0.5; // Snap within 50cm of wall
                   const roomHalfWidth = actualRoomDimensions.width / 2;
                   const roomHalfDepth = actualRoomDimensions.depth / 2;
                   const wallOffset = 0.05; // 5cm from wall surface
-
-                  console.log('🔍 Wall snap check:', {
-                    currentPos: snappedPos,
-                    roomHalfWidth,
-                    roomHalfDepth
-                  });
 
                   // Check distance to each wall
                   const distToNorth = Math.abs(snappedPos.z + roomHalfDepth);
@@ -1520,25 +1743,11 @@ function SceneContent({
                   const furnitureMaxX = correctedPos.x + halfWidth;
 
                   if (furnitureMinX < -roomHalfWidth) {
-                    const penetration = -roomHalfWidth - furnitureMinX;
-                    correctedPos.x += penetration;
+                    correctedPos.x += (-roomHalfWidth - furnitureMinX);
                     wasCorrected = true;
-                    console.log('🔧 Correcting X position (too far left):', {
-                      before: snappedPos.x,
-                      after: correctedPos.x,
-                      penetration,
-                      halfWidth
-                    });
                   } else if (furnitureMaxX > roomHalfWidth) {
-                    const penetration = furnitureMaxX - roomHalfWidth;
-                    correctedPos.x -= penetration;
+                    correctedPos.x -= (furnitureMaxX - roomHalfWidth);
                     wasCorrected = true;
-                    console.log('🔧 Correcting X position (too far right):', {
-                      before: snappedPos.x,
-                      after: correctedPos.x,
-                      penetration,
-                      halfWidth
-                    });
                   }
 
                   // Check and correct Z position using rotated dimensions
@@ -1546,31 +1755,54 @@ function SceneContent({
                   const furnitureMaxZ = correctedPos.z + halfDepth;
 
                   if (furnitureMinZ < -roomHalfDepth) {
-                    const penetration = -roomHalfDepth - furnitureMinZ;
-                    correctedPos.z += penetration;
+                    correctedPos.z += (-roomHalfDepth - furnitureMinZ);
                     wasCorrected = true;
-                    console.log('🔧 Correcting Z position (too far back):', {
-                      before: snappedPos.z,
-                      after: correctedPos.z,
-                      penetration,
-                      halfDepth
-                    });
                   } else if (furnitureMaxZ > roomHalfDepth) {
-                    const penetration = furnitureMaxZ - roomHalfDepth;
-                    correctedPos.z -= penetration;
+                    correctedPos.z -= (furnitureMaxZ - roomHalfDepth);
                     wasCorrected = true;
-                    console.log('🔧 Correcting Z position (too far front):', {
-                      before: snappedPos.z,
-                      after: correctedPos.z,
-                      penetration,
-                      halfDepth
-                    });
                   }
 
                   if (wasCorrected) {
                     obj.position.x = correctedPos.x;
                     obj.position.z = correctedPos.z;
                     snappedPos = correctedPos;
+                  }
+                }
+
+                // FREE BUILD MODE: Smooth clamping to valid floor tiles
+                // Uses X/Z independent clamping for natural sliding along boundaries
+                if (isFreeBuildWithTiles) {
+                  const clampResult = clampToValidTileArea(
+                    { x: snappedPos.x, z: snappedPos.z },
+                    halfWidth,
+                    halfDepth
+                  );
+
+                  if (clampResult.wasAdjusted) {
+                    // Position was clamped to valid area
+                    snappedPos.x = clampResult.x;
+                    snappedPos.z = clampResult.z;
+                    obj.position.x = clampResult.x;
+                    obj.position.z = clampResult.z;
+                  } else {
+                    // Check if current position is valid
+                    const centerValid = isPositionOnFloorTile(snappedPos.x, snappedPos.z);
+                    const cornersValid = [
+                      isPositionOnFloorTile(snappedPos.x - halfWidth, snappedPos.z - halfDepth),
+                      isPositionOnFloorTile(snappedPos.x + halfWidth, snappedPos.z - halfDepth),
+                      isPositionOnFloorTile(snappedPos.x - halfWidth, snappedPos.z + halfDepth),
+                      isPositionOnFloorTile(snappedPos.x + halfWidth, snappedPos.z + halfDepth),
+                    ].every(v => v);
+
+                    if (!centerValid || !cornersValid) {
+                      // Clamping failed and position invalid - revert to previous
+                      if (previousPositionRef.current) {
+                        obj.position.x = previousPositionRef.current.x;
+                        obj.position.y = previousPositionRef.current.y;
+                        obj.position.z = previousPositionRef.current.z;
+                      }
+                      return;
+                    }
                   }
                 }
 
@@ -1693,71 +1925,28 @@ function SceneContent({
               const roomHalfWidth = actualRoomDimensions.width / 2;
               const roomHalfDepth = actualRoomDimensions.depth / 2;
 
-              console.log('🔍 Boundary check values:', {
-                usePlyBoundaries,
-                furnitureDimensions: selectedFurniture.dimensions,
-                rotatedDims,
-                halfWidth,
-                halfDepth,
-                roomDimensions: actualRoomDimensions,
-                roomHalfWidth,
-                roomHalfDepth,
-                objPosition: { x: obj.position.x, z: obj.position.z }
-              });
-
               // Correct X position
               const furnitureMinX = obj.position.x - halfWidth;
               const furnitureMaxX = obj.position.x + halfWidth;
 
-              console.log('🔍 X boundary check:', {
-                furnitureMinX,
-                furnitureMaxX,
-                roomMinX: -roomHalfWidth,
-                roomMaxX: roomHalfWidth,
-                needsCorrectionLeft: furnitureMinX < -roomHalfWidth,
-                needsCorrectionRight: furnitureMaxX > roomHalfWidth
-              });
-
               if (furnitureMinX < -roomHalfWidth) {
                 obj.position.x = -roomHalfWidth + halfWidth;
-                console.log('🔧 Boundary correction: X too far left, new X:', obj.position.x);
               } else if (furnitureMaxX > roomHalfWidth) {
                 obj.position.x = roomHalfWidth - halfWidth;
-                console.log('🔧 Boundary correction: X too far right, new X:', obj.position.x);
               }
 
               // Correct Z position
               const furnitureMinZ = obj.position.z - halfDepth;
               const furnitureMaxZ = obj.position.z + halfDepth;
 
-              console.log('🔍 Z boundary check:', {
-                furnitureMinZ,
-                furnitureMaxZ,
-                roomMinZ: -roomHalfDepth,
-                roomMaxZ: roomHalfDepth,
-                needsCorrectionBack: furnitureMinZ < -roomHalfDepth,
-                needsCorrectionFront: furnitureMaxZ > roomHalfDepth
-              });
-
               if (furnitureMinZ < -roomHalfDepth) {
                 obj.position.z = -roomHalfDepth + halfDepth;
-                console.log('🔧 Boundary correction: Z too far back, new Z:', obj.position.z);
               } else if (furnitureMaxZ > roomHalfDepth) {
                 obj.position.z = roomHalfDepth - halfDepth;
-                console.log('🔧 Boundary correction: Z too far front, new Z:', obj.position.z);
               }
 
               // Save the actual object Y position directly
-              // Furniture.tsx now uses position.y as-is without modification
               const savedY = obj.position.y;
-
-              console.log('💾 Saving furniture position:', {
-                id: selectedFurniture.id,
-                mountType: selectedFurniture.mountType,
-                objY: obj.position.y,
-                savedY,
-                position: { x: obj.position.x, y: savedY, z: obj.position.z }
-              });
 
               updateFurniture(selectedFurniture.id, {
                 position: {
@@ -1852,7 +2041,9 @@ export function Scene({
   plyFilePath,
   fileType,
   roomDimensions,
-  onRoomDimensionsChange
+  onRoomDimensionsChange,
+  buildMode,
+  roomStructure
 }: {
   projectId?: number;
   hasPlyFile?: boolean;
@@ -1860,6 +2051,8 @@ export function Scene({
   fileType?: 'ply' | 'glb' | null;
   roomDimensions?: { width: number; height: number; depth: number };
   onRoomDimensionsChange?: (dims: { width: number; height: number; depth: number }) => void;
+  buildMode?: 'template' | 'free_build';
+  roomStructure?: RoomStructure;
 }) {
   const addFurniture = useEditorStore((state) => state.addFurniture);
 
@@ -1886,10 +2079,42 @@ export function Scene({
       }
       // GLB models: Y=0 (model is already aligned to ground in GlbFurnitureModel)
 
+      // Calculate initial position - center of room, but clamped to stay inside walls
+      let initialX = 0;
+      let initialZ = 0;
+
+      // If room dimensions are available, ensure the furniture fits inside
+      if (roomDimensions && roomDimensions.width > 0 && roomDimensions.depth > 0) {
+        const roomHalfWidth = roomDimensions.width / 2;
+        const roomHalfDepth = roomDimensions.depth / 2;
+        const halfFurnitureWidth = catalogItem.dimensions.width / 2;
+        const halfFurnitureDepth = catalogItem.dimensions.depth / 2;
+        const margin = 0.05; // 5cm margin from walls
+
+        // Clamp position to ensure furniture stays inside room
+        const maxX = roomHalfWidth - halfFurnitureWidth - margin;
+        const maxZ = roomHalfDepth - halfFurnitureDepth - margin;
+
+        // If furniture is larger than room, center it anyway
+        initialX = Math.max(-maxX, Math.min(maxX, 0));
+        initialZ = Math.max(-maxZ, Math.min(maxZ, 0));
+
+        console.log('📦 Initial furniture placement:', {
+          roomDimensions,
+          furnitureDimensions: catalogItem.dimensions,
+          roomHalfWidth,
+          roomHalfDepth,
+          maxX,
+          maxZ,
+          initialX,
+          initialZ
+        });
+      }
+
       const newFurniture: FurnitureItem = {
         id: `${catalogItem.id}-${Date.now()}`,
         type: catalogItem.type,
-        position: { x: 0, y: initialY, z: 0 },
+        position: { x: initialX, y: initialY, z: initialZ },
         rotation: { x: 0, y: 0, z: 0 },
         scale: { x: 1, y: 1, z: 1 },
         dimensions: catalogItem.dimensions,
@@ -1904,7 +2129,9 @@ export function Scene({
         type: newFurniture.type,
         mountType: newFurniture.mountType,
         initialY,
-        catalogMountType: catalogItem.mountType
+        position: newFurniture.position,
+        catalogMountType: catalogItem.mountType,
+        roomDimensions
       });
 
       addFurniture(newFurniture);
@@ -1944,6 +2171,8 @@ export function Scene({
           fileType={fileType}
           roomDimensions={roomDimensions}
           onRoomDimensionsChange={onRoomDimensionsChange}
+          buildMode={buildMode}
+          roomStructure={roomStructure}
         />
       </Canvas>
     </div>

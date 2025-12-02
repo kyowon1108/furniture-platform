@@ -299,46 +299,46 @@ const RoomScene = forwardRef<any, RoomSceneProps>(({
       for (let y = 0; y < yCount; y++) {
         const yPos = y * TILE_SIZE + TILE_SIZE / 2;
 
-        // Back wall
+        // Back wall (z=0) - normals point INWARD (toward room center, Z+)
         for (let x = 0; x < xCount; x++) {
           allTiles.push({
             key: `wall-back-${x}-${y}`,
             type: 'wall',
             position: [x * TILE_SIZE + TILE_SIZE / 2, yPos, 0],
-            rotation: [0, 0, 0],
+            rotation: [0, 0, 0], // normals point Z+ (inward)
             wallSurface: 'back',
           });
         }
 
-        // Front wall
+        // Front wall (z=depth) - normals point INWARD (toward room center, Z-)
         for (let x = 0; x < xCount; x++) {
           allTiles.push({
             key: `wall-front-${x}-${y}`,
             type: 'wall',
             position: [x * TILE_SIZE + TILE_SIZE / 2, yPos, depth],
-            rotation: [0, Math.PI, 0],
+            rotation: [0, Math.PI, 0], // normals point Z- (inward)
             wallSurface: 'front',
           });
         }
 
-        // Left wall
+        // Left wall (x=0) - normals point INWARD (toward room center, X+)
         for (let z = 0; z < zCount; z++) {
           allTiles.push({
             key: `wall-left-${z}-${y}`,
             type: 'wall',
             position: [0, yPos, z * TILE_SIZE + TILE_SIZE / 2],
-            rotation: [0, Math.PI / 2, 0],
+            rotation: [0, Math.PI / 2, 0], // normals point X+ (inward)
             wallSurface: 'left',
           });
         }
 
-        // Right wall
+        // Right wall (x=width) - normals point INWARD (toward room center, X-)
         for (let z = 0; z < zCount; z++) {
           allTiles.push({
             key: `wall-right-${z}-${y}`,
             type: 'wall',
             position: [width, yPos, z * TILE_SIZE + TILE_SIZE / 2],
-            rotation: [0, -Math.PI / 2, 0],
+            rotation: [0, -Math.PI / 2, 0], // normals point X- (inward)
             wallSurface: 'right',
           });
         }

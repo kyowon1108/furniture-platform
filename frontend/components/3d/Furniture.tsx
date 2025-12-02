@@ -82,13 +82,6 @@ function GlbFurnitureModel({ glbUrl, dimensions, onClick, onActualDimensionsLoad
         const center = new THREE.Vector3();
         box.getCenter(center);
 
-        // Log actual GLB dimensions for debugging
-        console.log('📦 GLB actual dimensions:', {
-          glbUrl: glbUrl.split('?')[0], // Remove query params for cleaner log
-          actualSize: { width: size.x.toFixed(2), height: size.y.toFixed(2), depth: size.z.toFixed(2) },
-          catalogDimensions: dimensions
-        });
-
         // Notify parent of actual dimensions if callback provided (only once)
         if (onActualDimensionsLoaded && !dimensionsUpdatedRef.current) {
           dimensionsUpdatedRef.current = true;

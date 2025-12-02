@@ -87,15 +87,27 @@ export default function EditorPage() {
       // Set initial room dimensions from project data
       // Only set if dimensions are valid (non-zero)
       // If DB has 0 values, wait for GLB dimension detection
+      console.log('📏 Raw project dimensions from DB:', {
+        room_width: project.room_width,
+        room_height: project.room_height,
+        room_depth: project.room_depth,
+        type: {
+          width: typeof project.room_width,
+          height: typeof project.room_height,
+          depth: typeof project.room_depth
+        }
+      });
+
       if (project.room_width > 0 && project.room_depth > 0) {
-        setRoomDimensions({
+        const dims = {
           width: project.room_width,
           height: project.room_height || 2.5, // Default height if not set
           depth: project.room_depth
-        });
-        console.log('Room dimensions from DB:', { width: project.room_width, height: project.room_height, depth: project.room_depth });
+        };
+        setRoomDimensions(dims);
+        console.log('✅ Room dimensions SET from DB:', dims);
       } else {
-        console.log('Room dimensions from DB are 0, waiting for GLB dimension detection');
+        console.log('⏳ Room dimensions from DB are 0 or undefined, waiting for GLB dimension detection');
         // Keep roomDimensions as undefined - GLB will detect and update via onRoomDimensionsChange
       }
 
@@ -210,6 +222,8 @@ export default function EditorPage() {
           fileType={((projectData as any)?.file_type as 'ply' | 'glb' | null) || (projectData?.has_ply_file ? 'ply' : null)}
           roomDimensions={roomDimensions}
           onRoomDimensionsChange={handleRoomDimensionsChange}
+          buildMode={(projectData as any)?.build_mode as 'template' | 'free_build' | undefined}
+          roomStructure={(projectData as any)?.room_structure}
         />
         <Toolbar />
         <MeasurePanel />
