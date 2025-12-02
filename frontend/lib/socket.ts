@@ -10,6 +10,10 @@ const SOCKET_URL = process.env.NEXT_PUBLIC_SOCKET_URL || 'http://localhost:8008'
 class SocketService {
   public socket: Socket | null = null;
   private projectId: number | null = null;
+  private lastMoveEmitTime: number = 0;
+  private pendingMove: { furnitureId: string; position: Vector3; rotation: Vector3 } | null = null;
+  private moveThrottleTimeout: NodeJS.Timeout | null = null;
+  private readonly MOVE_THROTTLE_MS = 200; // Throttle furniture move events to 5 per second
 
   connect(projectId: number, userId: number, nickname: string, color: string): Socket {
     this.projectId = projectId;
@@ -47,13 +51,47 @@ class SocketService {
   }
 
   emitFurnitureMove(furnitureId: string, position: Vector3, rotation: Vector3) {
-    if (this.socket && this.projectId) {
+    if (!this.socket || !this.projectId) return;
+
+    const now = Date.now();
+    const timeSinceLastEmit = now - this.lastMoveEmitTime;
+
+    // Store the latest move data
+    this.pendingMove = { furnitureId, position, rotation };
+
+    // If enough time has passed, emit immediately
+    if (timeSinceLastEmit >= this.MOVE_THROTTLE_MS) {
+      this.emitPendingMove();
+    } else if (!this.moveThrottleTimeout) {
+      // Schedule emit for remaining throttle time
+      this.moveThrottleTimeout = setTimeout(() => {
+        this.emitPendingMove();
+      }, this.MOVE_THROTTLE_MS - timeSinceLastEmit);
+    }
+  }
+
+  private emitPendingMove() {
+    if (this.moveThrottleTimeout) {
+      clearTimeout(this.moveThrottleTimeout);
+      this.moveThrottleTimeout = null;
+    }
+
+    if (this.pendingMove && this.socket && this.projectId) {
       this.socket.emit('furniture_move', {
         project_id: this.projectId,
-        furniture_id: furnitureId,
-        position,
-        rotation,
+        furniture_id: this.pendingMove.furnitureId,
+        position: this.pendingMove.position,
+        rotation: this.pendingMove.rotation,
       });
+      this.lastMoveEmitTime = Date.now();
+      this.pendingMove = null;
+    }
+  }
+
+  // Call this when drag ends to ensure final position is sent
+  flushPendingMove() {
+    if (this.pendingMove) {
+      this.emitPendingMove();
     }
   }
 

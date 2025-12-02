@@ -562,14 +562,60 @@ export default function RoomBuilderPage() {
         return;
       }
 
-      // Explicitly update project dimensions in DB first
+      // Explicitly update project dimensions and room structure in DB first
       // This ensures the DB has the correct dimensions even if GLB extraction fails
       try {
         console.log('방 크기 정보 업데이트 중...', { roomWidth, roomDepth, roomHeight });
+
+        // Build room_structure with floor tile positions for collision detection
+        let roomStructure: Record<string, unknown> | undefined;
+        let buildMode: 'template' | 'free_build' = 'template';
+
+        if (currentTemplate === 'custom' && customTiles.length > 0) {
+          buildMode = 'free_build';
+          // Save floor tile grid positions for collision detection
+          const floorTiles = customTiles.filter(t => t.type === 'floor');
+
+          // Calculate the actual GLB geometry center (same as GlbModel.tsx does)
+          // This is critical for coordinate transformation in Scene.tsx
+          const glbBox = new THREE.Box3().setFromObject(optimizedScene);
+          const glbCenter = new THREE.Vector3();
+          glbBox.getCenter(glbCenter);
+
+          console.log('GLB geometry center:', { x: glbCenter.x, y: glbCenter.y, z: glbCenter.z });
+          console.log('GLB bounding box:', { min: glbBox.min, max: glbBox.max });
+
+          roomStructure = {
+            mode: 'free_build',
+            tileSize: TILE_SIZE,
+            floorTiles: floorTiles.map(t => ({
+              gridX: t.gridX,
+              gridZ: t.gridZ,
+            })),
+            // Also save bounds for quick reference
+            bounds: {
+              minX: Math.min(...floorTiles.map(t => t.gridX)),
+              maxX: Math.max(...floorTiles.map(t => t.gridX)),
+              minZ: Math.min(...floorTiles.map(t => t.gridZ)),
+              maxZ: Math.max(...floorTiles.map(t => t.gridZ)),
+            },
+            // Save GLB geometry center for accurate coordinate transformation
+            // GlbModel.tsx centers the model using: position.set(-center.x, -box.min.y, -center.z)
+            // So the center offset is the geometry center position
+            glbCenter: {
+              x: glbCenter.x,
+              z: glbCenter.z,
+            }
+          };
+          console.log('Free Build mode: Saving floor tile positions with GLB center', roomStructure);
+        }
+
         await projectsAPI.update(projectId, {
           room_width: roomWidth,
           room_depth: roomDepth,
-          room_height: roomHeight
+          room_height: roomHeight,
+          build_mode: buildMode,
+          room_structure: roomStructure,
         });
         console.log('방 크기 정보 업데이트 완료');
       } catch (updateError) {

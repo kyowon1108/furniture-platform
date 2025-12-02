@@ -14,12 +14,14 @@ interface GlbModelProps {
     height: number;
     depth: number;
   };
+  buildMode?: 'template' | 'free_build';
 }
 
-const GlbGeometry = memo(function GlbGeometry({ url, roomDimensions, onDimensionsDetected }: {
+const GlbGeometry = memo(function GlbGeometry({ url, roomDimensions, onDimensionsDetected, buildMode }: {
   url: string;
   roomDimensions?: { width: number; height: number; depth: number };
   onDimensionsDetected?: (dims: { width: number; height: number; depth: number }) => void;
+  buildMode?: 'template' | 'free_build';
 }) {
   const groupRef = useRef<THREE.Group>(null);
   const [model, setModel] = useState<THREE.Group | null>(null);
@@ -82,9 +84,32 @@ const GlbGeometry = memo(function GlbGeometry({ url, roomDimensions, onDimension
   useEffect(() => {
     if (!model) return;
 
+    // Wall transparency strategy depends on build mode:
+    //
+    // TEMPLATE mode (preset templates like rectangular, small_studio, etc.):
+    // - Normals point INWARD (toward room center)
+    // - Main model: FrontSide (renders the inside view where normals point)
+    // - Ghost model: BackSide (renders the outside view, opposite of normals)
+    //
+    // FREE_BUILD mode (custom mode):
+    // - Normals point OUTWARD (away from room center)
+    // - Main model: BackSide (renders the inside view, opposite of normals)
+    // - Ghost model: FrontSide (renders the outside view where normals point)
+    //
+    // Default: Assume template mode if buildMode is undefined
+
+    const isFreeBuild = buildMode === 'free_build';
+    const mainSide = isFreeBuild ? THREE.BackSide : THREE.FrontSide;
+    const ghostSide = isFreeBuild ? THREE.FrontSide : THREE.BackSide;
+
+    console.log('🏠 GLB rendering mode:', {
+      buildMode,
+      isFreeBuild,
+      mainSide: isFreeBuild ? 'BackSide' : 'FrontSide',
+      ghostSide: isFreeBuild ? 'FrontSide' : 'BackSide'
+    });
+
     // 1. Setup Main Model (Inside View - Opaque)
-    // Note: Room Builder creates tiles with normals pointing INTO the room
-    // After GLB export, BackSide renders the interior view
     model.traverse((child) => {
       if ((child as THREE.Mesh).isMesh) {
         const mesh = child as THREE.Mesh;
@@ -93,7 +118,7 @@ const GlbGeometry = memo(function GlbGeometry({ url, roomDimensions, onDimension
           materials.forEach((mat) => {
             mat.transparent = false;
             mat.opacity = 1.0;
-            mat.side = THREE.BackSide; // Render inside faces (normals point outward after export)
+            mat.side = mainSide;
             mat.depthWrite = true;
             mat.needsUpdate = true;
           });
@@ -119,20 +144,20 @@ const GlbGeometry = memo(function GlbGeometry({ url, roomDimensions, onDimension
           const materials = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
           materials.forEach((mat) => {
             mat.transparent = true;
-            mat.opacity = 0.3; // 30% opacity as requested
-            mat.side = THREE.FrontSide; // Render outside faces (normals point outward)
+            mat.opacity = 0.3; // 30% opacity for see-through effect
+            mat.side = ghostSide;
             mat.depthWrite = false; // Prevent z-fighting
             mat.needsUpdate = true;
           });
         }
-        // Ghost shouldn't cast shadows, but can receive them
+        // Ghost shouldn't cast shadows
         mesh.castShadow = false;
         mesh.receiveShadow = false;
       }
     });
     setGhostModel(ghost);
 
-  }, [model]);
+  }, [model, buildMode]);
 
   useEffect(() => {
     // Only load once when URL changes
@@ -361,7 +386,7 @@ const GlbGeometry = memo(function GlbGeometry({ url, roomDimensions, onDimension
   );
 });
 
-export const GlbModel = memo(function GlbModel({ projectId, glbFilePath, roomDimensions, onRoomDimensionsChange }: GlbModelProps & {
+export const GlbModel = memo(function GlbModel({ projectId, glbFilePath, roomDimensions, onRoomDimensionsChange, buildMode }: GlbModelProps & {
   onRoomDimensionsChange?: (dims: { width: number; height: number; depth: number }) => void;
 }) {
   const [glbUrl, setGlbUrl] = useState<string | null>(null);
@@ -428,6 +453,7 @@ export const GlbModel = memo(function GlbModel({ projectId, glbFilePath, roomDim
           url={glbUrl}
           roomDimensions={effectiveRoomDimensions}
           onDimensionsDetected={handleDimensionsDetected}
+          buildMode={buildMode}
         />
       </group>
     </Suspense>
