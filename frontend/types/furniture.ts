@@ -8,6 +8,12 @@ export interface Vector3 {
   z: number;
 }
 
+export interface Dimensions3D {
+  width: number;
+  height: number;
+  depth: number;
+}
+
 export type FurnitureType = 'bed' | 'desk' | 'chair' | 'wardrobe' | 'table' | 'sofa' | 'shelf' | 'wall-lamp' | 'wall-tv' | 'wall-art' | 'desk-lamp' | 'decoration' | 'monitor' | 'printer' | 'filing-cabinet' | 'whiteboard' | 'clock' | 'mirror' | 'shelving-unit';
 
 export interface FurnitureItem {
@@ -16,11 +22,7 @@ export interface FurnitureItem {
   position: Vector3;
   rotation: Vector3;
   scale: Vector3;
-  dimensions: {
-    width: number;
-    height: number;
-    depth: number;
-  };
+  dimensions: Dimensions3D;
   color?: string;
   isColliding?: boolean;
   mountType?: 'floor' | 'wall' | 'surface'; // floor: 바닥, wall: 벽걸이, surface: 가구 위

@@ -3,10 +3,16 @@
 from typing import Dict, Set
 
 import socketio
+from app.config import settings
 from app.core.collision import validate_layout
 
-# Create Socket.IO server
-sio = socketio.AsyncServer(async_mode="asgi", cors_allowed_origins="*", logger=True, engineio_logger=False)
+# Create Socket.IO server with restricted CORS origins
+sio = socketio.AsyncServer(
+    async_mode="asgi",
+    cors_allowed_origins=settings.origins_list,
+    logger=True,
+    engineio_logger=False
+)
 
 # Track active connections per project
 # {project_id: {sid: {user_id, nickname, color}}}
