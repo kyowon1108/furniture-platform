@@ -78,3 +78,13 @@ export interface TokenResponse {
   access_token: string;
   token_type: string;
 }
+
+export interface FurnitureState {
+  furnitures: FurnitureItem[];
+}
+
+export interface RoomDimensions {
+  width: number;
+  height: number;
+  depth: number;
+}

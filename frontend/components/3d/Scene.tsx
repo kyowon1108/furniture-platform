@@ -7,6 +7,8 @@ import { Room } from './Room';
 import { PlyModel } from './PlyModel';
 import { GlbModel } from './GlbModel';
 import { useEditorStore } from '@/store/editorStore';
+import { useMeasureStore } from '@/store/measureStore';
+import { useLightingStore } from '@/store/lightingStore';
 import { useToastStore } from '@/store/toastStore';
 import { socketService } from '@/lib/socket';
 import type { FurnitureCatalogItem } from '@/types/catalog';
@@ -104,13 +106,17 @@ function SceneContent({
   const selectedIds = useEditorStore((state) => state.selectedIds);
   const transformMode = useEditorStore((state) => state.transformMode);
   const updateFurniture = useEditorStore((state) => state.updateFurniture);
-  const timeOfDay = useEditorStore((state) => state.timeOfDay);
-  const measureMode = useEditorStore((state) => state.measureMode);
-  const measurePoints = useEditorStore((state) => state.measurePoints);
-  const addMeasurePoint = useEditorStore((state) => state.addMeasurePoint);
   const lockedItems = useEditorStore((state) => state.lockedItems);
   const addLockedItem = useEditorStore((state) => state.addLockedItem);
   const removeLockedItem = useEditorStore((state) => state.removeLockedItem);
+
+  // Lighting state
+  const timeOfDay = useLightingStore((state) => state.timeOfDay);
+
+  // Measurement state
+  const measureMode = useMeasureStore((state) => state.measureMode);
+  const measurePoints = useMeasureStore((state) => state.measurePoints);
+  const addMeasurePoint = useMeasureStore((state) => state.addMeasurePoint);
 
 
   const { camera, raycaster, scene, gl } = useThree();

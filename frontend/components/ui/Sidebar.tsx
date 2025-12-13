@@ -3,6 +3,7 @@
 import { useState, useMemo, useEffect } from 'react';
 import { FURNITURE_CATALOG, type FurnitureCatalogItem } from '@/types/catalog';
 import { useEditorStore } from '@/store/editorStore';
+import { useUIStore } from '@/store/uiStore';
 import { useMaterialStore } from '@/store/materialStore';
 import { socketService } from '@/lib/socket';
 import type { FurnitureItem } from '@/types/furniture';
@@ -36,7 +37,8 @@ export function Sidebar() {
     loadCatalog();
   }, []);
 
-  const { addFurniture, furnitures, isSidebarCollapsed, toggleSidebar } = useEditorStore();
+  const { addFurniture, furnitures } = useEditorStore();
+  const { isSidebarCollapsed, toggleSidebar } = useUIStore();
   const {
     selectedMaterialId,
     applicationMode,
