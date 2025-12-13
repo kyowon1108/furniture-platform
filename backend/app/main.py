@@ -8,6 +8,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.api.v1 import auth, catalog, files, files_3d, layouts, logs, projects, room_builder, websocket
 from app.api.v1.catalog import sync_catalog_from_s3
 from app.config import settings
+from app.core.exceptions import register_exception_handlers
 from app.core.logging import get_logger
 from app.database import engine, Base
 
@@ -45,6 +46,9 @@ app = FastAPI(
     description="3D Furniture Placement Platform Backend",
     lifespan=lifespan
 )
+
+# Register global exception handlers
+register_exception_handlers(app)
 
 # Configure CORS with specific methods and headers for security
 app.add_middleware(

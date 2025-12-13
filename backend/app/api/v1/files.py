@@ -1,4 +1,17 @@
-"""File upload API endpoints for PLY files."""
+"""
+File upload API endpoints for PLY files.
+
+DEPRECATED: This module is deprecated. Use files_3d.py instead.
+The /api/v1/files endpoints will be removed in a future version.
+Use /api/v1/files-3d endpoints for PLY and GLB file support.
+"""
+
+import warnings
+warnings.warn(
+    "app.api.v1.files is deprecated. Use app.api.v1.files_3d instead.",
+    DeprecationWarning,
+    stacklevel=2
+)
 
 import os
 import shutil
