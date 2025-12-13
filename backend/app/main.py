@@ -71,8 +71,26 @@ socket_app = socketio.ASGIApp(websocket.sio, app, socketio_path="socket.io")
 
 @app.get("/health")
 async def health_check():
-    """Health check endpoint."""
-    return {"status": "ok", "database": "SQLite"}
+    """Health check endpoint with database connection verification."""
+    from app.database import get_db_info, SessionLocal
+    from sqlalchemy import text
+
+    db_info = get_db_info()
+
+    # Actually test database connection
+    try:
+        db = SessionLocal()
+        db.execute(text("SELECT 1"))
+        db.close()
+        db_status = "connected"
+    except Exception as e:
+        db_status = f"error: {str(e)}"
+
+    return {
+        "status": "ok" if db_status == "connected" else "degraded",
+        "database": db_info,
+        "db_connection": db_status
+    }
 
 
 @app.get("/")

@@ -28,6 +28,7 @@ class Settings(BaseSettings):
     class Config:
         env_file = ".env"
         case_sensitive = True
+        extra = "ignore"  # Allow extra env vars (e.g., POSTGRES_* for Docker)
 
     @property
     def origins_list(self) -> List[str]:
