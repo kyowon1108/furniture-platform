@@ -85,7 +85,7 @@ async function compressImage(imageUrl: string, quality: number = 0.6, maxSize: n
 /**
  * Group tiles by wall surface for texture merging
  */
-export function groupTilesByWall(scene: THREE.Scene): Record<string, WallGroup> {
+export function groupTilesByWall(scene: THREE.Object3D): Record<string, WallGroup> {
   const wallGroups: Record<string, WallGroup> = {
     'wall-front': { tiles: [], minX: Infinity, maxX: -Infinity, minY: Infinity, maxY: -Infinity },
     'wall-back': { tiles: [], minX: Infinity, maxX: -Infinity, minY: Infinity, maxY: -Infinity },
@@ -318,7 +318,7 @@ export function remapUVCoordinates(
 /**
  * Main optimization function for scene textures
  */
-export async function optimizeSceneTextures(scene: THREE.Scene): Promise<THREE.Scene> {
+export async function optimizeSceneTextures<T extends THREE.Object3D>(scene: T): Promise<T> {
   console.log('Starting texture atlas optimization...');
 
   // 1. Group tiles by wall

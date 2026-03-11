@@ -20,6 +20,19 @@ export default function ProjectsPage() {
   const [loadingProjects, setLoadingProjects] = useState(true);
   const [deleteTarget, setDeleteTarget] = useState<number | null>(null);
 
+  const loadProjects = useCallback(async () => {
+    try {
+      setLoadingProjects(true);
+      const data = await projectsAPI.list();
+      setProjects(data);
+    } catch (error) {
+      console.error('Failed to load projects:', error);
+      addToast('프로젝트 목록을 불러오는데 실패했습니다', 'error');
+    } finally {
+      setLoadingProjects(false);
+    }
+  }, [addToast]);
+
   useEffect(() => {
     fetchUser();
   }, [fetchUser]);
@@ -34,20 +47,7 @@ export default function ProjectsPage() {
     if (isAuthenticated) {
       loadProjects();
     }
-  }, [isAuthenticated]);
-
-  const loadProjects = async () => {
-    try {
-      setLoadingProjects(true);
-      const data = await projectsAPI.list();
-      setProjects(data);
-    } catch (error) {
-      console.error('Failed to load projects:', error);
-      addToast('프로젝트 목록을 불러오는데 실패했습니다', 'error');
-    } finally {
-      setLoadingProjects(false);
-    }
-  };
+  }, [isAuthenticated, loadProjects]);
 
   const handleDeleteClick = (e: React.MouseEvent, id: number) => {
     e.stopPropagation();
@@ -67,7 +67,7 @@ export default function ProjectsPage() {
     } finally {
       setDeleteTarget(null);
     }
-  }, [deleteTarget, addToast]);
+  }, [deleteTarget, addToast, loadProjects]);
 
   const handleDeleteCancel = useCallback(() => {
     setDeleteTarget(null);

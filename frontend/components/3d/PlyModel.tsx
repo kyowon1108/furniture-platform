@@ -347,8 +347,12 @@ const PlyGeometry = memo(function PlyGeometry({ url, roomDimensions, onDimension
             setLoadError(errorMessage);
           }
         );
-      } catch (error: any) {
-        setLoadError(error.message || 'Failed to fetch PLY file');
+      } catch (error: unknown) {
+        if (error instanceof Error) {
+          setLoadError(error.message);
+        } else {
+          setLoadError('Failed to fetch PLY file');
+        }
       }
     };
     
@@ -409,7 +413,7 @@ const PlyGeometry = memo(function PlyGeometry({ url, roomDimensions, onDimension
     }
     
     return { scale: calculatedScale, position: calculatedPosition };
-  }, [geometry, roomDimensions?.width, roomDimensions?.height, roomDimensions?.depth]);
+  }, [geometry, roomDimensions]);
 
   if (loadError) {
     return (

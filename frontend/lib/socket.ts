@@ -8,6 +8,16 @@ import type { FurnitureItem, Vector3 } from '@/types/furniture';
 
 const SOCKET_URL = process.env.NEXT_PUBLIC_SOCKET_URL || 'http://localhost:8008';
 
+type ValidationPayload = {
+  furnitures: FurnitureItem[];
+};
+
+type RoomDimensionsPayload = {
+  width: number;
+  height: number;
+  depth: number;
+};
+
 class SocketService {
   public socket: Socket | null = null;
   private projectId: number | null = null;
@@ -16,7 +26,7 @@ class SocketService {
   private moveThrottleTimeout: NodeJS.Timeout | null = null;
   private readonly MOVE_THROTTLE_MS = 200; // Throttle furniture move events to 5 per second
 
-  connect(projectId: number, userId: number, nickname: string, color: string): Socket {
+  connect(projectId: number): Socket {
     this.projectId = projectId;
     const token = getAuthToken();
 
@@ -29,17 +39,9 @@ class SocketService {
     });
 
     this.socket.on('connect', () => {
-      console.log('Socket connected:', this.socket?.id);
       this.socket?.emit('join_project', {
         project_id: projectId,
-        user_id: userId,
-        nickname,
-        color,
       });
-    });
-
-    this.socket.on('disconnect', () => {
-      console.log('Socket disconnected');
     });
 
     return this.socket;
@@ -116,7 +118,7 @@ class SocketService {
     }
   }
 
-  validateLayout(furnitureState: any, roomDimensions: any) {
+  validateLayout(furnitureState: ValidationPayload, roomDimensions: RoomDimensionsPayload) {
     if (this.socket && this.projectId) {
       this.socket.emit('validate_furniture', {
         project_id: this.projectId,
@@ -144,17 +146,17 @@ class SocketService {
     }
   }
 
-  emit(event: string, data: any) {
+  emit(event: string, data: unknown) {
     if (this.socket) {
       this.socket.emit(event, data);
     }
   }
 
-  on(event: string, callback: (...args: any[]) => void) {
+  on<T = unknown>(event: string, callback: (payload: T) => void) {
     this.socket?.on(event, callback);
   }
 
-  off(event: string, callback?: (...args: any[]) => void) {
+  off<T = unknown>(event: string, callback?: (payload: T) => void) {
     this.socket?.off(event, callback);
   }
 }

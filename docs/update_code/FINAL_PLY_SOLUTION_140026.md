@@ -1,3 +1,6 @@
+> Status: Historical Snapshot
+> 이 문서는 과거 작업 시점의 보고서 또는 보조 가이드입니다. 현재 기준 문서는 README.md, docs/README.md, docs/05_API_문서.md, docs/06_개발_가이드.md, deployment/README.md 를 우선합니다.
+
 # 🎯 PLY 색상 및 크기 문제 - 최종 해결 방안
 
 ## 📅 작업 일자

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuthStore } from '@/store/authStore';
 import { useEditorStore } from '@/store/editorStore';
@@ -20,7 +20,7 @@ interface ProjectData {
   download_url?: string;
   file_type?: 'ply' | 'glb' | null;
   build_mode?: 'template' | 'free_build';
-  room_structure?: any;
+  room_structure?: Record<string, unknown>;
   room_width: number;
   room_height: number;
   room_depth: number;
@@ -43,23 +43,16 @@ export function EditorContainer({ projectId }: EditorContainerProps) {
     { width: number; height: number; depth: number } | undefined
   >(undefined);
 
-  // Load project data
-  useEffect(() => {
-    loadProject();
-  }, [projectId]);
-
-  const loadProject = async () => {
+  const loadProject = useCallback(async () => {
     try {
       setIsLoadingProject(true);
       const project = await projectsAPI.get(projectId);
 
-      console.log('Loaded project data:', project);
       setProjectData(project as ProjectData);
       setProjectOwnerId(project.owner_id);
 
       // Check if 3D file exists
-      if (!(project as any).has_3d_file && !project.has_ply_file) {
-        console.log('No 3D file found, redirecting to room builder');
+      if (!project.has_3d_file && !project.has_ply_file) {
         addToast('방 구조가 설정되지 않았습니다. 구조를 먼저 설정해주세요.', 'info');
         router.push(`/room-builder/${projectId}`);
         return;
@@ -84,7 +77,11 @@ export function EditorContainer({ projectId }: EditorContainerProps) {
     } finally {
       setIsLoadingProject(false);
     }
-  };
+  }, [addToast, loadLayout, projectId, router, setProjectOwnerId]);
+
+  useEffect(() => {
+    loadProject();
+  }, [loadProject]);
 
   // Setup auto-save (5 seconds)
   useAutoSave(5000);

@@ -2,6 +2,7 @@
 
 import { useParams, useRouter } from 'next/navigation';
 import { useEffect, useState, useRef, useCallback } from 'react';
+import Image from 'next/image';
 import { Canvas } from '@react-three/fiber';
 import { OrbitControls } from '@react-three/drei';
 import * as THREE from 'three';
@@ -10,11 +11,12 @@ import { projectsAPI } from '@/lib/api';
 import { useToastStore } from '@/store/toastStore';
 import RoomTemplateSelector from '@/components/room-builder/RoomTemplateSelector';
 import TextureGallery from '@/components/room-builder/TextureGallery';
-import RoomScene from '@/components/room-builder/RoomScene';
+import RoomScene, { RoomSceneHandle } from '@/components/room-builder/RoomScene';
 import { ConfirmModal } from '@/components/ui/ConfirmModal';
 import { ToastContainer } from '@/components/ui/Toast';
 import { getAuthToken } from '@/lib/authToken';
 import { RoomTemplate, UploadedImage, ROOM_TEMPLATES } from '@/components/room-builder/types';
+import type { ProjectDetail } from '@/types/api';
 // import { optimizeSceneTextures } from '@/utils/textureOptimizer';
 import { optimizeSceneTextures } from '@/utils/optimizedTextureAtlas';
 import {
@@ -30,6 +32,26 @@ const WALL_HEIGHT = 2.5;
 
 // Build tool type
 type BuildTool = 'select' | 'floor' | 'eraser';
+type TileSelectionEvent = {
+  shiftKey?: boolean;
+  nativeEvent?: {
+    shiftKey?: boolean;
+  };
+};
+
+type SceneWithExtras = THREE.Group & {
+  extras?: {
+    dimensions: {
+      width: number;
+      height: number;
+      depth: number;
+    };
+  };
+};
+
+const debugRoomBuilder = (..._args: unknown[]) => {};
+
+type RoomBuilderProject = Pick<ProjectDetail, 'id' | 'name' | 'description'> & Partial<ProjectDetail>;
 
 export default function RoomBuilderPage() {
   const params = useParams();
@@ -37,7 +59,7 @@ export default function RoomBuilderPage() {
   const projectId = Number(params.projectId);
   const addToast = useToastStore((state) => state.addToast);
 
-  const [project, setProject] = useState<any>(null);
+  const [project, setProject] = useState<RoomBuilderProject | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -63,7 +85,7 @@ export default function RoomBuilderPage() {
   const [isAutoWallEnabled, setIsAutoWallEnabled] = useState(true);
   const [showClearAllConfirm, setShowClearAllConfirm] = useState(false);
 
-  const roomSceneRef = useRef<any>(null);
+  const roomSceneRef = useRef<RoomSceneHandle | null>(null);
   const lastSelectedTileRef = useRef<string | null>(null);
 
   useEffect(() => {
@@ -109,7 +131,7 @@ export default function RoomBuilderPage() {
     };
 
     loadProject();
-  }, [projectId]);
+  }, [projectId, addToast]);
 
   // Keyboard shortcuts for custom mode (F/E/V keys)
   useEffect(() => {
@@ -214,7 +236,7 @@ export default function RoomBuilderPage() {
   }, [currentTemplate, currentTool, customTiles, isAutoWallEnabled, generateWallsFromFloor]);
 
   // Handle tile click in custom mode with dynamic tiles
-  const handleCustomTileClick = useCallback((tileId: string, event?: any) => {
+  const handleCustomTileClick = useCallback((tileId: string, event?: TileSelectionEvent) => {
     // Only handle custom mode with dynamic tiles here
     if (currentTemplate !== 'custom' || !customTiles.length) {
       return; // Will be handled by handleTileClick for non-custom modes
@@ -326,7 +348,7 @@ export default function RoomBuilderPage() {
   }, [currentTemplate, customDimensions]);
 
   // Handle tile selection
-  const handleTileClick = useCallback((tileKey: string, event?: any) => {
+  const handleTileClick = useCallback((tileKey: string, event?: TileSelectionEvent) => {
     const shiftKey = event?.shiftKey || (event?.nativeEvent && event?.nativeEvent.shiftKey);
 
     if (shiftKey) {
@@ -348,7 +370,7 @@ export default function RoomBuilderPage() {
   // Apply texture to selected tiles
   const handleApplyTexture = useCallback(() => {
     if (!selectedImageId || selectedTiles.length === 0) {
-      alert('텍스처와 타일을 선택해주세요.');
+      addToast('텍스처와 타일을 먼저 선택해주세요.', 'warning');
       return;
     }
 
@@ -361,16 +383,16 @@ export default function RoomBuilderPage() {
     });
 
     setTileTextures(newTextures);
-    console.log('Applied texture to tiles:', selectedTiles.length);
+    addToast(`텍스처를 ${selectedTiles.length}개 타일에 적용했습니다.`, 'success');
 
     // Clear selection after applying texture
     setSelectedTiles([]);
-  }, [selectedImageId, selectedTiles, uploadedImages, tileTextures]);
+  }, [selectedImageId, selectedTiles, uploadedImages, tileTextures, addToast]);
 
   // Remove texture from selected tiles
   const handleRemoveTexture = useCallback(() => {
     if (selectedTiles.length === 0) {
-      alert('텍스처를 제거할 타일을 선택해주세요.');
+      addToast('텍스처를 제거할 타일을 먼저 선택해주세요.', 'warning');
       return;
     }
 
@@ -383,17 +405,18 @@ export default function RoomBuilderPage() {
 
     // Clear selection after removing texture
     setSelectedTiles([]);
-  }, [selectedTiles, tileTextures]);
+    addToast(`텍스처를 ${selectedTiles.length}개 타일에서 제거했습니다.`, 'success');
+  }, [selectedTiles, tileTextures, addToast]);
 
   // Generate AI texture
   const handleGenerateAI = async () => {
     if (!aiPrompt.trim()) {
-      alert('프롬프트를 입력해주세요.');
+      addToast('프롬프트를 입력해주세요.', 'warning');
       return;
     }
 
     setIsGenerating(true);
-    console.log('[DEBUG] AI 생성 시작:', aiPrompt);
+    debugRoomBuilder('AI texture generation started', aiPrompt);
 
     try {
       const token = getAuthToken();
@@ -415,7 +438,7 @@ export default function RoomBuilderPage() {
         }),
       });
 
-      console.log('[DEBUG] AI 생성 응답 상태:', response.status);
+      debugRoomBuilder('AI response status', response.status);
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({ detail: '서버 오류' }));
@@ -423,7 +446,7 @@ export default function RoomBuilderPage() {
       }
 
       const data = await response.json();
-      console.log('[DEBUG] AI 생성 성공');
+      debugRoomBuilder('AI texture generation completed');
 
       if (data.texture_url) {
         const newImage: UploadedImage = {
@@ -435,11 +458,11 @@ export default function RoomBuilderPage() {
         setUploadedImages(prev => [...prev, newImage]);
         setSelectedImageId(newImage.id);
         setAiPrompt('');
-        console.log('[DEBUG] 생성된 이미지 추가 완료');
+        addToast('AI 마감재 이미지를 생성했습니다.', 'success');
       }
     } catch (error) {
       console.error('[ERROR] AI 생성 실패:', error);
-      alert(error instanceof Error ? error.message : 'AI 생성에 실패했습니다.');
+      addToast(error instanceof Error ? error.message : 'AI 생성에 실패했습니다.', 'error');
     } finally {
       setIsGenerating(false);
     }
@@ -448,7 +471,7 @@ export default function RoomBuilderPage() {
   // Complete room and export GLB
   const handleRoomComplete = async () => {
     if (!roomSceneRef.current) {
-      alert('3D 씬이 준비되지 않았습니다.');
+      addToast('3D 씬이 아직 준비되지 않았습니다.', 'warning');
       return;
     }
 
@@ -478,7 +501,7 @@ export default function RoomBuilderPage() {
           // Add 1 to include the tile itself, multiply by tile size
           roomWidth = (maxGridX + 1) * TILE_SIZE;
           roomDepth = (maxGridZ + 1) * TILE_SIZE;
-          console.log('Custom mode: Calculated room size from floor tiles:', { roomWidth, roomDepth, floorCount: floorTiles.length });
+          debugRoomBuilder('Calculated room size from floor tiles', { roomWidth, roomDepth, floorCount: floorTiles.length });
         } else {
           // Fallback to slider dimensions if no floor tiles
           roomWidth = customDimensions.width;
@@ -510,10 +533,10 @@ export default function RoomBuilderPage() {
         }
       });
       objectsToRemove.forEach(obj => obj.removeFromParent());
-      console.log(`Removed ${objectsToRemove.length} grid/helper objects from export`);
+      debugRoomBuilder(`Removed ${objectsToRemove.length} grid/helper objects from export`);
 
       // Optimize textures before export to reduce file size
-      console.log('텍스처 최적화 중...');
+      debugRoomBuilder('Optimizing textures before export');
       const optimizedScene = await optimizeSceneTextures(exportScene);
       setUploadProgress(40);
 
@@ -525,7 +548,8 @@ export default function RoomBuilderPage() {
       };
 
       // Also add to extras for GLB export (GLTFExporter uses extras)
-      (optimizedScene as any).extras = {
+      const exportSceneWithExtras = optimizedScene as SceneWithExtras;
+      exportSceneWithExtras.extras = {
         dimensions: {
           width: roomWidth,
           height: roomHeight,
@@ -534,7 +558,7 @@ export default function RoomBuilderPage() {
       };
 
       // Export as GLB
-      console.log('GLB 파일 생성 중...');
+      debugRoomBuilder('Exporting GLB');
       const exporter = new GLTFExporter();
 
       const glbBlob = await new Promise<Blob>((resolve, reject) => {
@@ -542,7 +566,7 @@ export default function RoomBuilderPage() {
           optimizedScene,
           (gltf) => {
             const blob = new Blob([gltf as ArrayBuffer], { type: 'model/gltf-binary' });
-            console.log('GLB 파일 생성 완료:', blob.size, 'bytes, dimensions:', optimizedScene.userData.dimensions);
+            debugRoomBuilder('GLB export completed', { size: blob.size, dimensions: optimizedScene.userData.dimensions });
             resolve(blob);
           },
           (error) => {
@@ -564,8 +588,7 @@ export default function RoomBuilderPage() {
       const token = getAuthToken();
 
       if (!token) {
-        console.log('Demo mode: Skipping GLB upload');
-        alert('데모 모드: 방 구조가 저장되었습니다.');
+        addToast('데모 모드에서는 서버 업로드 없이 에디터로 이동합니다.', 'info');
         router.push(`/editor/${projectId}`);
         return;
       }
@@ -573,7 +596,7 @@ export default function RoomBuilderPage() {
       // Explicitly update project dimensions and room structure in DB first
       // This ensures the DB has the correct dimensions even if GLB extraction fails
       try {
-        console.log('방 크기 정보 업데이트 중...', { roomWidth, roomDepth, roomHeight });
+        debugRoomBuilder('Updating room dimensions before upload', { roomWidth, roomDepth, roomHeight });
 
         // Build room_structure with floor tile positions for collision detection
         let roomStructure: Record<string, unknown> | undefined;
@@ -590,8 +613,8 @@ export default function RoomBuilderPage() {
           const glbCenter = new THREE.Vector3();
           glbBox.getCenter(glbCenter);
 
-          console.log('GLB geometry center:', { x: glbCenter.x, y: glbCenter.y, z: glbCenter.z });
-          console.log('GLB bounding box:', { min: glbBox.min, max: glbBox.max });
+          debugRoomBuilder('GLB geometry center', { x: glbCenter.x, y: glbCenter.y, z: glbCenter.z });
+          debugRoomBuilder('GLB bounding box', { min: glbBox.min, max: glbBox.max });
 
           roomStructure = {
             mode: 'free_build',
@@ -615,7 +638,7 @@ export default function RoomBuilderPage() {
               z: glbCenter.z,
             }
           };
-          console.log('Free Build mode: Saving floor tile positions with GLB center', roomStructure);
+          debugRoomBuilder('Saving free-build room structure', roomStructure);
         }
 
         await projectsAPI.update(projectId, {
@@ -625,7 +648,7 @@ export default function RoomBuilderPage() {
           build_mode: buildMode,
           room_structure: roomStructure,
         });
-        console.log('방 크기 정보 업데이트 완료');
+        debugRoomBuilder('Room dimensions updated');
       } catch (updateError) {
         console.error('Failed to update project dimensions:', updateError);
         // Continue with GLB upload even if dimension update fails
@@ -648,19 +671,19 @@ export default function RoomBuilderPage() {
 
       if (!response.ok) {
         console.error('GLB upload failed, continuing in demo mode');
-        alert('서버 연결 실패. 데모 모드로 계속합니다.');
+        addToast('서버 연결에 실패해 데모 흐름으로 이동합니다.', 'warning');
         router.push(`/editor/${projectId}`);
         return;
       }
 
-      const result = await response.json();
-      console.log('Room GLB uploaded:', result);
+      await response.json();
 
       setUploadProgress(100);
+      addToast('방 구조를 저장하고 에디터로 이동합니다.', 'success');
       router.push(`/editor/${projectId}`);
     } catch (error) {
       console.error('Failed to complete room:', error);
-      alert('방 구조 저장에 실패했습니다.');
+      addToast('방 구조 저장에 실패했습니다.', 'error');
     } finally {
       setIsExporting(false);
       setUploadProgress(0);
@@ -697,9 +720,10 @@ export default function RoomBuilderPage() {
                   className="group relative aspect-square p-6 rounded-2xl bg-zinc-900 border border-zinc-800 hover:border-violet-500 hover:bg-zinc-800 transition-all flex flex-col items-center justify-center gap-4"
                 >
                   <div className="w-full aspect-[4/3] rounded-lg bg-zinc-800 group-hover:bg-violet-500/10 overflow-hidden mb-3 relative">
-                    <img
+                    <Image
                       src={`/templates/${templateKey}.png`}
                       alt={template.displayName}
+                      fill
                       className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity"
                     />
                   </div>

@@ -1,5 +1,6 @@
 'use client';
 
+import Image from 'next/image';
 import React, { useRef, useCallback } from 'react';
 import { UploadedImage } from './types';
 
@@ -97,9 +98,12 @@ const TextureGallery: React.FC<TextureGalleryProps> = ({
                 }`}
               onClick={() => handleImageClick(image.id)}
             >
-              <img
+              <Image
                 src={image.url}
                 alt={image.name}
+                width={240}
+                height={80}
+                unoptimized
                 className="w-full h-20 object-cover"
               />
               <button
