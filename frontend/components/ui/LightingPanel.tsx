@@ -1,9 +1,9 @@
 'use client';
 
-import { useEditorStore } from '@/store/editorStore';
+import { useLightingStore } from '@/store/lightingStore';
 
 export function LightingPanel() {
-  const { timeOfDay, setTimeOfDay } = useEditorStore();
+  const { timeOfDay, setTimeOfDay } = useLightingStore();
 
   const times = [
     { id: 'morning', label: '아침 🌅', time: '06:00' },

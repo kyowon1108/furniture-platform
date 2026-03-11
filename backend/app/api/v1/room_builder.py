@@ -16,6 +16,7 @@ import cv2
 from app.database import get_db
 from app.models import Project, User
 from app.api.deps import get_current_user
+from app.services.file_service import MAX_GLB_FILE_SIZE, FileTooLargeError, save_upload_to_temp_file
 from app.utils.glb_utils import extract_glb_dimensions
 
 logger = logging.getLogger(__name__)
@@ -68,28 +69,39 @@ async def upload_room_glb(
         raise HTTPException(status_code=403, detail="Not authorized to modify this project")
 
     # Validate file type
-    if not file.filename.lower().endswith('.glb'):
+    if not file.filename or not file.filename.lower().endswith('.glb'):
         raise HTTPException(
             status_code=400,
             detail="Invalid file type. Only GLB files are accepted."
         )
 
     try:
-        # Read file content
-        file_content = await file.read()
-        file_size = len(file_content)
-
         # Create GLB directory if it doesn't exist
         glb_dir = Path("uploads/glb_files")
         glb_dir.mkdir(parents=True, exist_ok=True)
 
-        # Generate unique filename
+        original_stem = Path(file.filename or f"project_{project_id}").stem
+        temp_filename = f"room_{project_id}_{current_user.id}_{original_stem}.tmp.glb"
+        temp_path = glb_dir / temp_filename
+        file_size = await save_upload_to_temp_file(file, temp_path, MAX_GLB_FILE_SIZE)
+
+        # Validate GLB magic number before keeping the upload
+        with open(temp_path, "rb") as temp_file:
+            header = temp_file.read(12)
+
+        if len(header) < 12 or int.from_bytes(header[0:4], byteorder="little") != 0x46546C67:
+            if temp_path.exists():
+                temp_path.unlink()
+            raise HTTPException(status_code=400, detail="Invalid GLB file")
+
         filename = f"room_{project_id}_{current_user.id}.glb"
         file_path = glb_dir / filename
 
-        # Save file
-        with open(file_path, "wb") as f:
-            f.write(file_content)
+        # Replace any previous generated room model for this project
+        if file_path.exists():
+            file_path.unlink()
+
+        temp_path.replace(file_path)
 
         logger.info(f"Saved GLB file to {file_path} ({file_size} bytes)")
 
@@ -130,9 +142,14 @@ async def upload_room_glb(
             "project_id": project_id,
             "dimensions": dimensions,
             "file_size": file_size,
-            "file_path": str(file_path),
+            "download_url": project.download_url,
         }
 
+    except HTTPException:
+        raise
+    except FileTooLargeError as e:
+        logger.warning(f"Room GLB upload too large for project {project_id}: {e}")
+        raise HTTPException(status_code=413, detail=str(e))
     except Exception as e:
         logger.error(f"Error uploading room GLB: {e}")
         db.rollback()

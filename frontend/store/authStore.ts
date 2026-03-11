@@ -4,6 +4,7 @@
 
 import { create } from 'zustand';
 import { authAPI } from '@/lib/api';
+import { getAuthToken, removeAuthToken, setAuthToken } from '@/lib/authToken';
 import type { User } from '@/types/api';
 
 interface AuthState {
@@ -23,7 +24,7 @@ export const useAuthStore = create<AuthState>((set) => ({
   login: async (email: string, password: string) => {
     try {
       const tokenData = await authAPI.login(email, password);
-      localStorage.setItem('token', tokenData.access_token);
+      setAuthToken(tokenData.access_token);
 
       const user = await authAPI.getMe();
       set({ user, isAuthenticated: true, isLoading: false });
@@ -34,13 +35,13 @@ export const useAuthStore = create<AuthState>((set) => ({
   },
 
   logout: () => {
-    localStorage.removeItem('token');
+    removeAuthToken();
     set({ user: null, isAuthenticated: false });
   },
 
   fetchUser: async () => {
     try {
-      const token = localStorage.getItem('token');
+      const token = getAuthToken();
       if (!token) {
         set({ isLoading: false });
         return;
@@ -50,7 +51,7 @@ export const useAuthStore = create<AuthState>((set) => ({
       set({ user, isAuthenticated: true, isLoading: false });
     } catch (error) {
       console.error('Failed to fetch user:', error);
-      localStorage.removeItem('token');
+      removeAuthToken();
       set({ user: null, isAuthenticated: false, isLoading: false });
     }
   },

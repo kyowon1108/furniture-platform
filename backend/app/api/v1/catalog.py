@@ -15,9 +15,11 @@ from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
+from app.api.deps import get_current_admin_user
 from app.config import settings
 from app.database import get_db, SessionLocal
 from app.models.catalog_item import CatalogItem
+from app.models.user import User
 from app.core.logging import get_logger
 
 logger = get_logger("catalog")
@@ -308,7 +310,7 @@ async def get_catalog(db: Session = Depends(get_db)):
 
 
 @router.post("/catalog/sync")
-async def sync_catalog():
+async def sync_catalog(current_user: User = Depends(get_current_admin_user)):
     """Manually trigger S3 to DB sync."""
     result = sync_catalog_from_s3()
     return {
@@ -318,7 +320,7 @@ async def sync_catalog():
 
 
 @router.get("/catalog/list-glb")
-async def list_glb_files():
+async def list_glb_files(current_user: User = Depends(get_current_admin_user)):
     """List all GLB files in S3."""
     try:
         s3 = get_s3_client()
@@ -370,6 +372,7 @@ async def update_catalog_item(
     price: Optional[int] = None,
     color: Optional[str] = None,
     mount_type: Optional[str] = None,
+    current_user: User = Depends(get_current_admin_user),
     db: Session = Depends(get_db)
 ):
     """Update catalog item metadata."""
@@ -406,7 +409,11 @@ async def update_catalog_item(
 
 
 @router.delete("/catalog/{item_id}")
-async def delete_catalog_item(item_id: str, db: Session = Depends(get_db)):
+async def delete_catalog_item(
+    item_id: str,
+    current_user: User = Depends(get_current_admin_user),
+    db: Session = Depends(get_db),
+):
     """Delete catalog item from DB (does not delete S3 file)."""
     item = db.query(CatalogItem).filter(CatalogItem.id == item_id).first()
     if not item:
@@ -422,6 +429,7 @@ async def delete_catalog_item(item_id: str, db: Session = Depends(get_db)):
 async def upload_glb(
     item_id: str,
     file: UploadFile = File(...),
+    current_user: User = Depends(get_current_admin_user),
     db: Session = Depends(get_db)
 ):
     """Upload GLB file for a furniture item."""
@@ -482,4 +490,3 @@ async def get_glb_url(item_id: str, db: Session = Depends(get_db)):
     presigned_url = generate_presigned_url(s3, item.glb_key)
 
     return {"item_id": item_id, "glb_url": presigned_url}
-

@@ -7,12 +7,16 @@ import { Room } from './Room';
 import { PlyModel } from './PlyModel';
 import { GlbModel } from './GlbModel';
 import { useEditorStore } from '@/store/editorStore';
+import { useMeasureStore } from '@/store/measureStore';
+import { useLightingStore } from '@/store/lightingStore';
 import { useToastStore } from '@/store/toastStore';
 import { socketService } from '@/lib/socket';
 import type { FurnitureCatalogItem } from '@/types/catalog';
 import type { FurnitureItem } from '@/types/furniture';
 import * as THREE from 'three';
 import { useRef, useEffect, useMemo, useCallback } from 'react';
+
+const debugScene = (..._args: unknown[]) => {};
 
 // Helper function to calculate rotated dimensions (bounding box after rotation)
 function getRotatedDimensions(
@@ -104,13 +108,17 @@ function SceneContent({
   const selectedIds = useEditorStore((state) => state.selectedIds);
   const transformMode = useEditorStore((state) => state.transformMode);
   const updateFurniture = useEditorStore((state) => state.updateFurniture);
-  const timeOfDay = useEditorStore((state) => state.timeOfDay);
-  const measureMode = useEditorStore((state) => state.measureMode);
-  const measurePoints = useEditorStore((state) => state.measurePoints);
-  const addMeasurePoint = useEditorStore((state) => state.addMeasurePoint);
   const lockedItems = useEditorStore((state) => state.lockedItems);
   const addLockedItem = useEditorStore((state) => state.addLockedItem);
   const removeLockedItem = useEditorStore((state) => state.removeLockedItem);
+
+  // Lighting state
+  const timeOfDay = useLightingStore((state) => state.timeOfDay);
+
+  // Measurement state
+  const measureMode = useMeasureStore((state) => state.measureMode);
+  const measurePoints = useMeasureStore((state) => state.measurePoints);
+  const addMeasurePoint = useMeasureStore((state) => state.addMeasurePoint);
 
 
   const { camera, raycaster, scene, gl } = useThree();
@@ -208,7 +216,7 @@ function SceneContent({
     const worldMinZ = bounds.minZ * tileSize - glbCenterZ;
     const worldMaxZ = (bounds.maxZ + 1) * tileSize - glbCenterZ;
 
-    console.log('🏠 Tile data computed:', {
+    debugScene('🏠 Tile data computed:', {
       tileCount: tileSet.size,
       xRanges: xRangeByGridZ.size,
       zRanges: zRangeByGridX.size,
@@ -360,7 +368,7 @@ function SceneContent({
     const halfWidth = rotatedDims.width / 2;
     const halfDepth = rotatedDims.depth / 2;
 
-    console.log('=== Checking position validity ===', {
+    debugScene('=== Checking position validity ===', {
       furnitureId: furniture.id,
       newPos,
       originalDimensions: furniture.dimensions,
@@ -385,11 +393,11 @@ function SceneContent({
 
       for (const corner of corners) {
         if (!isPositionOnFloorTile(corner.x, corner.z)) {
-          console.log('❌ Free Build tile check failed: corner not on floor tile', corner);
+          debugScene('❌ Free Build tile check failed: corner not on floor tile', corner);
           return false;
         }
       }
-      console.log('✓ Free Build tile check passed: all corners on floor tiles');
+      debugScene('✓ Free Build tile check passed: all corners on floor tiles');
       return true;
     }
 
@@ -414,38 +422,38 @@ function SceneContent({
       const roomMinZ = -roomHalfDepth + wallMargin;
       const roomMaxZ = roomHalfDepth - wallMargin;
 
-      console.log('Boundary check:', {
+      debugScene('Boundary check:', {
         furniture: { minX: furnitureMinX, maxX: furnitureMaxX, minZ: furnitureMinZ, maxZ: furnitureMaxZ },
         room: { minX: roomMinX, maxX: roomMaxX, minZ: roomMinZ, maxZ: roomMaxZ }
       });
 
       if (furnitureMinX < roomMinX || furnitureMaxX > roomMaxX) {
-        console.log('❌ Boundary check failed: X out of bounds');
+        debugScene('❌ Boundary check failed: X out of bounds');
         return false;
       }
       if (furnitureMinZ < roomMinZ || furnitureMaxZ > roomMaxZ) {
-        console.log('❌ Boundary check failed: Z out of bounds');
+        debugScene('❌ Boundary check failed: Z out of bounds');
         return false;
       }
 
-      console.log('✓ Boundary check passed');
+      debugScene('✓ Boundary check passed');
     } else if (usePlyBoundaries) {
       // For PLY with 0 dimensions, use a very large boundary (50 units)
       const maxBoundary = 50;
       if (Math.abs(newPos.x) > maxBoundary || Math.abs(newPos.z) > maxBoundary) {
-        console.log('❌ PLY boundary check failed: position too far', { newPos, maxBoundary });
+        debugScene('❌ PLY boundary check failed: position too far', { newPos, maxBoundary });
         return false;
       }
-      console.log('✓ PLY boundary check passed');
+      debugScene('✓ PLY boundary check passed');
     } else {
       // Room dimensions not yet loaded (GLB loading in progress)
       // Use a generous temporary boundary while waiting for GLB dimension detection
       const temporaryBoundary = 20; // 20m boundary while waiting
       if (Math.abs(newPos.x) > temporaryBoundary || Math.abs(newPos.z) > temporaryBoundary) {
-        console.log('❌ Temporary boundary check failed (waiting for GLB):', { newPos, temporaryBoundary });
+        debugScene('❌ Temporary boundary check failed (waiting for GLB):', { newPos, temporaryBoundary });
         return false;
       }
-      console.log('✓ Temporary boundary check passed (waiting for GLB dimension detection)');
+      debugScene('✓ Temporary boundary check passed (waiting for GLB dimension detection)');
     }
 
     // Check collision with dummy objects (for template rooms)
@@ -469,7 +477,7 @@ function SceneContent({
       }
     });
 
-    console.log('🔍 Checking for dummy collision:', {
+    debugScene('🔍 Checking for dummy collision:', {
       groupFound: !!dummyGroup,
       groupChildren: dummyGroup?.children?.length || 0,
       directDummies: dummyObjects.length,
@@ -481,7 +489,7 @@ function SceneContent({
       const dummyDims = dummy.userData.dimensions;
       const dummyPos = dummy.userData.position;
 
-      console.log('🔍 Checking collision with dummy:', {
+      debugScene('🔍 Checking collision with dummy:', {
         id: dummy.userData.id,
         dummyPos,
         dummyDims,
@@ -508,7 +516,7 @@ function SceneContent({
       const overlapX = Math.min(f1.maxX, f2.maxX) - Math.max(f1.minX, f2.minX);
       const overlapZ = Math.min(f1.maxZ, f2.maxZ) - Math.max(f1.minZ, f2.minZ);
 
-      console.log('🔍 Collision calculation:', {
+      debugScene('🔍 Collision calculation:', {
         overlapX,
         overlapZ,
         isColliding: overlapX > 0 && overlapZ > 0,
@@ -517,7 +525,7 @@ function SceneContent({
       });
 
       if (overlapX > 0 && overlapZ > 0) {
-        console.log('❌ Collision detected with dummy object:', dummy.userData.id, {
+        debugScene('❌ Collision detected with dummy object:', dummy.userData.id, {
           overlapX: overlapX.toFixed(3),
           overlapZ: overlapZ.toFixed(3),
           f1,
@@ -608,7 +616,7 @@ function SceneContent({
 
       // Only reject if there's significant penetration in all axes
       if (overlapX > penetrationThreshold && overlapZ > penetrationThreshold && overlapY) {
-        console.log('❌ Collision detected with furniture:', other.id, {
+        debugScene('❌ Collision detected with furniture:', other.id, {
           overlapX: overlapX.toFixed(3),
           overlapZ: overlapZ.toFixed(3),
           overlapY,
@@ -622,7 +630,7 @@ function SceneContent({
       }
     }
 
-    console.log('✓ No collisions detected');
+    debugScene('✓ No collisions detected');
     return true;
   };
 
@@ -926,10 +934,10 @@ function SceneContent({
     };
 
     const handleContextRestored = () => {
-      console.log('✅ WebGL Context Restored');
+      debugScene('✅ WebGL Context Restored');
 
       // Log to file
-      console.log('[WEBGL_CONTEXT_RESTORED]', {
+      debugScene('[WEBGL_CONTEXT_RESTORED]', {
         timestamp: new Date().toISOString()
       });
 
@@ -959,10 +967,10 @@ function SceneContent({
       maxSamples: gl.capabilities.maxSamples
     };
 
-    console.log('📊 WebGL Renderer Info:', webglInfo);
+    debugScene('📊 WebGL Renderer Info:', webglInfo);
 
     // IMPORTANT: Log to file for debugging
-    console.log('[WEBGL_INIT]', {
+    debugScene('[WEBGL_INIT]', {
       timestamp: new Date().toISOString(),
       capabilities: webglInfo,
       renderer: gl.info.render,
@@ -1159,7 +1167,7 @@ function SceneContent({
             if (selectedFurniture) {
               previousPositionRef.current = { ...selectedFurniture.position };
               previousRotationRef.current = selectedFurniture.rotation.y;
-              console.log('🖱️ Mouse down on furniture:', {
+              debugScene('🖱️ Mouse down on furniture:', {
                 id: selectedFurniture.id,
                 type: selectedFurniture.type,
                 mountType: selectedFurniture.mountType,
@@ -1189,7 +1197,7 @@ function SceneContent({
                 const maxHeight = actualRoomDimensions.height - selectedFurniture.dimensions.height / 2;
                 const minHeight = selectedFurniture.dimensions.height / 2;
                 const newY = Math.max(minHeight, Math.min(maxHeight, obj.position.y));
-                console.log('🔼 Wall item Y adjustment:', {
+                debugScene('🔼 Wall item Y adjustment:', {
                   before: obj.position.y,
                   after: newY,
                   minHeight,
@@ -1202,7 +1210,7 @@ function SceneContent({
                 // Procedural models: Y=height/2 (model is centered, need to lift)
                 const groundY = selectedFurniture.glbUrl ? 0 : selectedFurniture.dimensions.height / 2;
                 if (Math.abs(obj.position.y - groundY) > 0.01) {
-                  console.log('⬇️ Floor item Y adjusted to:', groundY);
+                  debugScene('⬇️ Floor item Y adjusted to:', groundY);
                   obj.position.y = groundY;
                 }
               }
@@ -1225,8 +1233,8 @@ function SceneContent({
               // ALWAYS check rotation boundaries if we're in rotate mode
               // This is the most critical check to prevent wall penetration
               if (isRotateMode) {
-                console.log('🔄 ========== ROTATE MODE DETECTED ==========');
-                console.log('🔄 Starting boundary check for rotation...');
+                debugScene('🔄 ========== ROTATE MODE DETECTED ==========');
+                debugScene('🔄 Starting boundary check for rotation...');
 
                 // STEP 1: Lock X and Z rotation to 0 (only Y-axis rotation allowed)
                 obj.rotation.x = 0;
@@ -1242,7 +1250,7 @@ function SceneContent({
                 const halfWidth = rotatedDims.width / 2;
                 const halfDepth = rotatedDims.depth / 2;
 
-                console.log('📐 Rotated dimensions calculation:', {
+                debugScene('📐 Rotated dimensions calculation:', {
                   furnitureId: selectedFurniture.id,
                   currentRotation: currentRotationDeg,
                   previousRotation: previousRotationDeg,
@@ -1307,13 +1315,13 @@ function SceneContent({
                   };
                 }
 
-                console.log('🔍 ========== Boundary Check Result ==========');
-                console.log('🔍 Would exceed bounds:', wouldExceedBounds);
-                console.log('🔍 Boundary details:', boundaryDetails);
-                console.log('🔍 Room dimensions:', actualRoomDimensions);
-                console.log('🔍 Furniture position:', { x: obj.position.x, y: obj.position.y, z: obj.position.z });
-                console.log('🔍 Rotated half dimensions:', { halfWidth, halfDepth });
-                console.log('🔍 ============================================');
+                debugScene('🔍 ========== Boundary Check Result ==========');
+                debugScene('🔍 Would exceed bounds:', wouldExceedBounds);
+                debugScene('🔍 Boundary details:', boundaryDetails);
+                debugScene('🔍 Room dimensions:', actualRoomDimensions);
+                debugScene('🔍 Furniture position:', { x: obj.position.x, y: obj.position.y, z: obj.position.z });
+                debugScene('🔍 Rotated half dimensions:', { halfWidth, halfDepth });
+                debugScene('🔍 ============================================');
 
                 // STEP 4: Check collision with other furniture using rotated dimensions
                 let hasCollision = false;
@@ -1403,7 +1411,7 @@ function SceneContent({
                       isWallItem,
                       isOtherWallItem
                     };
-                    console.log('❌ Collision detected with furniture:', collisionDetails);
+                    debugScene('❌ Collision detected with furniture:', collisionDetails);
                     break;
                   }
                 }
@@ -1433,21 +1441,21 @@ function SceneContent({
                     lastRotationToastTimeRef.current = now;
                   }
 
-                  console.log('❌ ========== ROTATION BLOCKED - REVERTED ==========');
-                  console.log('❌ Reason:', wouldExceedBounds ? '벽 충돌' : '가구 충돌');
-                  console.log('❌ Would exceed bounds:', wouldExceedBounds);
-                  console.log('❌ Has collision:', hasCollision);
-                  console.log('❌ Current rotation:', currentRotationDeg);
-                  console.log('❌ Previous rotation:', previousRotationRef.current);
-                  console.log('❌ Stored rotation:', storedRotationDeg);
-                  console.log('❌ Reverted rotation:', (obj.rotation.y * 180) / Math.PI);
-                  console.log('❌ Rotated dimensions:', rotatedDims);
-                  console.log('❌ Position:', obj.position);
-                  console.log('❌ Boundary details:', boundaryDetails);
+                  debugScene('❌ ========== ROTATION BLOCKED - REVERTED ==========');
+                  debugScene('❌ Reason:', wouldExceedBounds ? '벽 충돌' : '가구 충돌');
+                  debugScene('❌ Would exceed bounds:', wouldExceedBounds);
+                  debugScene('❌ Has collision:', hasCollision);
+                  debugScene('❌ Current rotation:', currentRotationDeg);
+                  debugScene('❌ Previous rotation:', previousRotationRef.current);
+                  debugScene('❌ Stored rotation:', storedRotationDeg);
+                  debugScene('❌ Reverted rotation:', (obj.rotation.y * 180) / Math.PI);
+                  debugScene('❌ Rotated dimensions:', rotatedDims);
+                  debugScene('❌ Position:', obj.position);
+                  debugScene('❌ Boundary details:', boundaryDetails);
                   if (collisionDetails) {
-                    console.log('❌ Collision details:', collisionDetails);
+                    debugScene('❌ Collision details:', collisionDetails);
                   }
-                  console.log('❌ ================================================');
+                  debugScene('❌ ================================================');
 
                   // CRITICAL: Return early to prevent saving invalid rotation
                   // This ensures updateFurniture is never called with invalid rotation
@@ -1457,16 +1465,16 @@ function SceneContent({
                 // STEP 6: Rotation is valid - update previous rotation reference
                 // This ensures next rotation check uses the correct previous value
                 previousRotationRef.current = currentRotationDeg;
-                console.log('✅ ========== ROTATION VALID ==========');
-                console.log('✅ Rotation Y:', previousRotationRef.current);
-                console.log('✅ Rotated dimensions:', rotatedDims);
-                console.log('✅ Position:', obj.position);
-                console.log('✅ Proceeding to save...');
-                console.log('✅ ====================================');
+                debugScene('✅ ========== ROTATION VALID ==========');
+                debugScene('✅ Rotation Y:', previousRotationRef.current);
+                debugScene('✅ Rotated dimensions:', rotatedDims);
+                debugScene('✅ Position:', obj.position);
+                debugScene('✅ Proceeding to save...');
+                debugScene('✅ ====================================');
               } else if (rotationChanged) {
                 // For translate mode, check rotation boundaries if rotation changed
                 // This handles cases where rotation happens in translate mode
-                console.log('🔄 Rotation check (TRANSLATE MODE - rotation changed):', {
+                debugScene('🔄 Rotation check (TRANSLATE MODE - rotation changed):', {
                   furnitureId: selectedFurniture.id,
                   currentRotation: currentRotationDeg,
                   previousRotation: previousRotationDeg,
@@ -1601,7 +1609,7 @@ function SceneContent({
 
                   const reason = wouldExceedBounds ? '벽' : '다른 가구';
                   useToastStore.getState().addToast(`공간이 부족하여 회전할 수 없습니다 (${reason}과 충돌)`, 'error');
-                  console.log('❌ Rotation blocked (translate mode):', {
+                  debugScene('❌ Rotation blocked (translate mode):', {
                     wouldExceedBounds,
                     hasCollision,
                     revertedRotation: (obj.rotation.y * 180) / Math.PI
@@ -1638,7 +1646,7 @@ function SceneContent({
                   const distToWest = Math.abs(snappedPos.x + roomHalfWidth);
                   const distToEast = Math.abs(snappedPos.x - roomHalfWidth);
 
-                  console.log('Wall distances:', { distToNorth, distToSouth, distToWest, distToEast });
+                  debugScene('Wall distances:', { distToNorth, distToSouth, distToWest, distToEast });
 
                   // Snap to nearest wall
                   const minDist = Math.min(distToNorth, distToSouth, distToWest, distToEast);
@@ -1647,16 +1655,16 @@ function SceneContent({
                     const beforeY = snappedPos.y;
                     if (minDist === distToNorth) {
                       snappedPos.z = -roomHalfDepth + wallOffset;
-                      console.log('📍 Snapped to north wall, Y preserved:', beforeY);
+                      debugScene('📍 Snapped to north wall, Y preserved:', beforeY);
                     } else if (minDist === distToSouth) {
                       snappedPos.z = roomHalfDepth - wallOffset;
-                      console.log('📍 Snapped to south wall, Y preserved:', beforeY);
+                      debugScene('📍 Snapped to south wall, Y preserved:', beforeY);
                     } else if (minDist === distToWest) {
                       snappedPos.x = -roomHalfWidth + wallOffset;
-                      console.log('📍 Snapped to west wall, Y preserved:', beforeY);
+                      debugScene('📍 Snapped to west wall, Y preserved:', beforeY);
                     } else if (minDist === distToEast) {
                       snappedPos.x = roomHalfWidth - wallOffset;
-                      console.log('📍 Snapped to east wall, Y preserved:', beforeY);
+                      debugScene('📍 Snapped to east wall, Y preserved:', beforeY);
                     }
                     // Ensure Y is preserved
                     snappedPos.y = beforeY;
@@ -1688,7 +1696,7 @@ function SceneContent({
                     if (distToLeft < snapThreshold) {
                       snappedPos.x = otherLeft - halfWidth;
                       snappedX = true;
-                      console.log('📍 Snapped right edge to left edge', { distToLeft: distToLeft.toFixed(3) });
+                      debugScene('📍 Snapped right edge to left edge', { distToLeft: distToLeft.toFixed(3) });
                     }
 
                     // My left edge to other's right edge
@@ -1697,7 +1705,7 @@ function SceneContent({
                     if (!snappedX && distToRight < snapThreshold) {
                       snappedPos.x = otherRight + halfWidth;
                       snappedX = true;
-                      console.log('📍 Snapped left edge to right edge', { distToRight: distToRight.toFixed(3) });
+                      debugScene('📍 Snapped left edge to right edge', { distToRight: distToRight.toFixed(3) });
                     }
                   }
 
@@ -1709,7 +1717,7 @@ function SceneContent({
                     if (distToBack < snapThreshold) {
                       snappedPos.z = otherBack - halfDepth;
                       snappedZ = true;
-                      console.log('📍 Snapped front edge to back edge', { distToBack: distToBack.toFixed(3) });
+                      debugScene('📍 Snapped front edge to back edge', { distToBack: distToBack.toFixed(3) });
                     }
 
                     // My back edge to other's front edge
@@ -1718,7 +1726,7 @@ function SceneContent({
                     if (!snappedZ && distToFront < snapThreshold) {
                       snappedPos.z = otherFront + halfDepth;
                       snappedZ = true;
-                      console.log('📍 Snapped back edge to front edge', { distToFront: distToFront.toFixed(3) });
+                      debugScene('📍 Snapped back edge to front edge', { distToFront: distToFront.toFixed(3) });
                     }
                   }
                 }
@@ -1881,7 +1889,7 @@ function SceneContent({
                   // Collision occurs if XZ overlap AND Y overlap
                   if (overlapX > penetrationThreshold && overlapZ > penetrationThreshold && overlapY) {
                     hasCollision = true;
-                    console.log('❌ Collision detected (translate mode):', {
+                    debugScene('❌ Collision detected (translate mode):', {
                       otherId: other.id,
                       otherType: other.type,
                       overlapX: overlapX.toFixed(3),
@@ -1910,7 +1918,7 @@ function SceneContent({
                 // Update previous rotation if rotation changed in translate mode
                 if (rotationChanged) {
                   previousRotationRef.current = currentRotationDeg;
-                  console.log('🔄 Translate mode - rotation updated:', {
+                  debugScene('🔄 Translate mode - rotation updated:', {
                     previousRotation: previousRotationDeg,
                     currentRotation: currentRotationDeg
                   });
@@ -2099,7 +2107,7 @@ export function Scene({
         initialX = Math.max(-maxX, Math.min(maxX, 0));
         initialZ = Math.max(-maxZ, Math.min(maxZ, 0));
 
-        console.log('📦 Initial furniture placement:', {
+        debugScene('📦 Initial furniture placement:', {
           roomDimensions,
           furnitureDimensions: catalogItem.dimensions,
           roomHalfWidth,
@@ -2124,7 +2132,7 @@ export function Scene({
         price: catalogItem.price,
       };
 
-      console.log('➕ Adding furniture:', {
+      debugScene('➕ Adding furniture:', {
         id: newFurniture.id,
         type: newFurniture.type,
         mountType: newFurniture.mountType,

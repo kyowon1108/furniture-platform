@@ -1,765 +1,216 @@
 # API 문서
 
-## 📋 목차
-1. [기본 정보](#기본-정보)
-2. [인증 API](#인증-api)
-3. [프로젝트 API](#프로젝트-api)
-4. [레이아웃 API](#레이아웃-api)
-5. [파일 API](#파일-api)
-6. [WebSocket 이벤트](#websocket-이벤트)
-7. [에러 코드](#에러-코드)
-
----
-
 ## 기본 정보
 
-**Base URL**: `http://localhost:8008/api/v1`
-
-**인증 방식**: JWT Bearer Token
-
-**Content-Type**: `application/json`
-
-**Swagger UI**: `http://localhost:8008/docs`
-
-**파일 업로드 제한**:
-- PLY 파일: 최대 100MB
-- GLB 파일: 최대 50MB
-
----
+- Base URL: `http://localhost:8008/api/v1`
+- 인증 방식:
+  - REST API: `Authorization: Bearer <token>`
+  - Socket.IO: 연결 시 `auth.token`
+- 주요 포트:
+  - Frontend `3008`
+  - Backend `8008`
+- 업로드 제한:
+  - PLY 최대 `100MB`
+  - GLB 최대 `50MB`
 
 ## 인증 API
 
-### 1. 회원가입
+### `POST /auth/register`
 
-**Endpoint**: `POST /auth/register`
+사용자 등록.
 
-**Request Body**:
 ```json
 {
   "email": "user@example.com",
   "password": "securepassword123",
-  "full_name": "홍길동"  // 선택사항
+  "full_name": "홍길동"
 }
 ```
 
-**Response** (201 Created):
-```json
-{
-  "id": 1,
-  "email": "user@example.com",
-  "full_name": "홍길동",
-  "is_active": true,
-  "created_at": "2025-11-20T10:00:00Z"
-}
-```
+### `POST /auth/login`
 
-**에러**:
-- `400`: 이메일 중복
+OAuth2 form login.
 
----
-
-### 2. 로그인
-
-**Endpoint**: `POST /auth/login`
-
-**Request Body** (Form Data):
-```
+```text
 username=user@example.com
 password=securepassword123
 ```
 
-**Response** (200 OK):
+응답:
+
 ```json
 {
-  "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+  "access_token": "jwt",
   "token_type": "bearer"
 }
 ```
 
-**에러**:
-- `401`: 잘못된 이메일 또는 비밀번호
+### `GET /auth/me`
 
----
-
-### 3. 현재 사용자 조회
-
-**Endpoint**: `GET /auth/me`
-
-**Headers**:
-```
-Authorization: Bearer {access_token}
-```
-
-**Response** (200 OK):
-```json
-{
-  "id": 1,
-  "email": "user@example.com",
-  "full_name": "홍길동",
-  "is_active": true,
-  "created_at": "2025-11-20T10:00:00Z"
-}
-```
-
-**에러**:
-- `401`: 유효하지 않은 토큰
-
----
+현재 로그인 사용자 조회.
 
 ## 프로젝트 API
 
-### 1. 프로젝트 목록 조회
+### `GET /projects`
 
-**Endpoint**: `GET /projects`
+내 프로젝트 목록 조회.
 
-**Headers**:
-```
-Authorization: Bearer {access_token}
-```
+### `POST /projects`
 
-**Query Parameters**:
-- `skip` (int, optional): 건너뛸 개수 (기본값: 0)
-- `limit` (int, optional): 최대 개수 (기본값: 100)
+프로젝트 생성.
 
-**Response** (200 OK):
-```json
-[
-  {
-    "id": 1,
-    "owner_id": 1,
-    "name": "내 방 레이아웃",
-    "description": "침실 가구 배치",
-    "room_width": 5.0,
-    "room_height": 3.0,
-    "room_depth": 4.0,
-    "created_at": "2025-11-20T10:00:00Z",
-    "updated_at": "2025-11-20T10:00:00Z"
-  }
-]
-```
-
----
-
-### 2. 프로젝트 생성
-
-**Endpoint**: `POST /projects`
-
-**Headers**:
-```
-Authorization: Bearer {access_token}
-```
-
-**Request Body**:
 ```json
 {
-  "name": "내 방 레이아웃",
-  "description": "침실 가구 배치",  // 선택사항
+  "name": "내 방",
+  "description": "침실 레이아웃",
   "room_width": 5.0,
   "room_height": 3.0,
   "room_depth": 4.0,
-  "has_ply_file": false  // 선택사항, 기본값: false
+  "build_mode": "template",
+  "room_structure": null
 }
 ```
 
-**Response** (201 Created):
+### `GET /projects/{project_id}`
+
+프로젝트 상세 조회. 내부 파일 시스템 경로는 노출하지 않고, 필요 시 `download_url`만 제공합니다.
+
+응답 예시:
+
 ```json
 {
   "id": 1,
   "owner_id": 1,
-  "name": "내 방 레이아웃",
-  "description": "침실 가구 배치",
+  "name": "내 방",
   "room_width": 5.0,
   "room_height": 3.0,
   "room_depth": 4.0,
+  "has_3d_file": true,
+  "file_type": "glb",
+  "download_url": "/api/v1/files-3d/download-3d/1",
+  "file_size": 123456,
   "has_ply_file": false,
-  "ply_file_path": null,
   "ply_file_size": null,
-  "created_at": "2025-11-20T10:00:00Z",
-  "updated_at": "2025-11-20T10:00:00Z"
-}
-```
-
-**참고**: 프로젝트 생성 시 자동으로 빈 레이아웃(version=1)이 생성됩니다.
-
----
-
-### 3. 프로젝트 상세 조회
-
-**Endpoint**: `GET /projects/{project_id}`
-
-**Headers**:
-```
-Authorization: Bearer {access_token}
-```
-
-**Response** (200 OK):
-```json
-{
-  "id": 1,
-  "owner_id": 1,
-  "name": "내 방 레이아웃",
-  "description": "침실 가구 배치",
-  "room_width": 5.0,
-  "room_height": 3.0,
-  "room_depth": 4.0,
-  "created_at": "2025-11-20T10:00:00Z",
-  "updated_at": "2025-11-20T10:00:00Z",
+  "build_mode": "free_build",
+  "room_structure": {
+    "mode": "free_build"
+  },
+  "is_shared": false,
   "current_layout": {
-    "furnitures": [
-      {
-        "id": "bed-single-1234567890",
-        "type": "bed",
-        "position": {"x": 0, "y": 0.25, "z": 0},
-        "rotation": {"x": 0, "y": 0, "z": 0},
-        "scale": {"x": 1, "y": 1, "z": 1},
-        "dimensions": {"width": 1.0, "height": 0.5, "depth": 2.0},
-        "color": "#8B4513"
-      }
-    ]
+    "furnitures": []
   }
 }
 ```
 
-**에러**:
-- `404`: 프로젝트를 찾을 수 없음
-- `403`: 접근 권한 없음
+### `PUT /projects/{project_id}`
 
----
+프로젝트 메타데이터 수정.
 
-### 4. 프로젝트 수정
+### `POST /projects/{project_id}/share`
 
-**Endpoint**: `PUT /projects/{project_id}`
+공유 상태 토글.
 
-**Headers**:
-```
-Authorization: Bearer {access_token}
-```
+### `DELETE /projects/{project_id}`
 
-**Request Body** (모든 필드 선택사항):
-```json
-{
-  "name": "수정된 이름",
-  "description": "수정된 설명",
-  "room_width": 6.0,
-  "room_height": 3.5,
-  "room_depth": 5.0
-}
-```
-
-**Response** (200 OK):
-```json
-{
-  "id": 1,
-  "owner_id": 1,
-  "name": "수정된 이름",
-  ...
-}
-```
-
----
-
-### 5. 프로젝트 삭제
-
-**Endpoint**: `DELETE /projects/{project_id}`
-
-**Headers**:
-```
-Authorization: Bearer {access_token}
-```
-
-**Response** (204 No Content)
-
-**참고**: 프로젝트 삭제 시 관련된 모든 레이아웃과 히스토리도 함께 삭제됩니다 (CASCADE).
-
----
+프로젝트와 연결된 레이아웃/업로드 파일 삭제.
 
 ## 레이아웃 API
 
-### 1. 현재 레이아웃 조회
+### `POST /projects/{project_id}/layouts`
 
-**Endpoint**: `GET /projects/{project_id}/layouts/current`
+새 버전 저장.
 
-**Headers**:
-```
-Authorization: Bearer {access_token}
-```
+### `GET /projects/{project_id}/layouts/current`
 
-**Response** (200 OK):
-```json
-{
-  "id": 1,
-  "project_id": 1,
-  "version": 3,
-  "furniture_state": {
-    "furnitures": [...]
-  },
-  "is_current": true,
-  "created_at": "2025-11-20T10:00:00Z"
-}
-```
+현재 레이아웃 조회.
 
----
+### `GET /projects/{project_id}/layouts`
 
-### 2. 레이아웃 저장
+버전 목록 조회.
 
-**Endpoint**: `POST /projects/{project_id}/layouts`
+### `POST /projects/{project_id}/layouts/{layout_id}/restore`
 
-**Headers**:
-```
-Authorization: Bearer {access_token}
-```
+이전 버전 복원.
 
-**Request Body**:
-```json
-{
-  "furniture_state": {
-    "furnitures": [
-      {
-        "id": "bed-single-1234567890",
-        "type": "bed",
-        "position": {"x": 1.5, "y": 0.25, "z": 2.0},
-        "rotation": {"x": 0, "y": 45, "z": 0},
-        "scale": {"x": 1, "y": 1, "z": 1},
-        "dimensions": {"width": 1.0, "height": 0.5, "depth": 2.0},
-        "color": "#8B4513"
-      }
-    ]
-  }
-}
-```
+### `POST /validate`
 
-**Response** (201 Created):
-```json
-{
-  "id": 4,
-  "project_id": 1,
-  "version": 4,
-  "furniture_state": {...},
-  "is_current": true,
-  "created_at": "2025-11-20T11:00:00Z"
-}
-```
-
-**참고**: 
-- 기존의 모든 레이아웃은 `is_current=false`로 변경됩니다.
-- 새 레이아웃의 버전은 자동으로 증가합니다.
-
----
-
-### 3. 레이아웃 목록 조회
-
-**Endpoint**: `GET /projects/{project_id}/layouts`
-
-**Headers**:
-```
-Authorization: Bearer {access_token}
-```
-
-**Response** (200 OK):
-```json
-[
-  {
-    "id": 4,
-    "project_id": 1,
-    "version": 4,
-    "furniture_state": {...},
-    "is_current": true,
-    "created_at": "2025-11-20T11:00:00Z"
-  },
-  {
-    "id": 3,
-    "project_id": 1,
-    "version": 3,
-    "furniture_state": {...},
-    "is_current": false,
-    "created_at": "2025-11-20T10:30:00Z"
-  }
-]
-```
-
-**참고**: 버전 내림차순으로 정렬됩니다.
-
----
-
-### 4. 레이아웃 복원
-
-**Endpoint**: `POST /projects/{project_id}/layouts/{layout_id}/restore`
-
-**Headers**:
-```
-Authorization: Bearer {access_token}
-```
-
-**Response** (200 OK):
-```json
-{
-  "id": 3,
-  "project_id": 1,
-  "version": 3,
-  "furniture_state": {...},
-  "is_current": true,
-  "created_at": "2025-11-20T10:30:00Z"
-}
-```
-
-**참고**: 선택한 레이아웃이 `is_current=true`로 변경됩니다.
-
----
-
-### 5. 레이아웃 검증
-
-**Endpoint**: `POST /validate`
-
-**Request Body**:
-```json
-{
-  "furniture_state": {
-    "furnitures": [...]
-  },
-  "room_dimensions": {
-    "width": 5.0,
-    "height": 3.0,
-    "depth": 4.0
-  }
-}
-```
-
-**Response** (200 OK):
-```json
-{
-  "valid": false,
-  "collisions": [
-    {
-      "id1": "bed-single-123",
-      "id2": "desk-basic-456"
-    }
-  ],
-  "out_of_bounds": [
-    "wardrobe-large-789"
-  ]
-}
-```
-
-**참고**: 
-- `valid`: 충돌 및 경계 위반이 없으면 `true`
-- `collisions`: 충돌하는 가구 쌍 목록
-- `out_of_bounds`: 방 밖으로 나간 가구 ID 목록
-
----
+저장 없이 충돌/경계 검사.
 
 ## 파일 API
 
-### 1. PLY 파일 업로드
+### Legacy PLY
 
-**Endpoint**: `POST /files/upload-ply/{project_id}`
+- `POST /files/upload-ply/{project_id}`
+- `GET /files/ply/{project_id}`
+- `GET /files/ply-info/{project_id}`
+- `GET /files/download-ply/{project_id}`
+- `DELETE /files/ply/{project_id}`
 
-**Headers**:
-```
-Authorization: Bearer {access_token}
-Content-Type: multipart/form-data
-```
+`GET /files/ply/{project_id}` 응답은 내부 경로 대신 `download_url`을 반환합니다.
 
-**Request Body** (Form Data):
-```
-file: <PLY 파일>
-```
+### Unified 3D Files
 
-**Response** (200 OK):
-```json
-{
-  "message": "PLY file uploaded successfully",
-  "filename": "project_1_room.ply",
-  "file_size": 1234567,
-  "vertex_count": 50000,
-  "project_id": 1
-}
-```
+- `POST /files-3d/upload-3d/{project_id}`
+- `GET /files-3d/3d-file/{project_id}`
+- `GET /files-3d/download-3d/{project_id}`
+- `DELETE /files-3d/3d-file/{project_id}`
 
-**에러**:
-- `400`: 잘못된 파일 형식, 크기 초과, 유효하지 않은 PLY
-- `403`: 프로젝트 접근 권한 없음
-- `404`: 프로젝트를 찾을 수 없음
+## Room Builder API
 
-**제한사항**:
-- 파일 형식: `.ply`만 허용
-- 파일 크기 제한: 100MB
-- PLY 파일은 vertex 데이터를 포함해야 함
+- `POST /room-builder/upload-glb/{project_id}`
+- `POST /room-builder/generate-texture`
+- `GET /room-builder/dimensions/{project_id}`
 
-**에러 코드**:
-- `413`: 파일 크기 초과 (100MB 이상)
+`upload-glb` 응답도 내부 파일 경로 대신 `download_url`을 반환합니다.
 
----
+## Catalog API
 
-### 2. PLY 파일 정보 조회
+### 읽기
 
-**Endpoint**: `GET /files/ply/{project_id}`
+- `GET /catalog`
+- `GET /catalog/{item_id}`
+- `GET /catalog/glb/{item_id}`
 
-**Headers**:
-```
-Authorization: Bearer {access_token}
-```
+### 관리자 전용
 
-**Response** (200 OK):
-```json
-{
-  "has_ply_file": true,
-  "file_path": "uploads/ply_files/project_1_room.ply",
-  "file_size": 1234567,
-  "project_id": 1
-}
-```
+`ADMIN_EMAILS`에 포함된 사용자만 호출 가능:
 
-**에러**:
-- `404`: PLY 파일을 찾을 수 없음
-
----
-
-### 3. PLY 파일 삭제
-
-**Endpoint**: `DELETE /files/ply/{project_id}`
-
-**Headers**:
-```
-Authorization: Bearer {access_token}
-```
-
-**Response** (200 OK):
-```json
-{
-  "message": "PLY file deleted successfully",
-  "project_id": 1
-}
-```
-
-**에러**:
-- `403`: 프로젝트 접근 권한 없음
-- `404`: PLY 파일을 찾을 수 없음
-
-**참고**: 파일 삭제 시 디스크의 파일과 데이터베이스 레코드가 모두 삭제됩니다.
-
----
-
-## 카탈로그 API
-
-S3에 저장된 가구 GLB 파일 카탈로그를 관리합니다.
-
-### 1. 카탈로그 전체 조회
-
-**Endpoint**: `GET /catalog`
-
-**Response** (200 OK):
-```json
-{
-  "items": [
-    {
-      "id": "bed_single",
-      "name": "Bed Single",
-      "type": "bed",
-      "category": "bedroom",
-      "dimensions": {"width": 1.0, "height": 0.5, "depth": 2.0},
-      "thumbnail": "/furniture/bed_single.png",
-      "color": "#8B4513",
-      "price": 100000,
-      "tags": ["bed", "bedroom"],
-      "mountType": "floor",
-      "glbUrl": "https://s3.amazonaws.com/...",
-      "glbKey": "catalog/models/bed_single.glb"
-    }
-  ],
-  "total": 45
-}
-```
-
-**참고**: `glbUrl`은 1시간 유효한 presigned URL입니다.
-
----
-
-### 2. S3 동기화
-
-**Endpoint**: `POST /catalog/sync`
-
-**Response** (200 OK):
-```json
-{
-  "message": "Catalog synced from S3",
-  "result": {
-    "added": 5,
-    "updated": 2,
-    "deleted": 1,
-    "s3_count": 45,
-    "db_count": 45
-  }
-}
-```
-
-**참고**: 서버 시작 시 자동으로 동기화됩니다.
-
----
-
-### 3. GLB 파일 업로드
-
-**Endpoint**: `POST /catalog/glb/{item_id}`
-
-**Headers**:
-```
-Content-Type: multipart/form-data
-```
-
-**Request Body** (Form Data):
-```
-file: <GLB 파일>
-```
-
-**Response** (200 OK):
-```json
-{
-  "message": "GLB file uploaded successfully",
-  "item_id": "custom_chair",
-  "glb_key": "catalog/models/custom_chair.glb",
-  "glb_url": "https://s3.amazonaws.com/..."
-}
-```
-
-**제한사항**:
-- 파일 형식: `.glb`만 허용
-- 파일 크기 제한: 50MB
-- `413`: 파일 크기 초과
-
----
+- `POST /catalog/sync`
+- `GET /catalog/list-glb`
+- `PUT /catalog/{item_id}`
+- `DELETE /catalog/{item_id}`
+- `POST /catalog/glb/{item_id}`
 
 ## WebSocket 이벤트
 
-**연결 URL**: `ws://localhost:8008/socket.io`
+### 연결
 
-**Transport**: `websocket`
+클라이언트는 Socket.IO 연결 시 JWT를 `auth.token`으로 전달해야 합니다.
 
-### 클라이언트 → 서버
+### 주요 이벤트
 
-#### 1. join_project
-```json
-{
-  "project_id": 1,
-  "user_id": 1
-}
-```
+- Client → Server
+  - `join_project`
+  - `furniture_move`
+  - `furniture_add`
+  - `furniture_delete`
+  - `validate_furniture`
+  - `request_lock`
+  - `release_lock`
+  - `update_presence`
+- Server → Client
+  - `current_users`
+  - `user_joined`
+  - `user_left`
+  - `furniture_updated`
+  - `furniture_added`
+  - `furniture_deleted`
+  - `validation_result`
+  - `collision_detected`
+  - `object_locked`
+  - `object_unlocked`
+  - `lock_rejected`
+  - `presence_updated`
+  - `join_error`
 
-#### 2. furniture_move
-```json
-{
-  "project_id": 1,
-  "furniture_id": "bed-single-123",
-  "position": {"x": 1.5, "y": 0.25, "z": 2.0},
-  "rotation": {"x": 0, "y": 45, "z": 0}
-}
-```
-
-#### 3. furniture_add
-```json
-{
-  "project_id": 1,
-  "furniture": {
-    "id": "desk-basic-456",
-    "type": "desk",
-    ...
-  }
-}
-```
-
-#### 4. furniture_delete
-```json
-{
-  "project_id": 1,
-  "furniture_id": "bed-single-123"
-}
-```
-
-#### 5. validate_furniture
-```json
-{
-  "project_id": 1,
-  "furniture_state": {...},
-  "room_dimensions": {...}
-}
-```
-
-### 서버 → 클라이언트
-
-#### 1. user_joined
-```json
-{
-  "user_id": 2,
-  "sid": "abc123"
-}
-```
-
-#### 2. user_left
-```json
-{
-  "sid": "abc123"
-}
-```
-
-#### 3. furniture_updated
-```json
-{
-  "furniture_id": "bed-single-123",
-  "position": {"x": 1.5, "y": 0.25, "z": 2.0},
-  "rotation": {"x": 0, "y": 45, "z": 0}
-}
-```
-
-#### 4. furniture_added
-```json
-{
-  "furniture": {
-    "id": "desk-basic-456",
-    ...
-  }
-}
-```
-
-#### 5. furniture_deleted
-```json
-{
-  "furniture_id": "bed-single-123"
-}
-```
-
-#### 6. validation_result
-```json
-{
-  "valid": false,
-  "collisions": [...],
-  "out_of_bounds": [...]
-}
-```
-
-#### 7. collision_detected
-```json
-{
-  "collisions": [...],
-  "out_of_bounds": [...]
-}
-```
-
----
-
-## 에러 코드
-
-| 코드 | 설명 |
-|------|------|
-| 200 | 성공 |
-| 201 | 생성 성공 |
-| 204 | 삭제 성공 (내용 없음) |
-| 400 | 잘못된 요청 |
-| 401 | 인증 실패 |
-| 403 | 권한 없음 |
-| 404 | 리소스를 찾을 수 없음 |
-| 413 | 파일 크기 초과 (PLY: 100MB, GLB: 50MB) |
-| 500 | 서버 오류 |
-
----
-
-## 다음 단계
-
-- [개발 가이드](./06_개발_가이드.md)로 시작하기
+서버는 클라이언트가 보낸 `user_id`를 신뢰하지 않고, 토큰 기준 사용자/권한으로 room join 을 검증합니다.

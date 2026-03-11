@@ -1,3 +1,6 @@
+> Status: Historical Snapshot
+> 이 문서는 과거 작업 시점의 보고서 또는 보조 가이드입니다. 현재 기준 문서는 README.md, docs/README.md, docs/05_API_문서.md, docs/06_개발_가이드.md, deployment/README.md 를 우선합니다.
+
 # PLY 파일 업로드 기능 통합 테스트 결과
 
 ## 구현 완료 항목

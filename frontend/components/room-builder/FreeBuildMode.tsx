@@ -11,6 +11,7 @@ import FreeBuildScene, { FreeBuildSceneRef } from './FreeBuildScene';
 import BuildToolbar from './BuildToolbar';
 import TextureGallery from './TextureGallery';
 import { UploadedImage } from './types';
+import { getAuthToken } from '@/lib/authToken';
 import { useToastStore } from '@/store/toastStore';
 
 interface FreeBuildModeProps {
@@ -73,7 +74,7 @@ const FreeBuildMode: React.FC<FreeBuildModeProps> = ({
     setIsGeneratingAI(true);
 
     try {
-      const token = localStorage.getItem('token');
+      const token = getAuthToken();
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8008/api/v1';
 
       const response = await fetch(`${apiUrl}/room-builder/generate-texture`, {

@@ -7,8 +7,6 @@ from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_user
 from app.database import get_db
-from app.models.layout import Layout
-from app.models.project import Project
 from app.models.user import User
 from app.schemas.project import (
     ProjectCreate,
@@ -16,16 +14,25 @@ from app.schemas.project import (
     ProjectResponse,
     ProjectUpdate,
 )
-from app.core.logging import get_logger
-
-logger = get_logger("projects")
+from app.services.project_service import (
+    ProjectService,
+    ProjectNotFoundError,
+    ProjectAccessDeniedError,
+)
 
 router = APIRouter()
 
 
+def get_project_service(db: Session = Depends(get_db)) -> ProjectService:
+    """Dependency to get project service."""
+    return ProjectService(db)
+
+
 @router.post("", response_model=ProjectResponse, status_code=status.HTTP_201_CREATED)
 def create_project(
-    project_data: ProjectCreate, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)
+    project_data: ProjectCreate,
+    current_user: User = Depends(get_current_user),
+    project_service: ProjectService = Depends(get_project_service),
 ):
     """
     Create a new project with initial empty layout.
@@ -33,40 +40,31 @@ def create_project(
     Args:
         project_data: Project creation data
         current_user: Current authenticated user
-        db: Database session
+        project_service: Project service instance
 
     Returns:
         Created project object
     """
-    # Create project
-    new_project = Project(
-        owner_id=current_user.id,
+    new_project = project_service.create(
+        owner=current_user,
         name=project_data.name,
-        description=project_data.description,
         room_width=project_data.room_width,
         room_height=project_data.room_height,
         room_depth=project_data.room_depth,
-        # Free Build Mode support
-        build_mode=project_data.build_mode or "template",
+        description=project_data.description,
+        build_mode=project_data.build_mode,
         room_structure=project_data.room_structure,
     )
-
-    db.add(new_project)
-    db.commit()
-    db.refresh(new_project)
-
-    # Create initial empty layout
-    initial_layout = Layout(project_id=new_project.id, version=1, furniture_state={"furnitures": []}, is_current=True)
-
-    db.add(initial_layout)
-    db.commit()
 
     return new_project
 
 
 @router.get("", response_model=List[ProjectResponse])
 def list_projects(
-    skip: int = 0, limit: int = 100, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)
+    skip: int = 0,
+    limit: int = 100,
+    current_user: User = Depends(get_current_user),
+    project_service: ProjectService = Depends(get_project_service),
 ):
     """
     List all projects owned by current user.
@@ -75,25 +73,27 @@ def list_projects(
         skip: Number of records to skip (pagination)
         limit: Maximum number of records to return
         current_user: Current authenticated user
-        db: Database session
+        project_service: Project service instance
 
     Returns:
         List of projects
     """
-    projects = db.query(Project).filter(Project.owner_id == current_user.id).offset(skip).limit(limit).all()
-
-    return projects
+    return project_service.list_by_owner(current_user, skip=skip, limit=limit)
 
 
 @router.get("/{project_id}", response_model=ProjectDetail)
-def get_project(project_id: int, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+def get_project(
+    project_id: int,
+    current_user: User = Depends(get_current_user),
+    project_service: ProjectService = Depends(get_project_service),
+):
     """
     Get project details with current layout.
 
     Args:
         project_id: Project ID
         current_user: Current authenticated user
-        db: Database session
+        project_service: Project service instance
 
     Returns:
         Project details with current layout
@@ -101,45 +101,19 @@ def get_project(project_id: int, current_user: User = Depends(get_current_user),
     Raises:
         HTTPException: If project not found or access denied
     """
-    project = db.query(Project).filter(Project.id == project_id).first()
-
-    if not project:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Project not found")
-
-    if project.owner_id != current_user.id and not project.is_shared:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not authorized to access this project")
-
-    # Get current layout
-    current_layout = db.query(Layout).filter(Layout.project_id == project_id, Layout.is_current == True).first()
-
-    # Convert to dict and add current_layout
-    project_dict = {
-        "id": project.id,
-        "owner_id": project.owner_id,
-        "name": project.name,
-        "description": project.description,
-        "room_width": project.room_width,
-        "room_height": project.room_height,
-        "room_depth": project.room_depth,
-        # New 3D file support
-        "has_3d_file": project.has_3d_file,
-        "file_type": project.file_type,
-        "file_path": project.file_path,
-        "file_size": project.file_size,
-        # Legacy PLY support
-        "has_ply_file": project.has_ply_file,
-        "ply_file_path": project.ply_file_path,
-        "ply_file_size": project.ply_file_size,
-        # Free Build Mode support
-        "build_mode": project.build_mode or "template",
-        "room_structure": project.room_structure,
-        "created_at": project.created_at,
-        "updated_at": project.updated_at,
-        "is_shared": project.is_shared,
-        "current_layout": current_layout.furniture_state if current_layout else None,
-    }
-
-    return project_dict
+    try:
+        project = project_service.get_with_access_check(project_id, current_user)
+        return project_service.get_detail(project)
+    except ProjectNotFoundError:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Project not found"
+        )
+    except ProjectAccessDeniedError:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Not authorized to access this project"
+        )
 
 
 @router.put("/{project_id}", response_model=ProjectResponse)
@@ -147,7 +121,7 @@ def update_project(
     project_id: int,
     project_update: ProjectUpdate,
     current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db),
+    project_service: ProjectService = Depends(get_project_service),
 ):
     """
     Update project metadata.
@@ -156,7 +130,7 @@ def update_project(
         project_id: Project ID
         project_update: Project update data
         current_user: Current authenticated user
-        db: Database session
+        project_service: Project service instance
 
     Returns:
         Updated project object
@@ -164,23 +138,20 @@ def update_project(
     Raises:
         HTTPException: If project not found or access denied
     """
-    project = db.query(Project).filter(Project.id == project_id).first()
-
-    if not project:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Project not found")
-
-    if project.owner_id != current_user.id:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not authorized to modify this project")
-
-    # Update fields
-    update_data = project_update.model_dump(exclude_unset=True)
-    for field, value in update_data.items():
-        setattr(project, field, value)
-
-    db.commit()
-    db.refresh(project)
-
-    return project
+    try:
+        project = project_service.get_with_owner_check(project_id, current_user)
+        update_data = project_update.model_dump(exclude_unset=True)
+        return project_service.update(project, update_data)
+    except ProjectNotFoundError:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Project not found"
+        )
+    except ProjectAccessDeniedError:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Not authorized to modify this project"
+        )
 
 
 @router.post("/{project_id}/share", response_model=ProjectResponse)
@@ -188,7 +159,7 @@ def toggle_project_share(
     project_id: int,
     share: bool = True,
     current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db),
+    project_service: ProjectService = Depends(get_project_service),
 ):
     """
     Toggle project sharing status.
@@ -197,28 +168,32 @@ def toggle_project_share(
         project_id: Project ID
         share: True to enable sharing, False to disable
         current_user: Current authenticated user
-        db: Database session
+        project_service: Project service instance
 
     Returns:
         Updated project object
     """
-    project = db.query(Project).filter(Project.id == project_id).first()
-
-    if not project:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Project not found")
-
-    if project.owner_id != current_user.id:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not authorized to modify this project")
-
-    project.is_shared = share
-    db.commit()
-    db.refresh(project)
-
-    return project
+    try:
+        project = project_service.get_with_owner_check(project_id, current_user)
+        return project_service.toggle_share(project, share)
+    except ProjectNotFoundError:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Project not found"
+        )
+    except ProjectAccessDeniedError:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Not authorized to modify this project"
+        )
 
 
 @router.delete("/{project_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_project(project_id: int, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+def delete_project(
+    project_id: int,
+    current_user: User = Depends(get_current_user),
+    project_service: ProjectService = Depends(get_project_service),
+):
     """
     Delete a project (cascades to layouts and history).
     Also deletes associated uploaded files (PLY/GLB).
@@ -226,74 +201,22 @@ def delete_project(project_id: int, current_user: User = Depends(get_current_use
     Args:
         project_id: Project ID
         current_user: Current authenticated user
-        db: Database session
+        project_service: Project service instance
 
     Raises:
         HTTPException: If project not found or access denied
     """
-    import os
-    from pathlib import Path
-
-    project = db.query(Project).filter(Project.id == project_id).first()
-
-    if not project:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Project not found")
-
-    if project.owner_id != current_user.id:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not authorized to delete this project")
-
-    # Delete associated uploaded files
-    files_deleted = []
-    files_not_found = []
-
-    # Delete legacy PLY file if exists
-    if project.ply_file_path:
-        ply_path = Path(project.ply_file_path)
-        if ply_path.exists():
-            try:
-                os.remove(ply_path)
-                files_deleted.append(str(ply_path))
-                logger.info(f"Deleted PLY file: {ply_path}")
-            except Exception as e:
-                logger.info(f"Failed to delete PLY file {ply_path}: {e}")
-        else:
-            files_not_found.append(f"PLY: {ply_path}")
-            logger.info(f"ℹ️ PLY file not found (already deleted or moved): {ply_path}")
-
-    # Delete 3D file (PLY or GLB) if exists
-    if project.file_path:
-        file_path = Path(project.file_path)
-        file_type_name = project.file_type.upper() if project.file_type else "3D"
-
-        if file_path.exists():
-            try:
-                os.remove(file_path)
-                files_deleted.append(str(file_path))
-                logger.info(f"Deleted {file_type_name} file: {file_path}")
-            except Exception as e:
-                logger.info(f"Failed to delete {file_type_name} file {file_path}: {e}")
-        else:
-            files_not_found.append(f"{file_type_name}: {file_path}")
-            logger.info(f"ℹ️ {file_type_name} file not found (already deleted or moved): {file_path}")
-
-    # Delete project from database (cascades to layouts and history)
     try:
-        db.delete(project)
-        db.commit()
-        logger.info(f"Project {project_id} deleted from database")
-    except Exception as e:
-        db.rollback()
-        logger.info(f"Failed to delete project {project_id} from database: {e}")
+        project = project_service.get_with_owner_check(project_id, current_user)
+        project_service.delete(project)
+        return None
+    except ProjectNotFoundError:
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Failed to delete project: {str(e)}"
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Project not found"
         )
-
-    # Summary log
-    if files_deleted:
-        logger.info(f"Project {project_id} deletion complete: {len(files_deleted)} file(s) deleted")
-    elif files_not_found:
-        logger.info(f"Project {project_id} deletion complete: {len(files_not_found)} file(s) not found (already deleted)")
-    else:
-        logger.info(f"Project {project_id} deletion complete: no files to remove")
-
-    return None
+    except ProjectAccessDeniedError:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Not authorized to delete this project"
+        )

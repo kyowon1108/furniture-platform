@@ -6,6 +6,10 @@ Test mesh generation from point cloud.
 import sys
 from pathlib import Path
 
+import pytest
+
+pytest.importorskip("open3d", reason="optional mesh generation dependency is not installed")
+
 # Add app to path
 sys.path.insert(0, str(Path(__file__).parent))
 

@@ -16,6 +16,8 @@ class Settings(BaseSettings):
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 10080
     ALLOWED_ORIGINS: str = "http://localhost:3008,http://127.0.0.1:3008,http://localhost:3000,http://127.0.0.1:3000"
+    ADMIN_EMAILS: str = ""
+    ENABLE_CATALOG_SYNC_ON_STARTUP: bool = True
     HOST: str = "0.0.0.0"
     PORT: int = 8008
 
@@ -34,6 +36,17 @@ class Settings(BaseSettings):
     def origins_list(self) -> List[str]:
         """Parse ALLOWED_ORIGINS string into list."""
         return [origin.strip() for origin in self.ALLOWED_ORIGINS.split(",")]
+
+    @property
+    def admin_emails_list(self) -> List[str]:
+        """Parse ADMIN_EMAILS string into a normalized list."""
+        if not self.ADMIN_EMAILS.strip():
+            return []
+        return [
+            email.strip().lower()
+            for email in self.ADMIN_EMAILS.split(",")
+            if email.strip()
+        ]
 
 
 # 향후 다른 DB 연결 시 여기서 분기 처리:

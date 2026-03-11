@@ -1,4 +1,17 @@
-"""File upload API endpoints for PLY files."""
+"""
+File upload API endpoints for PLY files.
+
+DEPRECATED: This module is deprecated. Use files_3d.py instead.
+The /api/v1/files endpoints will be removed in a future version.
+Use /api/v1/files-3d endpoints for PLY and GLB file support.
+"""
+
+import warnings
+warnings.warn(
+    "app.api.v1.files is deprecated. Use app.api.v1.files_3d instead.",
+    DeprecationWarning,
+    stacklevel=2
+)
 
 import os
 import shutil
@@ -14,6 +27,7 @@ from app.database import get_db
 from app.models.project import Project
 from app.models.user import User
 from app.core.logging import get_logger
+from app.services.file_service import FileTooLargeError, save_upload_to_temp_file
 
 logger = get_logger("files")
 
@@ -59,27 +73,11 @@ async def upload_ply_file(
     if not file.filename or not file.filename.lower().endswith(".ply"):
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="File must be a PLY file")
 
-    # Read file content with size limit
-    file_content = await file.read()
-    file_size = len(file_content)
-
-    if file_size > MAX_PLY_FILE_SIZE:
-        max_size_mb = MAX_PLY_FILE_SIZE // (1024 * 1024)
-        raise HTTPException(
-            status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
-            detail=f"File too large. Maximum size is {max_size_mb}MB"
-        )
-
     # Validate PLY file format
     temp_path = None
     try:
-        # Reset file pointer
-        await file.seek(0)
-        temp_path = PLY_DIR / f"temp_{project_id}.ply"
-
-        # Save temporarily to validate
-        with open(temp_path, "wb") as temp_file:
-            temp_file.write(file_content)
+        temp_path = PLY_DIR / f"temp_{project_id}_{uuid.uuid4().hex}.ply"
+        file_size = await save_upload_to_temp_file(file, temp_path, MAX_PLY_FILE_SIZE)
 
         # Try to read PLY file
         ply_data = PlyData.read(str(temp_path))
@@ -134,7 +132,7 @@ async def upload_ply_file(
         # Update project in database
         project.has_ply_file = True
         project.ply_file_path = str(final_path)
-        project.ply_file_size = len(file_content)
+        project.ply_file_size = file_size
 
         db.commit()
         db.refresh(project)
@@ -151,7 +149,8 @@ async def upload_ply_file(
         return {
             "message": "PLY file uploaded successfully",
             "filename": safe_filename,
-            "file_size": len(file_content),
+            "download_url": project.download_url,
+            "file_size": file_size,
             "vertex_count": vertex_count,
             "has_colors": has_colors,
             "color_properties": color_properties,
@@ -159,6 +158,13 @@ async def upload_ply_file(
             "project_id": project_id,
         }
 
+    except FileTooLargeError as e:
+        if temp_path and temp_path.exists():
+            os.remove(temp_path)
+        raise HTTPException(
+            status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+            detail=str(e),
+        )
     except HTTPException:
         # Clean up temp file if it exists
         if temp_path and temp_path.exists():
@@ -208,7 +214,7 @@ async def get_ply_file(project_id: int, current_user: User = Depends(get_current
 
     return {
         "has_ply_file": True,
-        "file_path": project.ply_file_path,
+        "download_url": project.download_url,
         "file_size": project.ply_file_size,
         "project_id": project_id,
     }

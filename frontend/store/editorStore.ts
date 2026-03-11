@@ -1,9 +1,15 @@
 /**
  * Editor state management with Zustand.
+ * Core editor functionality: furnitures, selection, history, locking.
+ *
+ * Note: Measurement, lighting, and UI state have been moved to separate stores:
+ * - useMeasureStore for measurement tools
+ * - useLightingStore for time of day/lighting
+ * - useUIStore for sidebar and panel state
  */
 
 import { create } from 'zustand';
-import type { FurnitureItem, TransformMode, Vector3 } from '@/types/furniture';
+import type { FurnitureItem, TransformMode } from '@/types/furniture';
 import { layoutsAPI } from '@/lib/api';
 import { useToastStore } from './toastStore';
 import { socketService } from '@/lib/socket';
@@ -11,9 +17,6 @@ import { socketService } from '@/lib/socket';
 interface LayoutState {
   furnitures: FurnitureItem[];
 }
-
-type MeasureMode = 'none' | 'distance' | 'area';
-type TimeOfDay = 'morning' | 'afternoon' | 'evening' | 'night';
 
 interface EditorState {
   projectId: number | null;
@@ -39,20 +42,10 @@ interface EditorState {
   canUndo: boolean;
   canRedo: boolean;
 
-  // Measurement
-  measureMode: MeasureMode;
-  measurePoints: Vector3[];
-
-  // Lighting
-  timeOfDay: TimeOfDay;
-
   // Clipboard
   clipboard: FurnitureItem[];
 
-  // UI State
-  isSidebarCollapsed: boolean;
-  toggleSidebar: () => void;
-
+  // Actions
   setProjectId: (id: number) => void;
   setProjectOwnerId: (id: number) => void;
   setFurnitures: (furnitures: FurnitureItem[]) => void;
@@ -72,14 +65,6 @@ interface EditorState {
   saveToHistory: () => void;
   undo: () => void;
   redo: () => void;
-
-  // Measurement
-  setMeasureMode: (mode: MeasureMode) => void;
-  addMeasurePoint: (point: Vector3) => void;
-  clearMeasurePoints: () => void;
-
-  // Lighting
-  setTimeOfDay: (time: TimeOfDay) => void;
 
   // Clipboard
   copySelected: () => void;
@@ -116,19 +101,8 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   canUndo: false,
   canRedo: false,
 
-  // Measurement
-  measureMode: 'none',
-  measurePoints: [],
-
-  // Lighting
-  timeOfDay: 'afternoon',
-
   // Clipboard
   clipboard: [],
-
-  // UI State
-  isSidebarCollapsed: false,
-  toggleSidebar: () => set((state) => ({ isSidebarCollapsed: !state.isSidebarCollapsed })),
 
   setProjectId: (id) => set({ projectId: id }),
   setProjectOwnerId: (id) => set({ projectOwnerId: id }),
@@ -142,7 +116,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     set((state) => {
       // Prevent duplicate furniture (same ID)
       if (state.furnitures.some(f => f.id === furniture.id)) {
-        console.warn('⚠️ Duplicate furniture ID detected, skipping:', furniture.id);
+        console.warn('Duplicate furniture ID detected, skipping:', furniture.id);
         return state; // Don't add duplicate
       }
 
@@ -197,7 +171,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     set((state) => {
       // Check if locked by someone else
       if (state.lockedItems[id]) {
-        useToastStore.getState().addToast('다른 사용자가 편집 중인 가구입니다 🔒', 'warning');
+        useToastStore.getState().addToast('다른 사용자가 편집 중인 가구입니다', 'warning');
         return state;
       }
 
@@ -256,7 +230,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       canRedo: true,
     });
 
-    useToastStore.getState().addToast('↶ 실행 취소', 'info');
+    useToastStore.getState().addToast('실행 취소', 'info');
   },
 
   redo: () => {
@@ -274,27 +248,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       canRedo: newIndex < state.historyStack.length - 1,
     });
 
-    useToastStore.getState().addToast('↷ 다시 실행', 'info');
-  },
-
-  // Measurement
-  setMeasureMode: (mode) => set({ measureMode: mode, measurePoints: [] }),
-
-  addMeasurePoint: (point) =>
-    set((state) => ({
-      measurePoints: [...state.measurePoints, point],
-    })),
-
-  clearMeasurePoints: () => set({ measurePoints: [], measureMode: 'none' }),
-
-  // Lighting
-  setTimeOfDay: (time) => {
-    console.log('📦 editorStore: setTimeOfDay called with', time);
-    const currentTime = get().timeOfDay;
-    console.log('📦 editorStore: Current timeOfDay:', currentTime, '→ New timeOfDay:', time);
-    set({ timeOfDay: time });
-    const updatedTime = get().timeOfDay;
-    console.log('📦 editorStore: timeOfDay updated to', updatedTime);
+    useToastStore.getState().addToast('다시 실행', 'info');
   },
 
   // Clipboard
@@ -304,7 +258,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       state.selectedIds.includes(f.id)
     );
     set({ clipboard: selected });
-    useToastStore.getState().addToast(`📋 ${selected.length}개 복사됨`, 'success');
+    useToastStore.getState().addToast(`${selected.length}개 복사됨`, 'success');
   },
 
   paste: () => {
@@ -328,7 +282,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       socketService.emitFurnitureAdd(newItem);
     });
 
-    useToastStore.getState().addToast(`📋 ${state.clipboard.length}개 붙여넣기 완료`, 'success');
+    useToastStore.getState().addToast(`${state.clipboard.length}개 붙여넣기 완료`, 'success');
   },
 
   saveLayout: async () => {
@@ -347,7 +301,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
         isSaving: false,
       });
 
-      useToastStore.getState().addToast('✓ 레이아웃 저장 완료', 'success');
+      useToastStore.getState().addToast('레이아웃 저장 완료', 'success');
     } catch (error) {
       console.error('Failed to save layout:', error);
       set({ isSaving: false });

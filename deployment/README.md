@@ -1,134 +1,73 @@
-# Deployment Scripts
+# Deployment Guide
 
-이 디렉토리에는 AWS EC2 배포를 위한 모든 스크립트와 설정 파일이 포함되어 있습니다.
+이 디렉토리의 스크립트는 단일 EC2 인스턴스에 Frontend/Backend를 함께 올리는 템플릿입니다. 현재 템플릿은 다음 원칙을 전제로 합니다.
 
-## 파일 목록
+- HTTPS 우선
+- Nginx reverse proxy 사용
+- Backend/Frontend는 내부 포트에서만 listen
+- 업로드 파일은 `/uploads/`로 직접 공개하지 않음
+- 카탈로그 관리 API는 `ADMIN_EMAILS` allowlist 필요
 
-### 실행 스크립트
-- **`create-ec2.sh`** - EC2 인스턴스 생성 스크립트
-- **`deploy.sh`** - 애플리케이션 배포 스크립트 (로컬에서 실행)
-- **`setup-server.sh`** - 서버 초기 설정 스크립트 (EC2에서 실행)
+## 포함 파일
 
-### 설정 파일
-- **`nginx.conf`** - Nginx 리버스 프록시 설정
-- **`furniture-backend.service`** - Backend systemd 서비스
-- **`furniture-frontend.service`** - Frontend systemd 서비스
+- `deploy.sh`
+  - EC2에 코드 전송, PostgreSQL 기동, backend/frontend 설치, Nginx/systemd 배치
+- `nginx.conf`
+  - TLS 전제 reverse proxy 템플릿
+- `furniture-backend.service`
+- `furniture-frontend.service`
+- `test_deployment.sh`
+  - HTTPS 기준 smoke test
 
-### 생성되는 파일
-- **`furniture-platform-key.pem`** - SSH 접속용 키 페어 (자동 생성)
+## 빠른 실행
 
-## 빠른 시작
-
-### 1. EC2 인스턴스 생성
 ```bash
 cd deployment
-./create-ec2.sh
+./deploy.sh <EC2_PUBLIC_IP>
 ```
 
-출력에서 **Public IP**를 메모하세요!
+배포 스크립트가 수행하는 작업:
 
-### 2. 애플리케이션 배포
-```bash
-./deploy.sh <PUBLIC_IP>
-```
+1. PostgreSQL 컨테이너 시작
+2. Backend `venv` 생성 및 의존성 설치
+3. Frontend 의존성 설치 및 빌드
+4. 자체 서명 TLS 인증서 생성
+5. `nginx.conf` 템플릿 치환 후 배치
+6. systemd 서비스 등록 및 시작
+
+## 배포 후 확인할 값
+
+`/home/ubuntu/app/backend/.env`
+
+- `DATABASE_URL`
+- `SECRET_KEY`
+- `ALLOWED_ORIGINS`
+- `ADMIN_EMAILS`
 
 예시:
-```bash
-./deploy.sh 3.34.123.45
+
+```env
+ALLOWED_ORIGINS=https://<EC2_PUBLIC_IP>,http://localhost:3008,http://127.0.0.1:3008
+ADMIN_EMAILS=admin@example.com
 ```
 
-### 3. 환경 변수 업데이트
-```bash
-ssh -i furniture-platform-key.pem ubuntu@<PUBLIC_IP>
-nano /home/ubuntu/app/backend/.env
-# ALLOWED_ORIGINS에 Public IP 추가
-sudo systemctl restart furniture-backend
-```
+## 접속 경로
 
-## 상세 가이드
+- Frontend: `https://<EC2_PUBLIC_IP>`
+- Swagger UI: `https://<EC2_PUBLIC_IP>/docs`
+- API: `https://<EC2_PUBLIC_IP>/api/v1`
 
-자세한 배포 방법은 프로젝트 루트의 `AWS_DEPLOYMENT_GUIDE.md`를 참조하세요.
+`test_deployment.sh`는 자체 서명 인증서를 가정하므로 `curl -k` 기반으로 검사합니다.
 
-## 예상 비용
+## 보안 체크리스트
 
-- **EC2 (t3a.large)**: ~$54.90/월
-- **EBS (50GB gp3)**: ~$4.80/월
-- **총 예상**: ~$60-70/월
+- Security Group 공개 포트는 `22`, `80`, `443`만 유지
+- `8008`, `3008`, `5433`은 외부에 공개하지 않음
+- `SECRET_KEY`를 배포마다 새로 생성
+- `ADMIN_EMAILS`를 실제 운영 계정으로 설정
+- 업로드 파일은 인증된 다운로드 엔드포인트로만 접근
 
-## 아키텍처
+## 제한 사항
 
-```
-                    Internet
-                       ↓
-                  [Public IP]
-                       ↓
-              ┌────────────────┐
-              │   Nginx :80    │ ← 리버스 프록시
-              └────────────────┘
-                ↙            ↘
-     ┌──────────────┐  ┌──────────────┐
-     │ Backend:8008 │  │Frontend:3008 │
-     └──────────────┘  └──────────────┘
-              ↓
-        ┌──────────┐
-        │ SQLite   │
-        │ uploads/ │
-        └──────────┘
-```
-
-## 보안
-
-### 개방된 포트
-- **22** - SSH
-- **80** - HTTP (Nginx)
-- **8008** - Backend API (개발용)
-- **3008** - Frontend (개발용)
-
-### 권장 사항
-- 프로덕션에서는 8008, 3008 포트 차단
-- SSH Key 안전하게 보관
-- `.env` 파일의 SECRET_KEY 변경
-
-## 트러블슈팅
-
-### 스크립트 실행 권한 오류
-```bash
-chmod +x create-ec2.sh deploy.sh setup-server.sh
-```
-
-### SSH 접속 오류
-```bash
-# Key 권한 확인
-chmod 400 furniture-platform-key.pem
-
-# 1-2분 대기 후 재시도
-```
-
-### 배포 실패
-```bash
-# 로그 확인
-ssh -i furniture-platform-key.pem ubuntu@<PUBLIC_IP>
-sudo journalctl -u furniture-backend -n 50
-sudo journalctl -u furniture-frontend -n 50
-```
-
-## 인스턴스 관리
-
-### 중지
-```bash
-aws ec2 stop-instances --instance-ids <INSTANCE_ID> --region ap-northeast-2
-```
-
-### 재시작
-```bash
-aws ec2 start-instances --instance-ids <INSTANCE_ID> --region ap-northeast-2
-```
-
-### 삭제
-```bash
-aws ec2 terminate-instances --instance-ids <INSTANCE_ID> --region ap-northeast-2
-```
-
-## 지원
-
-문제가 발생하면 `AWS_DEPLOYMENT_GUIDE.md`의 문제 해결 섹션을 참조하세요.
+- 현재 스크립트는 자체 서명 TLS 인증서를 기본 생성합니다. 실사용 공개 베타에서는 신뢰 가능한 인증서로 교체하는 것이 좋습니다.
+- 단일 인스턴스 템플릿이므로 고가용성, 자동 롤백, 중앙 로그 수집은 별도 설계가 필요합니다.

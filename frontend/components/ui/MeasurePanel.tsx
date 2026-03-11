@@ -1,9 +1,9 @@
 'use client';
 
-import { useEditorStore } from '@/store/editorStore';
+import { useMeasureStore } from '@/store/measureStore';
 
 export function MeasurePanel() {
-  const { measureMode, setMeasureMode, clearMeasurePoints } = useEditorStore();
+  const { measureMode, setMeasureMode, clearMeasurePoints } = useMeasureStore();
 
   const isMeasuring = measureMode === 'distance';
 

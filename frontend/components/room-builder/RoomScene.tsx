@@ -8,13 +8,16 @@ import { FreeBuildTile, FreeBuildConfig, DEFAULT_FREE_BUILD_CONFIG, calculateTil
 
 // Build tool type for custom mode
 type BuildTool = 'select' | 'floor' | 'eraser';
+type TileInteractionEvent = ThreeEvent<MouseEvent>;
+
+const debugRoomScene = (..._args: unknown[]) => {};
 
 interface RoomSceneProps {
   currentTemplate: RoomTemplate;
   customDimensions: { width: number; depth: number };
   selectedTiles: string[];
   tileTextures: Record<string, string>;
-  onTileClick: (tileKey: string, event?: any) => void;
+  onTileClick: (tileKey: string, event?: TileInteractionEvent) => void;
   // New props for custom mode dynamic tiles
   customTiles?: FreeBuildTile[];
   currentTool?: BuildTool;
@@ -30,7 +33,7 @@ const TileMesh: React.FC<{
   isSelected: boolean;
   textureUrl: string | undefined;
   currentTemplate: RoomTemplate;
-  onTileClick: (tileKey: string, e: any) => void;
+  onTileClick: (tileKey: string, e: TileInteractionEvent) => void;
 }> = ({ tile, isSelected, textureUrl, currentTemplate, onTileClick }) => {
   // Load texture and force update when URL changes
   const [texture, setTexture] = useState<THREE.Texture | undefined>(undefined);
@@ -43,11 +46,11 @@ const TileMesh: React.FC<{
   useEffect(() => {
     if (!textureUrl) {
       setTexture(undefined);
-      console.log(`[${tile.key}] No texture URL, using default ${tile.type} color: ${defaultColor}`);
+      debugRoomScene(`[${tile.key}] No texture URL, using default ${tile.type} color: ${defaultColor}`);
       return;
     }
 
-    console.log(`[${tile.key}] Loading texture from: ${textureUrl.substring(0, 50)}...`);
+    debugRoomScene(`[${tile.key}] Loading texture from: ${textureUrl.substring(0, 50)}...`);
     const loader = new THREE.TextureLoader();
     loader.load(
       textureUrl,
@@ -64,7 +67,7 @@ const TileMesh: React.FC<{
 
         tex.needsUpdate = true;
         setTexture(tex);
-        console.log(`[${tile.key}] ✅ Texture loaded successfully, material will use white color`);
+        debugRoomScene(`[${tile.key}] Texture loaded successfully`);
       },
       undefined,
       (error) => {
@@ -72,7 +75,7 @@ const TileMesh: React.FC<{
         setTexture(undefined);
       }
     );
-  }, [textureUrl, tile.key, defaultColor]);
+  }, [textureUrl, tile.key, tile.type, tile.wallSurface, defaultColor]);
 
   // Determine the material color
   const materialColor = isSelected ? '#4CAF50' :
@@ -162,7 +165,7 @@ const FreeBuildTileMesh: React.FC<{
   textureUrl?: string;
   config: FreeBuildConfig;
   currentTool: BuildTool;
-  onTileClick: (tileId: string, event?: any) => void;
+  onTileClick: (tileId: string, event?: TileInteractionEvent) => void;
 }> = ({ tile, isSelected, textureUrl, config, currentTool, onTileClick }) => {
   const [texture, setTexture] = useState<THREE.Texture | undefined>(undefined);
 
@@ -234,7 +237,11 @@ const FreeBuildTileMesh: React.FC<{
   );
 };
 
-const RoomScene = forwardRef<any, RoomSceneProps>(({
+export interface RoomSceneHandle {
+  getScene: () => THREE.Group | null;
+}
+
+const RoomScene = forwardRef<RoomSceneHandle, RoomSceneProps>(({
   currentTemplate,
   customDimensions,
   selectedTiles,

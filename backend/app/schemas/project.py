@@ -48,9 +48,8 @@ class ProjectResponse(ProjectBase):
 
     id: int
     owner_id: int
-    file_path: Optional[str] = None
+    download_url: Optional[str] = None
     file_size: Optional[int] = None
-    ply_file_path: Optional[str] = None  # Legacy support
     ply_file_size: Optional[int] = None  # Legacy support
     created_at: datetime
     updated_at: datetime

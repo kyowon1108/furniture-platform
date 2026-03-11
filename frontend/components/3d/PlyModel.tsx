@@ -6,6 +6,7 @@ import * as THREE from 'three';
 import { Html } from '@react-three/drei';
 import { PLYLoader } from 'three/addons/loaders/PLYLoader.js';
 import { applyAxisCorrectionToGeometry } from '@/lib/axisUtils';
+import { getAuthToken } from '@/lib/authToken';
 
 interface PlyModelProps {
   projectId: number;
@@ -274,7 +275,7 @@ const PlyGeometry = memo(function PlyGeometry({ url, roomDimensions, onDimension
     
     const loadPLY = async () => {
       try {
-        const token = localStorage.getItem('token');
+        const token = getAuthToken();
 
         // Try custom parser first (better face support)
         try {
@@ -290,9 +291,7 @@ const PlyGeometry = memo(function PlyGeometry({ url, roomDimensions, onDimension
         
         // Fetch the PLY file with authentication
         const response = await fetch(url, {
-          headers: {
-            'Authorization': `Bearer ${token}`,
-          },
+          headers: token ? { 'Authorization': `Bearer ${token}` } : undefined,
         });
         
         if (!response.ok) {
@@ -348,8 +347,12 @@ const PlyGeometry = memo(function PlyGeometry({ url, roomDimensions, onDimension
             setLoadError(errorMessage);
           }
         );
-      } catch (error: any) {
-        setLoadError(error.message || 'Failed to fetch PLY file');
+      } catch (error: unknown) {
+        if (error instanceof Error) {
+          setLoadError(error.message);
+        } else {
+          setLoadError('Failed to fetch PLY file');
+        }
       }
     };
     
@@ -410,7 +413,7 @@ const PlyGeometry = memo(function PlyGeometry({ url, roomDimensions, onDimension
     }
     
     return { scale: calculatedScale, position: calculatedPosition };
-  }, [geometry, roomDimensions?.width, roomDimensions?.height, roomDimensions?.depth]);
+  }, [geometry, roomDimensions]);
 
   if (loadError) {
     return (

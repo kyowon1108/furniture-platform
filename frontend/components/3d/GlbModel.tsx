@@ -5,6 +5,7 @@ import * as THREE from 'three';
 import { Html } from '@react-three/drei';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { useThree } from '@react-three/fiber';
+import { getAuthToken } from '@/lib/authToken';
 
 interface GlbModelProps {
   projectId: number;
@@ -187,13 +188,11 @@ const GlbGeometry = memo(function GlbGeometry({ url, roomDimensions, onDimension
 
     const loadGLB = async () => {
       try {
-        const token = localStorage.getItem('token');
+        const token = getAuthToken();
 
         // Fetch the GLB file with authentication
         const response = await fetch(url, {
-          headers: {
-            'Authorization': `Bearer ${token}`,
-          },
+          headers: token ? { 'Authorization': `Bearer ${token}` } : undefined,
         });
 
         if (!response.ok) {
