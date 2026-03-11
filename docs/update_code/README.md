@@ -1,29 +1,24 @@
-# Update Code Documentation
+# Update Code Archive
 
-이 디렉토리는 프로젝트 수정 시 생성되는 설명 파일들을 저장합니다.
+`docs/update_code/`는 코드 변경 시점의 작업 보고서와 요약 메모를 보관하는 아카이브입니다.
 
-## 파일 명명 규칙
+## 역할
 
-- 형식: `기존파일명_HHMMSS.md`
-- 예시: `COLLISION_DETECTION_IMPROVEMENT_140026.md`
-- HHMMSS: 파일 생성 시간 (시:분:초)
+- 변경 이력 설명
+- 임시 구현 메모
+- 특정 작업 세션의 체크리스트/요약
 
-## 사용 방법
+## 역할이 아닌 것
 
-앞으로 코드 수정 시 생성하는 설명 파일은 이 디렉토리에 저장하세요.
+- 현재 운영 기준 문서
+- 최신 API 사양
+- 최신 로컬 실행 가이드
+- 최신 배포 절차
 
-```bash
-# 예시: 새로운 설명 파일 생성
-TIMESTAMP=$(date +%H%M%S)
-FILENAME="NEW_FEATURE_${TIMESTAMP}.md"
-# 파일 내용 작성 후
-mv "$FILENAME" "docs/update_code/"
-```
+## 최신 문서를 찾는 곳
 
-## 파일 목록
-
-현재 저장된 파일들은 프로젝트 루트에서 이동된 문서들입니다.
-
-
-
-
+- 루트 개요: [README.md](/Users/kapr/Projects/External/Codyssey/term_project/furniture-platform/README.md)
+- 문서 인덱스: [docs/README.md](/Users/kapr/Projects/External/Codyssey/term_project/furniture-platform/docs/README.md)
+- API 사양: [docs/05_API_문서.md](/Users/kapr/Projects/External/Codyssey/term_project/furniture-platform/docs/05_API_문서.md)
+- 개발 가이드: [docs/06_개발_가이드.md](/Users/kapr/Projects/External/Codyssey/term_project/furniture-platform/docs/06_개발_가이드.md)
+- 배포 안내: [deployment/README.md](/Users/kapr/Projects/External/Codyssey/term_project/furniture-platform/deployment/README.md)

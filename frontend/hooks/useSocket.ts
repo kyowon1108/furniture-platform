@@ -19,10 +19,7 @@ export function useSocket(projectId: number | null, userId: number | null) {
     if (!projectId || !userId) return;
 
     const nickname = user?.email?.split('@')[0] || `User ${userId}`;
-    // Generate a consistent color based on user ID
-    const color = '#' + Math.floor(Math.abs(Math.sin(userId) * 16777215)).toString(16).padStart(6, '0');
-
-    const socket = socketService.connect(projectId, userId, nickname, color);
+    const socket = socketService.connect(projectId, userId, nickname, '');
 
     socket.on('connect', () => {
       setIsConnected(true);
@@ -37,6 +34,10 @@ export function useSocket(projectId: number | null, userId: number | null) {
     socket.on('connect_error', (error: Error) => {
       console.error('Socket connection error:', error);
       addToast('실시간 협업 서버에 연결할 수 없습니다', 'error');
+    });
+
+    socket.on('join_error', (data: { message?: string }) => {
+      addToast(data.message || '프로젝트 협업 세션에 참여할 수 없습니다', 'error');
     });
 
     socket.on('user_joined', (data: any) => {

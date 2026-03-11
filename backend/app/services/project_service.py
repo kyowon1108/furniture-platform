@@ -144,6 +144,10 @@ class ProjectService:
             room_width=room_width,
             room_height=room_height,
             room_depth=room_depth,
+            has_3d_file=False,
+            file_type=None,
+            has_ply_file=False,
+            is_shared=False,
             build_mode=build_mode or "template",
             room_structure=room_structure,
         )
@@ -291,11 +295,10 @@ class ProjectService:
             # New 3D file support
             "has_3d_file": project.has_3d_file,
             "file_type": project.file_type,
-            "file_path": project.file_path,
+            "download_url": project.download_url,
             "file_size": project.file_size,
             # Legacy PLY support
             "has_ply_file": project.has_ply_file,
-            "ply_file_path": project.ply_file_path,
             "ply_file_size": project.ply_file_size,
             # Free Build Mode support
             "build_mode": project.build_mode or "template",

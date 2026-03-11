@@ -17,8 +17,7 @@ import '@/lib/logger';
 interface ProjectData {
   has_3d_file?: boolean;
   has_ply_file?: boolean;
-  file_path?: string;
-  ply_file_path?: string;
+  download_url?: string;
   file_type?: 'ply' | 'glb' | null;
   build_mode?: 'template' | 'free_build';
   room_structure?: any;

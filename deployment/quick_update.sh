@@ -64,11 +64,12 @@ fi
 
 # .env 파일 업데이트
 cat > .env << EOF
-DATABASE_URL=sqlite:///./dev.db
-SECRET_KEY=production-secret-key-change-this-$(openssl rand -hex 16)
+DATABASE_URL=postgresql://furniture:furniture123@127.0.0.1:5433/furniture_db
+SECRET_KEY=production-secret-key-change-this-$(openssl rand -hex 32)
 ALGORITHM=HS256
 ACCESS_TOKEN_EXPIRE_MINUTES=10080
-ALLOWED_ORIGINS=http://${PUBLIC_IP},http://localhost,http://127.0.0.1
+ALLOWED_ORIGINS=https://${PUBLIC_IP},https://localhost,http://localhost:3008,http://127.0.0.1:3008
+ADMIN_EMAILS=
 HOST=0.0.0.0
 PORT=8008
 EOF
@@ -77,7 +78,20 @@ echo "✅ Backend .env 업데이트 완료"
 
 # Nginx 설정 업데이트
 echo "🌐 Nginx 설정 업데이트 중..."
-sudo cp /tmp/nginx.conf /etc/nginx/sites-available/furniture-platform
+SSL_CERT="/etc/ssl/certs/furniture-platform.crt"
+SSL_KEY="/etc/ssl/private/furniture-platform.key"
+if [ ! -f /etc/ssl/certs/furniture-platform.crt ] || [ ! -f /etc/ssl/private/furniture-platform.key ]; then
+    sudo openssl req -x509 -nodes -days 365 \
+        -newkey rsa:2048 \
+        -keyout "$SSL_KEY" \
+        -out "$SSL_CERT" \
+        -subj "/CN=${PUBLIC_IP}"
+fi
+sed \
+    -e "s#__SERVER_NAME__#${PUBLIC_IP}#g" \
+    -e "s#__SSL_CERT__#${SSL_CERT}#g" \
+    -e "s#__SSL_KEY__#${SSL_KEY}#g" \
+    /tmp/nginx.conf | sudo tee /etc/nginx/sites-available/furniture-platform > /dev/null
 sudo nginx -t
 
 # 서비스 재시작

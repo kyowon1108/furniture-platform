@@ -4,6 +4,7 @@
  */
 
 import axios from 'axios';
+import { getAuthToken, removeAuthToken } from '@/lib/authToken';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8008/api/v1';
 
@@ -16,11 +17,9 @@ export const apiClient = axios.create({
 
 // Request interceptor to add auth token
 apiClient.interceptors.request.use((config) => {
-  if (typeof window !== 'undefined') {
-    const token = localStorage.getItem('token');
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
-    }
+  const token = getAuthToken();
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
   }
   return config;
 });
@@ -34,7 +33,7 @@ apiClient.interceptors.response.use(
         // Don't redirect on auth pages
         const isAuthPage = window.location.pathname.startsWith('/auth/');
         if (!isAuthPage) {
-          localStorage.removeItem('token');
+          removeAuthToken();
           window.location.href = '/auth/login';
         }
       }

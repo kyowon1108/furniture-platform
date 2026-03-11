@@ -29,7 +29,10 @@ async def lifespan(app: FastAPI):
     logger.info("Log file initialized")
 
     # Sync catalog from S3 to DB
-    sync_catalog_from_s3()
+    if settings.ENABLE_CATALOG_SYNC_ON_STARTUP:
+        sync_catalog_from_s3()
+    else:
+        logger.info("Catalog sync on startup disabled by configuration")
 
     yield
 

@@ -6,6 +6,7 @@ import uuid
 from pathlib import Path
 from typing import Dict, Any, Optional, Literal
 
+from fastapi import UploadFile
 from sqlalchemy.orm import Session
 
 from app.core.logging import get_logger
@@ -26,6 +27,7 @@ GLB_DIR.mkdir(parents=True, exist_ok=True)
 # File size limits (in bytes)
 MAX_PLY_FILE_SIZE = 100 * 1024 * 1024  # 100MB
 MAX_GLB_FILE_SIZE = 50 * 1024 * 1024   # 50MB
+UPLOAD_CHUNK_SIZE = 1024 * 1024  # 1MB
 
 
 class FileServiceError(Exception):
@@ -118,6 +120,12 @@ class FileService:
         extension = ".ply" if file_type == "ply" else ".glb"
         return f"project_{project_id}_{uuid.uuid4().hex}{extension}"
 
+    def create_temp_upload_path(self, project_id: int, file_type: str) -> Path:
+        """Create a temp upload path in the right upload directory."""
+        extension = ".ply" if file_type == "ply" else ".glb"
+        upload_dir = self.get_upload_dir(file_type)
+        return upload_dir / f"temp_{project_id}_{uuid.uuid4().hex}{extension}"
+
     async def upload_3d_file(
         self,
         project: Project,
@@ -135,37 +143,42 @@ class FileService:
         Returns:
             Upload result dict
         """
-        upload_dir = self.get_upload_dir(file_type)
-        extension = ".ply" if file_type == "ply" else ".glb"
+        temp_path = self.create_temp_upload_path(project.id, file_type)
+        with open(temp_path, "wb") as f:
+            f.write(file_content)
+        return await self.finalize_uploaded_file(project, temp_path, len(file_content), file_type)
 
-        # Generate paths
-        temp_filename = f"temp_{project.id}_{uuid.uuid4().hex}{extension}"
-        temp_path = upload_dir / temp_filename
+    async def finalize_uploaded_file(
+        self,
+        project: Project,
+        temp_path: Path,
+        file_size: int,
+        file_type: str,
+    ) -> Dict[str, Any]:
+        """Finalize a temporary uploaded file and attach it to a project."""
+        upload_dir = self.get_upload_dir(file_type)
         final_filename = self.generate_safe_filename(project.id, file_type)
         final_path = upload_dir / final_filename
 
         try:
-            # Save temporarily
-            with open(temp_path, "wb") as f:
-                f.write(file_content)
-
-            # Process based on file type
             if file_type == "ply":
                 result = await self._process_ply_file(temp_path, final_path, project)
             else:
                 result = await self._process_glb_file(temp_path, final_path, project)
 
-            # Update project
             project.has_3d_file = True
             project.file_type = file_type
             project.file_path = str(final_path)
-            project.file_size = len(file_content)
+            project.file_size = file_size
 
-            # Legacy PLY support
             if file_type == "ply":
                 project.has_ply_file = True
                 project.ply_file_path = str(final_path)
-                project.ply_file_size = len(file_content)
+                project.ply_file_size = file_size
+            else:
+                project.has_ply_file = False
+                project.ply_file_path = None
+                project.ply_file_size = None
 
             self.db.commit()
             self.db.refresh(project)
@@ -173,15 +186,16 @@ class FileService:
             return {
                 "file_type": file_type,
                 "filename": final_filename,
-                "file_size": len(file_content),
+                "file_size": file_size,
                 "project_id": project.id,
+                "download_url": project.download_url,
                 **result,
             }
-
-        except Exception as e:
-            # Cleanup temp file
+        except Exception:
             if temp_path.exists():
                 os.remove(temp_path)
+            if final_path.exists():
+                os.remove(final_path)
             raise
 
     async def _process_ply_file(
@@ -312,7 +326,7 @@ class FileService:
         return {
             "has_3d_file": True,
             "file_type": project.file_type,
-            "file_path": project.file_path,
+            "download_url": project.download_url,
             "file_size": project.file_size,
             "project_id": project.id,
         }
@@ -352,3 +366,27 @@ class FileService:
         project.ply_file_size = None
 
         self.db.commit()
+
+
+async def save_upload_to_temp_file(upload_file: UploadFile, temp_path: Path, max_size: int) -> int:
+    """Stream an UploadFile to disk while enforcing a max size."""
+    total_size = 0
+
+    try:
+        with open(temp_path, "wb") as buffer:
+            while True:
+                chunk = await upload_file.read(UPLOAD_CHUNK_SIZE)
+                if not chunk:
+                    break
+
+                total_size += len(chunk)
+                if total_size > max_size:
+                    raise FileTooLargeError(max_size // (1024 * 1024))
+
+                buffer.write(chunk)
+    except Exception:
+        if temp_path.exists():
+            temp_path.unlink()
+        raise
+
+    return total_size

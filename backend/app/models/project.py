@@ -45,3 +45,12 @@ class Project(Base):
     # Relationships
     owner = relationship("User", back_populates="projects")
     layouts = relationship("Layout", back_populates="project", cascade="all, delete-orphan")
+
+    @property
+    def download_url(self) -> str | None:
+        """Public API download URL without exposing the underlying disk path."""
+        if self.has_3d_file and self.file_path:
+            return f"/api/v1/files-3d/download-3d/{self.id}"
+        if self.has_ply_file and self.ply_file_path:
+            return f"/api/v1/files/download-ply/{self.id}"
+        return None

@@ -6,6 +6,7 @@ import * as THREE from 'three';
 import { Html } from '@react-three/drei';
 import { PLYLoader } from 'three/addons/loaders/PLYLoader.js';
 import { applyAxisCorrectionToGeometry } from '@/lib/axisUtils';
+import { getAuthToken } from '@/lib/authToken';
 
 interface PlyModelProps {
   projectId: number;
@@ -274,7 +275,7 @@ const PlyGeometry = memo(function PlyGeometry({ url, roomDimensions, onDimension
     
     const loadPLY = async () => {
       try {
-        const token = localStorage.getItem('token');
+        const token = getAuthToken();
 
         // Try custom parser first (better face support)
         try {
@@ -290,9 +291,7 @@ const PlyGeometry = memo(function PlyGeometry({ url, roomDimensions, onDimension
         
         // Fetch the PLY file with authentication
         const response = await fetch(url, {
-          headers: {
-            'Authorization': `Bearer ${token}`,
-          },
+          headers: token ? { 'Authorization': `Bearer ${token}` } : undefined,
         });
         
         if (!response.ok) {

@@ -3,6 +3,7 @@
 import React, { useState, useRef, useMemo, useCallback } from 'react';
 import * as THREE from 'three';
 import { GLTFExporter } from 'three/addons/exporters/GLTFExporter.js';
+import { getAuthToken } from '@/lib/authToken';
 import { RoomTemplate, UploadedImage, ROOM_TEMPLATES } from './types';
 import RoomTemplateSelector from './RoomTemplateSelector';
 import TextureGallery from './TextureGallery';
@@ -140,7 +141,7 @@ const RoomBuilderComplete: React.FC<RoomBuilderCompleteProps> = ({
     console.log('[DEBUG] AI 생성 시작:', aiPrompt);
 
     try {
-      const token = localStorage.getItem('token');
+      const token = getAuthToken();
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8008/api/v1';
 
       const headers: HeadersInit = {

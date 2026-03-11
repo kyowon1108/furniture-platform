@@ -3,6 +3,7 @@
  */
 
 import { io, Socket } from 'socket.io-client';
+import { getAuthToken } from '@/lib/authToken';
 import type { FurnitureItem, Vector3 } from '@/types/furniture';
 
 const SOCKET_URL = process.env.NEXT_PUBLIC_SOCKET_URL || 'http://localhost:8008';
@@ -17,8 +18,10 @@ class SocketService {
 
   connect(projectId: number, userId: number, nickname: string, color: string): Socket {
     this.projectId = projectId;
+    const token = getAuthToken();
 
     this.socket = io(SOCKET_URL, {
+      auth: token ? { token } : undefined,
       transports: ['websocket'],
       reconnection: true,
       reconnectionAttempts: 5,

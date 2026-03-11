@@ -16,6 +16,9 @@ from app.services.file_service import (
     FileNotFoundError as FileServiceNotFoundError,
     InvalidFileError,
     FileTooLargeError,
+    MAX_GLB_FILE_SIZE,
+    MAX_PLY_FILE_SIZE,
+    save_upload_to_temp_file,
 )
 
 router = APIRouter()
@@ -51,15 +54,10 @@ async def upload_3d_file(
 
         # Detect and validate file type
         file_type = file_service.detect_file_type(file.filename)
-
-        # Read file content
-        file_content = await file.read()
-
-        # Validate size
-        file_service.validate_file_size(len(file_content), file_type)
-
-        # Upload and process
-        result = await file_service.upload_3d_file(project, file_content, file_type)
+        max_size = MAX_PLY_FILE_SIZE if file_type == "ply" else MAX_GLB_FILE_SIZE
+        temp_path = file_service.create_temp_upload_path(project.id, file_type)
+        file_size = await save_upload_to_temp_file(file, temp_path, max_size)
+        result = await file_service.finalize_uploaded_file(project, temp_path, file_size, file_type)
 
         return {
             "message": f"{file_type.upper()} file uploaded successfully",

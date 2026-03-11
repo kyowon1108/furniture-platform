@@ -2,6 +2,8 @@
  * Logger utility for collecting and saving logs to backend.
  */
 
+import { getAuthToken } from './authToken';
+
 export type LogLevel = 'log' | 'info' | 'warn' | 'error' | 'debug';
 
 export interface LogEntry {
@@ -18,10 +20,14 @@ class Logger {
   private autoSaveDelay = 5000; // Auto-save every 5 seconds
   private isSaving = false;
   private isDevelopment = process.env.NODE_ENV === 'development';
+  private remoteLoggingEnabled = process.env.NEXT_PUBLIC_ENABLE_REMOTE_LOGS === 'true';
 
   constructor() {
     // Only initialize in browser environment
     if (typeof window === 'undefined') {
+      return;
+    }
+    if (!this.isDevelopment && !this.remoteLoggingEnabled) {
       return;
     }
     // Override console methods to capture logs
@@ -222,7 +228,7 @@ class Logger {
       logsToSave = [...this.logs];
       this.logs = []; // Clear logs after copying
 
-      const token = localStorage.getItem('token');
+      const token = getAuthToken();
       if (!token) {
         // If not authenticated, keep logs in memory
         this.logs = logsToSave;
@@ -284,4 +290,3 @@ if (typeof window !== 'undefined') {
     logger.saveLogs();
   };
 }
-

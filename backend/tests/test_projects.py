@@ -21,6 +21,9 @@ def test_create_project(client, auth_headers):
     assert data["room_width"] == project_data["room_width"]
     assert "id" in data
     assert "owner_id" in data
+    assert "file_path" not in data
+    assert "ply_file_path" not in data
+    assert data["download_url"] is None
 
 
 def test_list_projects(client, auth_headers):
@@ -54,6 +57,8 @@ def test_get_project_detail(client, auth_headers):
     assert data["name"] == "Detail Test"
     assert "current_layout" in data
     assert data["current_layout"] is not None
+    assert "file_path" not in data
+    assert "ply_file_path" not in data
 
 
 def test_update_project(client, auth_headers):

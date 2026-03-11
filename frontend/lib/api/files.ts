@@ -6,7 +6,7 @@ import { apiClient } from './client';
 
 export interface PlyUploadResponse {
   message: string;
-  file_path: string;
+  download_url: string;
   dimensions?: {
     width: number;
     height: number;
@@ -15,8 +15,8 @@ export interface PlyUploadResponse {
 }
 
 export interface PlyInfoResponse {
-  has_ply: boolean;
-  file_path?: string;
+  has_ply_file: boolean;
+  download_url?: string;
   dimensions?: {
     width: number;
     height: number;

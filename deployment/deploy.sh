@@ -46,6 +46,7 @@ echo "📝 3단계: 설정 파일 전송..."
 scp -i $KEY_FILE nginx.conf ubuntu@$INSTANCE_IP:/tmp/
 scp -i $KEY_FILE furniture-backend.service ubuntu@$INSTANCE_IP:/tmp/
 scp -i $KEY_FILE furniture-frontend.service ubuntu@$INSTANCE_IP:/tmp/
+scp -i $KEY_FILE ../docker-compose.yml ubuntu@$INSTANCE_IP:/home/ubuntu/app/docker-compose.yml
 
 # 4. 서버에서 설치 및 설정 실행
 echo ""
@@ -54,6 +55,22 @@ ssh -i $KEY_FILE ubuntu@$INSTANCE_IP << 'ENDSSH'
 set -e
 
 cd /home/ubuntu/app
+
+# Docker Compose 환경 변수 생성
+cat > .env << EOF
+POSTGRES_USER=furniture
+POSTGRES_PASSWORD=furniture123
+POSTGRES_DB=furniture_db
+POSTGRES_PORT=5433
+EOF
+
+# PostgreSQL 시작
+echo "🐘 PostgreSQL 시작 중..."
+sudo docker compose up -d postgres
+until sudo docker compose exec -T postgres pg_isready -U furniture -d furniture_db > /dev/null 2>&1; do
+    echo "   PostgreSQL 대기 중..."
+    sleep 2
+done
 
 # Backend 설정
 echo "🐍 Backend 설정 중..."
@@ -74,19 +91,20 @@ if [ -f .env ]; then
 fi
 
 # EC2 메타데이터에서 Public IP 가져오기
-PUBLIC_IP=$(curl -s http://169.254.169.254/latest/meta-data/public-ipv4 || echo "localhost")
+PUBLIC_HOST=$(curl -s http://169.254.169.254/latest/meta-data/public-ipv4 || echo "localhost")
 
 cat > .env << EOF
-DATABASE_URL=sqlite:///./dev.db
+DATABASE_URL=postgresql://furniture:furniture123@127.0.0.1:5433/furniture_db
 SECRET_KEY=production-secret-key-change-this-$(openssl rand -hex 32)
 ALGORITHM=HS256
 ACCESS_TOKEN_EXPIRE_MINUTES=10080
-ALLOWED_ORIGINS=http://${PUBLIC_IP},http://localhost,http://127.0.0.1
+ALLOWED_ORIGINS=https://${PUBLIC_HOST},https://localhost,http://localhost:3008,http://127.0.0.1:3008
+ADMIN_EMAILS=
 HOST=0.0.0.0
 PORT=8008
 EOF
 
-echo "✅ Backend .env 파일 생성 완료 (PUBLIC_IP: ${PUBLIC_IP})"
+echo "✅ Backend .env 파일 생성 완료 (PUBLIC_HOST: ${PUBLIC_HOST})"
 
 # 데이터베이스 마이그레이션
 echo "🧹 Python 캐시 파일 정리 중..."
@@ -115,14 +133,14 @@ if [ -f .env.local ]; then
 fi
 
 # EC2 메타데이터에서 Public IP 가져오기
-PUBLIC_IP=$(curl -s http://169.254.169.254/latest/meta-data/public-ipv4 || echo "localhost")
+PUBLIC_HOST=$(curl -s http://169.254.169.254/latest/meta-data/public-ipv4 || echo "localhost")
 
 cat > .env.local << EOF
-NEXT_PUBLIC_API_URL=http://${PUBLIC_IP}:8008/api/v1
-NEXT_PUBLIC_SOCKET_URL=http://${PUBLIC_IP}:8008
+NEXT_PUBLIC_API_URL=https://${PUBLIC_HOST}/api/v1
+NEXT_PUBLIC_SOCKET_URL=https://${PUBLIC_HOST}
 EOF
 
-echo "✅ Frontend .env.local 파일 생성 완료 (PUBLIC_IP: ${PUBLIC_IP})"
+echo "✅ Frontend .env.local 파일 생성 완료 (PUBLIC_HOST: ${PUBLIC_HOST})"
 
 # 프로덕션 빌드
 npm run build
@@ -131,7 +149,22 @@ cd /home/ubuntu/app
 
 # Nginx 설정
 echo "🌐 Nginx 설정 중..."
-sudo cp /tmp/nginx.conf /etc/nginx/sites-available/furniture-platform
+PUBLIC_HOST=$(curl -s http://169.254.169.254/latest/meta-data/public-ipv4 || echo "localhost")
+SSL_CERT="/etc/ssl/certs/furniture-platform.crt"
+SSL_KEY="/etc/ssl/private/furniture-platform.key"
+if [ ! -f /etc/ssl/certs/furniture-platform.crt ] || [ ! -f /etc/ssl/private/furniture-platform.key ]; then
+    echo "🔐 자체 서명 TLS 인증서 생성 중..."
+    sudo openssl req -x509 -nodes -days 365 \
+        -newkey rsa:2048 \
+        -keyout "$SSL_KEY" \
+        -out "$SSL_CERT" \
+        -subj "/CN=${PUBLIC_HOST}"
+fi
+sed \
+    -e "s#__SERVER_NAME__#${PUBLIC_HOST}#g" \
+    -e "s#__SSL_CERT__#${SSL_CERT}#g" \
+    -e "s#__SSL_KEY__#${SSL_KEY}#g" \
+    /tmp/nginx.conf | sudo tee /etc/nginx/sites-available/furniture-platform > /dev/null
 sudo ln -sf /etc/nginx/sites-available/furniture-platform /etc/nginx/sites-enabled/
 sudo rm -f /etc/nginx/sites-enabled/default
 sudo nginx -t
@@ -167,14 +200,13 @@ echo "✅ 배포 완료!"
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo ""
 echo "🔗 접속 URL:"
-echo "  Frontend: http://$INSTANCE_IP"
-echo "  Backend API: http://$INSTANCE_IP:8008"
-echo "  API Docs: http://$INSTANCE_IP:8008/docs"
+echo "  Frontend: https://$INSTANCE_IP"
+echo "  API Docs: https://$INSTANCE_IP/docs"
 echo ""
-echo "⚠️  중요: .env 파일의 ALLOWED_ORIGINS를 업데이트하세요:"
+echo "⚠️  중요: .env 파일의 ADMIN_EMAILS를 업데이트하세요:"
 echo "  ssh -i $KEY_FILE ubuntu@$INSTANCE_IP"
 echo "  nano /home/ubuntu/app/backend/.env"
-echo "  # ALLOWED_ORIGINS=http://$INSTANCE_IP 추가"
+echo "  # ADMIN_EMAILS=admin@example.com"
 echo "  sudo systemctl restart furniture-backend"
 echo ""
 echo "📝 로그 확인:"

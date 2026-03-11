@@ -13,6 +13,7 @@ import TextureGallery from '@/components/room-builder/TextureGallery';
 import RoomScene from '@/components/room-builder/RoomScene';
 import { ConfirmModal } from '@/components/ui/ConfirmModal';
 import { ToastContainer } from '@/components/ui/Toast';
+import { getAuthToken } from '@/lib/authToken';
 import { RoomTemplate, UploadedImage, ROOM_TEMPLATES } from '@/components/room-builder/types';
 // import { optimizeSceneTextures } from '@/utils/textureOptimizer';
 import { optimizeSceneTextures } from '@/utils/optimizedTextureAtlas';
@@ -75,7 +76,7 @@ export default function RoomBuilderPage() {
 
     const loadProject = async () => {
       try {
-        const token = localStorage.getItem('token');
+        const token = getAuthToken();
         if (!token) {
           console.warn('No token found, using demo mode');
           addToast('로그인이 필요합니다. 데모 모드로 진행합니다.', 'warning');
@@ -395,7 +396,7 @@ export default function RoomBuilderPage() {
     console.log('[DEBUG] AI 생성 시작:', aiPrompt);
 
     try {
-      const token = localStorage.getItem('token');
+      const token = getAuthToken();
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8008/api/v1';
 
       const headers: HeadersInit = {
@@ -560,7 +561,7 @@ export default function RoomBuilderPage() {
       setUploadProgress(70);
 
       // Upload GLB
-      const token = localStorage.getItem('token');
+      const token = getAuthToken();
 
       if (!token) {
         console.log('Demo mode: Skipping GLB upload');

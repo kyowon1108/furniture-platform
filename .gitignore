@@ -7,6 +7,7 @@ __pycache__/
 env/
 venv/
 .venv/
+.venv*/
 ENV/
 *.egg-info/
 dist/
@@ -57,6 +58,10 @@ htmlcov/
 # Misc
 *.bak
 *.tmp
+.mcp.json
+.omx/
+.playwright-mcp/
+docs/screenshots/
 
 # AWS Deployment Keys
 deployment/*.pem

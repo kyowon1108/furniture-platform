@@ -21,7 +21,10 @@ sudo apt install -y \
     nginx \
     git \
     curl \
-    build-essential
+    build-essential \
+    docker.io \
+    docker-compose-plugin \
+    openssl
 
 # Node.js 22.x 설치
 echo "📦 Node.js 설치 중..."
@@ -32,10 +35,17 @@ sudo apt install -y nodejs
 echo "✓ Python: $(python3 --version)"
 echo "✓ Node.js: $(node --version)"
 echo "✓ npm: $(npm --version)"
+echo "✓ Docker: $(docker --version)"
 
 # 애플리케이션 디렉토리 생성
 echo "📁 애플리케이션 디렉토리 생성..."
 sudo mkdir -p /home/ubuntu/app
 sudo chown -R ubuntu:ubuntu /home/ubuntu/app
+
+# Docker 서비스 활성화
+echo "🐳 Docker 서비스 활성화..."
+sudo systemctl enable docker
+sudo systemctl start docker
+sudo usermod -aG docker ubuntu
 
 echo "✅ 서버 초기 설정 완료!"

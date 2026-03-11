@@ -16,8 +16,7 @@ import { DebugInfo } from '@/components/3d/DebugInfo';
 interface ProjectData {
   has_3d_file?: boolean;
   has_ply_file?: boolean;
-  file_path?: string;
-  ply_file_path?: string;
+  download_url?: string;
   file_type?: 'ply' | 'glb' | null;
   build_mode?: 'template' | 'free_build';
   room_structure?: any;
@@ -61,7 +60,7 @@ export function EditorView({ projectId, projectData, initialRoomDimensions }: Ed
         <Scene
           projectId={projectId}
           hasPlyFile={projectData?.has_3d_file || projectData?.has_ply_file}
-          plyFilePath={projectData?.file_path || projectData?.ply_file_path}
+          plyFilePath={projectData?.download_url}
           fileType={projectData?.file_type || (projectData?.has_ply_file ? 'ply' : null)}
           roomDimensions={roomDimensions}
           onRoomDimensionsChange={handleRoomDimensionsChange}
